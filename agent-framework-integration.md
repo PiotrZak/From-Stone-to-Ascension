@@ -4,6 +4,8 @@
 **Framework:** [Microsoft Agent Framework (MAF)](https://github.com/microsoft/agent-framework)  
 **Status:** Phase 2 started — .NET simulation scaffold with agent tool surface (MAF not wired yet)
 
+**Related:** [orleans-integration.md](orleans-integration.md) (distributed simulation server)
+
 ---
 
 ## 1. Purpose
@@ -45,11 +47,13 @@ From-Stone-to-Ascension/
 │   │   └── SampleWorldFactory.cs
 │   ├── TTS.Game/                    # Console host / demo
 │   │   └── Program.cs
+│   ├── TTS.Server/                  # Future — Orleans silo (see orleans-integration.md)
 │   └── TTS.Tests/
 │       └── CoreSystemsTests.cs
 ├── README.md
 ├── tech-tree.md
-└── agent-framework-integration.md
+├── agent-framework-integration.md
+└── orleans-integration.md
 ```
 
 ### Getting started
@@ -280,6 +284,10 @@ Usable **before** gameplay code exists:
 | Python simulation or tooling | `agent-framework` (Python) |
 
 Both can coexist: Python for content/design pipelines, .NET for runtime if the game server is .NET.
+
+### Hosting with Orleans (multiplayer)
+
+For online play, MAF workflows can run inside Orleans `CivilizationGrain` instances. Grains **activate on demand** (e.g. civ turn, crisis event) and **deactivate when idle** — so many agent-backed civs can exist without keeping every LLM context in memory. See [orleans-integration.md §4](orleans-integration.md#4-agentic-grain-lifecycle-activate-on-demand) for the agentic turn flow diagram.
 
 ---
 
