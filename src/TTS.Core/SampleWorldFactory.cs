@@ -6,7 +6,7 @@ using TTS.Core.Systems;
 /// <summary>Creates a minimal playable world for demos and tests.</summary>
 public static class SampleWorldFactory
 {
-    public static WorldState Create()
+    public static WorldState Create(bool withDemoGate = false)
     {
         var world = new WorldState();
 
@@ -36,7 +36,14 @@ public static class SampleWorldFactory
         world.Regions.Add(regionA);
         world.Regions.Add(regionB);
 
-        world.Technologies.AddRange(CreateStarterTechnologies());
+        world.Technologies.AddRange(LoadTechnologies());
+
+        var match = new MatchState("match-demo", MatchPresets.Sprint8h, DateTimeOffset.UtcNow);
+        new TickScheduler().StartMatch(match, match.StartedAt);
+        world.Match = match;
+
+        if (withDemoGate)
+            AttachDemoGate(world, player);
 
         world.KnowledgeNetworks.Add(new KnowledgeNetwork(player.Id, rival.Id, DiffusionChannel.Trade));
         world.KnowledgeNetworks.Add(new KnowledgeNetwork(rival.Id, player.Id, DiffusionChannel.Espionage));
@@ -44,7 +51,17 @@ public static class SampleWorldFactory
         return world;
     }
 
-    private static IEnumerable<Technology> CreateStarterTechnologies()
+    private static IEnumerable<Technology> LoadTechnologies()
+    {
+        var catalog = TechTreeCatalog.Default;
+        if (catalog.IsLoaded && catalog.Technologies.Count > 0)
+            return catalog.Technologies;
+
+        return CreateFallbackTechnologies();
+    }
+
+    /// <summary>Minimal spine when catalog.json is missing (tests in isolation).</summary>
+    private static IEnumerable<Technology> CreateFallbackTechnologies()
     {
         yield return new Technology("tech-agriculture", "Agriculture Systems", TechTier.PreIndustrial, TechCategory.Agriculture);
         yield return new Technology("tech-governance", "Basic Governance", TechTier.PreIndustrial, TechCategory.Agriculture, ["tech-agriculture"]);
@@ -79,6 +96,28 @@ public static class SampleWorldFactory
             riskLevel: 60,
             isForbidden: true,
             fusionTags: ["ai", "forbidden"]);
+    }
+
+    private static void AttachDemoGate(WorldState world, Civilization player)
+    {
+        if (world.Match is null)
+            return;
+
+        var window = world.Match.Config.DecisionWindow;
+        player.PendingDecisions.Add(new DecisionGate(
+            "gate-demo-start",
+            player.Id,
+            GateType.CrimePressure,
+            "Regional crime briefing",
+            "California regional data shows elevated crime pressure. Choose a response before research continues.",
+            [
+                new DecisionOption("invest", "Invest", "Fund cybersecurity and social programs."),
+                new DecisionOption("ignore", "Ignore", "Accept political erosion."),
+                new DecisionOption("crackdown", "Crackdown", "Law enforcement surge.")
+            ],
+            defaultOptionId: "invest",
+            world.SimulatedNow,
+            world.SimulatedNow + window));
     }
 
     private static void AttachCrimeProfiles(Region regionA, Region regionB)

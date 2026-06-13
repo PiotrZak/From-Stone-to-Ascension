@@ -15,10 +15,15 @@ public sealed class SimulationServices
     public KnowledgeDiffusionSystem KnowledgeDiffusion { get; } = new();
     public CrimeSystem Crime { get; } = new();
     public WinLossSystem WinLoss { get; } = new();
+    public DecisionGateSystem DecisionGates { get; } = new();
+    public AwaySummaryBuilder AwaySummary { get; } = new();
+    public TickScheduler Scheduler { get; } = new();
     public AutoPolicySystem AutoPolicy { get; }
     public ClassicalAiSystem ClassicalAi { get; }
     public ResearchExecutor Research { get; }
     public List<TurnResearchDecision> TurnResearchDecisions { get; } = [];
+    public TurnSnapshot? CurrentTurnSnapshot { get; private set; }
+    public List<TurnSnapshot> TurnHistory { get; } = [];
 
     public SimulationServices()
     {
@@ -27,9 +32,58 @@ public sealed class SimulationServices
         ClassicalAi = new ClassicalAiSystem(this);
     }
 
-    public void BeginTurn() => TurnResearchDecisions.Clear();
+    public void BeginTurn(WorldState world)
+    {
+        TurnResearchDecisions.Clear();
+        CurrentTurnSnapshot = new TurnSnapshot
+        {
+            Turn = world.Turn,
+            SimulatedAt = world.SimulatedNow
+        };
+
+        foreach (var civilization in world.Civilizations)
+        {
+            CurrentTurnSnapshot.CivilizationsAtStart[civilization.Id] = new CivTurnStartSnapshot(
+                civilization.CurrentTier,
+                civilization.AverageStability,
+                civilization.ResearchedTechnologyIds.Count,
+                civilization.ResearchedTechnologyIds.ToList());
+        }
+    }
 
     public void RecordResearchDecision(TurnResearchDecision decision) => TurnResearchDecisions.Add(decision);
+
+    public void RecordGateResolution(GateResolutionRecord record) =>
+        CurrentTurnSnapshot?.GateResolutions.Add(record);
+
+    public void RecordNewEvent(string eventName) =>
+        CurrentTurnSnapshot?.NewEvents.Add(eventName);
+
+    public void FinalizeTurn(WorldState world)
+    {
+        if (CurrentTurnSnapshot is null)
+            return;
+
+        foreach (var civilization in world.Civilizations)
+        {
+            if (!CurrentTurnSnapshot.CivilizationsAtStart.TryGetValue(civilization.Id, out var start))
+                continue;
+
+            var newTechs = civilization.ResearchedTechnologyIds
+                .Except(start.ResearchedTechnologyIds)
+                .Select(id => world.Technologies.FirstOrDefault(t => t.Id == id)?.Name ?? id)
+                .ToList();
+
+            if (newTechs.Count > 0)
+                CurrentTurnSnapshot.ResearchedThisTurn[civilization.Id] = newTechs;
+
+            if (civilization.CurrentTier > start.Tier && !CurrentTurnSnapshot.TierChanges.ContainsKey(civilization.Id))
+                CurrentTurnSnapshot.TierChanges[civilization.Id] = new TierChangeRecord(start.Tier, civilization.CurrentTier);
+        }
+
+        TurnHistory.Add(CurrentTurnSnapshot);
+        CurrentTurnSnapshot = null;
+    }
 
     public GameToolSurface CreateToolSurface(WorldState world) => new(world, this);
 

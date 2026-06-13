@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <None Include="..\data\state_crime_income_merged.csv" Link="Data\state_crime_income_merged.csv" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\data\tech\catalog.json" Link="Data\tech\catalog.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

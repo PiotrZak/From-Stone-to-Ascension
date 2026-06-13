@@ -12,6 +12,9 @@ public class TechTreeSystem
         if (civilization.ResearchedTechnologyIds.Contains(technology.Id))
             return false;
 
+        if (civilization.BannedTechnologyIds.Contains(technology.Id))
+            return false;
+
         if ((int)technology.Tier > (int)civilization.CurrentTier + 1)
             return false;
 

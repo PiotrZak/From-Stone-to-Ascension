@@ -38,6 +38,9 @@ public class Technology
     /// <summary>Tags used for fusion node generation across tiers.</summary>
     public IReadOnlyList<string> FusionTags { get; }
 
+    /// <summary>Core / branch / forbidden / fusion within the tier sub-tree.</summary>
+    public TechNodeRole Role { get; set; }
+
     public Technology(
         string id,
         string name,
@@ -46,7 +49,8 @@ public class Technology
         IEnumerable<string>? prerequisites = null,
         int riskLevel = 0,
         bool isForbidden = false,
-        IEnumerable<string>? fusionTags = null)
+        IEnumerable<string>? fusionTags = null,
+        TechNodeRole role = TechNodeRole.Branch)
     {
         Id = id;
         Name = name;
@@ -56,5 +60,6 @@ public class Technology
         RiskLevel = riskLevel;
         IsForbidden = isForbidden;
         FusionTags = (fusionTags ?? []).ToList();
+        Role = isForbidden ? TechNodeRole.Forbidden : role;
     }
 }

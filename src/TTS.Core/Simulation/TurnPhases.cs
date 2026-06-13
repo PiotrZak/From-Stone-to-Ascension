@@ -41,6 +41,19 @@ public sealed class CivilizationTurnPhase : ITurnPhase
     {
         foreach (var civilization in world.Civilizations)
         {
+            if (services.DecisionGates.HasBlockingGate(civilization))
+            {
+                services.RecordResearchDecision(new TurnResearchDecision(
+                    civilization.Id,
+                    civilization.Name,
+                    "decision-gate",
+                    false,
+                    null,
+                    null,
+                    "Research paused — pending decision gate."));
+                continue;
+            }
+
             foreach (var runner in _runners)
             {
                 if (!runner.CanHandle(civilization, world))
@@ -99,7 +112,10 @@ public sealed class GlobalEventGenerationPhase : ITurnPhase
     {
         var newEvent = services.GlobalEvents.MaybeGenerateEvent(world);
         if (newEvent is not null)
+        {
             services.GlobalEvents.EmitEvent(world, newEvent);
+            services.RecordNewEvent(newEvent.Name);
+        }
     }
 }
 

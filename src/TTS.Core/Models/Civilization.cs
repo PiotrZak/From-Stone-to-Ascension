@@ -23,6 +23,11 @@ public class Civilization
     public List<string> ControlledRegionIds { get; } = [];
     public List<Faction> Factions { get; } = [];
     public CivilizationPolicy Policy { get; set; } = CivilizationPolicy.Balanced();
+    public List<DecisionGate> PendingDecisions { get; } = [];
+    public HashSet<string> BannedTechnologyIds { get; } = new(StringComparer.Ordinal);
+    public HashSet<string> OfferedGateKeys { get; } = new(StringComparer.Ordinal);
+
+    public DecisionGate? ActiveGate => PendingDecisions.FirstOrDefault(g => !g.IsResolved);
 
     public Civilization(string id, string name, bool isPlayerControlled = false)
     {

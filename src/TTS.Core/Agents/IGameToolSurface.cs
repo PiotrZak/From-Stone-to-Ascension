@@ -24,6 +24,9 @@ public interface IGameToolSurface
     ActionResult ProposeDiplomaticAction(string civilizationId, string action, string targetCivilizationId);
     ProposeResearchResult ProposeResearch(string civilizationId, string technologyId);
     ActionResult EmitGlobalEvent(GlobalEvent globalEvent);
+    IReadOnlyList<DecisionGate> GetPendingDecisions(string civilizationId);
+    GateResolutionResult ResolveDecision(string civilizationId, string gateId, string optionId);
+    AwaySummary GetAwaySummary(int fromTurn, int toTurn);
 }
 
 public readonly record struct CivilizationStateSnapshot(

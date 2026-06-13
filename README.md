@@ -6,6 +6,7 @@
 **LLM deploy:** [llm-deployment.md](llm-deployment.md) — Ollama vs cloud for internet MP + cost  
 **Local AI:** [ollama-scenarios.md](ollama-scenarios.md) — Ollama scenarios (TTS.Agents)  
 **TTS 4 data:** [crime-data.md](crime-data.md) — crime/income CSV perspective  
+**Tech sub-trees:** [tech-trees-by-tier.md](tech-trees-by-tier.md) — per-TTS layer trees + diagrams  
 **Separate game:** [company-sim.md](company-sim.md) — async procurement / company sim (Supply Ascent)
 
 ---
@@ -161,6 +162,8 @@ Instead of a single tech tree:
 - TTS 3 → electronics tree  
 - TTS 5 → AI cognition tree  
 - TTS 6 → biological rewriting tree  
+
+**Full sub-tree design:** [tech-trees-by-tier.md](tech-trees-by-tier.md) — per-tier branches, mermaid diagrams, node tables
 
 ---
 

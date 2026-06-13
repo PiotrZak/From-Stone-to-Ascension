@@ -1,8 +1,8 @@
 # Implementation Plan
 
 **Project:** TTS — Technology Tier Simulation  
-**Last updated:** Phase 2b + Phase 7 (partial) complete — Phase 3 is next  
-**Status:** Auto policy, classical AI, TTS 4 crime perspective, and Ollama offline scenarios implemented; 14 tests passing
+**Last updated:** Phase 3 + Phase 4 (partial) — tech catalog, decision gates, match presets  
+**Status:** 28 tests passing; governor gameplay (gates + away summary) implemented locally
 
 ---
 
@@ -37,9 +37,9 @@ TTS.Core (rules) → Auto policy & decisions → Scheduled ticks → Orleans →
 From-Stone-to-Ascension.sln
 ├── src/TTS.Core/       Models, systems, GameLoop, agent tool surface
 ├── src/TTS.Game/       Console demo (8 instant turns)
-├── src/TTS.Tests/      14 xunit tests
+├── src/TTS.Tests/      28 xunit tests
 ├── src/TTS.Agents/     Ollama offline scenarios (7 + ping)
-└── src/data/           state_crime_income_merged.csv (TTS 4)
+└── src/data/           state_crime_income_merged.csv, tech/catalog.json
 ```
 
 **Not yet created:** `TTS.Server`, `TTS.Api`
@@ -71,8 +71,8 @@ flowchart LR
 | **1** | Core simulation scaffold | `TTS.Game` | Done |
 | **2** | Auto policy & classical AI | `TTS.Core` | Done |
 | **2b** | Crime data (TTS 4 perspective) | `TTS.Core` + `TTS.Agents` | Done |
-| **3** | Decision gates & away summary | `TTS.Core` | **Next** |
-| **4** | Scheduled ticks (local) | `TTS.Core` / `TTS.Game` | Planned |
+| **3** | Decision gates & away summary | `TTS.Core` | **Done** |
+| **4** | Scheduled ticks (local) | `TTS.Core` / `TTS.Game` | **Partial** |
 | **5** | Orleans local silo | `TTS.Server` | Planned |
 | **6** | Async multiplayer API | `TTS.Api` | Planned |
 | **7** | MAF tooling (offline) | `TTS.Agents` | **Partial** (~50%) |
@@ -143,7 +143,7 @@ src/TTS.Game/Program.cs       Demo host
 
 - ~~Player auto-researches first available tech~~ → fixed in Phase 2
 - ~~Rival civ does not research below TTS 5~~ → fixed in Phase 2
-- No decision gates or scheduled ticks → Phase 3–4
+- No scheduled tick loop in `TTS.Game` → Phase 4 remainder
 - No TTS 4 socioeconomic perspective → Phase 2b
 
 ---
@@ -232,7 +232,7 @@ src/TTS.Tests/CrimeDataTests.cs
 
 **Goal:** Critical moments require player choice; world continues on timeout defaults.
 
-**Status:** Planned — **start here**
+**Status:** Done
 
 **Depends on:** Phase 2
 
@@ -240,19 +240,19 @@ src/TTS.Tests/CrimeDataTests.cs
 
 ### Tasks
 
-- [ ] Add `DecisionGate` model (`GateType`, options, `ExpiresAt`, `DefaultOption`)
-- [ ] Add `DecisionGateSystem` — create gates from:
-  - [ ] Tier advancement
-  - [ ] `GlobalEventSystem` crises
-  - [ ] `ForbiddenTechSystem` early unlock offers
-  - [ ] Stability threshold (faction crisis)
-  - [ ] Crime pressure spike at TTS 4+ (optional hook from Phase 2b)
-- [ ] Add `PendingDecisions` queue on `Civilization`
-- [ ] Add `ResolveDecision(civId, option)` — validate and apply via existing systems
-- [ ] Add timeout handling in `GameLoop` — default option when expired
-- [ ] Add `AwaySummary` builder — digest of ticks, events, auto-resolved decisions
-- [ ] Demo: inject one gate in `SampleWorldFactory`; show timeout in console
-- [ ] Unit tests: gate creation, resolution, timeout default
+- [x] Add `DecisionGate` model (`GateType`, options, `ExpiresAt`, `DefaultOption`)
+- [x] Add `DecisionGateSystem` — create gates from:
+  - [x] Tier advancement
+  - [x] `GlobalEventSystem` crises
+  - [x] `ForbiddenTechSystem` early unlock offers
+  - [x] Stability threshold (faction crisis)
+  - [x] Crime pressure spike at TTS 4+ (optional hook from Phase 2b)
+- [x] Add `PendingDecisions` queue on `Civilization`
+- [x] Add `ResolveDecision(civId, option)` — validate and apply via existing systems
+- [x] Add timeout handling in `GameLoop` — default option when expired
+- [x] Add `AwaySummary` builder — digest of ticks, events, auto-resolved decisions
+- [x] Demo: inject one gate in `SampleWorldFactory`; show timeout in console
+- [x] Unit tests: gate creation, resolution, timeout default
 - [ ] Bridge `CrisisScenario` A/B/C choices to real gate options (design alignment)
 
 ### New files (proposed)
@@ -275,22 +275,22 @@ src/TTS.Tests/DecisionGateTests.cs
 
 **Goal:** Ticks advance on a timer, not an instant loop — prove slow-evolution locally.
 
-**Status:** Planned
+**Status:** Partial — models + scheduler done; compressed-time demo loop pending
 
 **Depends on:** Phase 3
 
-**Doc:** [async-multiplayer-gameplay.md §3](async-multiplayer-gameplay.md#3-time-model)
+**Doc:** [async-multiplayer-gameplay.md §3](async-multiplayer-gameplay.md#3-time-model) · [match-modes.md](match-modes.md)
 
 ### Tasks
 
-- [ ] Add `MatchConfig` (`TickInterval`, `DecisionWindowHours`, etc.)
-- [ ] Add `MatchState` (`LastTickAt`, `TickCount`, config)
-- [ ] Add `TickScheduler` — `ShouldTick(now)` / `AdvanceIfDue(world, now)`
+- [x] Add `MatchConfig` (`TickInterval`, `DecisionWindow`, presets)
+- [x] Add `MatchState` (`LastTickAt`, `TickCount`, config)
+- [x] Add `TickScheduler` — `ShouldTick(now)` / `AdvanceIfDue(world, now)`
 - [ ] Refactor `TTS.Game` to:
   - [ ] Option A: simulate compressed time (1 tick per N seconds for demo)
   - [ ] Option B: single tick per invocation with `--tick` flag
 - [ ] Log tick timestamp and next tick ETA
-- [ ] Unit tests: scheduler respects interval; no double-tick
+- [x] Unit tests: scheduler respects interval
 
 ### New files (proposed)
 
@@ -506,7 +506,8 @@ src/TTS.Agents/Scenarios/*.cs
 | Sprint | Phase | Focus | Status |
 |--------|-------|-------|--------|
 | **1** | 2 + 2b | Auto policy, classical AI, crime data | Done |
-| **2** | 3 | `DecisionGate`, timeout defaults, `AwaySummary` | **Next** |
+| **2** | 3 | `DecisionGate`, timeout defaults, `AwaySummary` | Done |
+| **3** | 4 | `TickScheduler` compressed demo, `--tick` CLI | **Next** |
 | **3** | 4 | `TickScheduler`, compressed-time demo | Planned |
 | **4** | 5 | `TTS.Server` local silo + grain wrappers | Planned |
 
@@ -523,8 +524,8 @@ Phase 0   [██████████] 100%
 Phase 1   [██████████] 100%
 Phase 2   [██████████] 100%
 Phase 2b  [██████████] 100%
-Phase 3   [░░░░░░░░░░]   0%   ← START HERE
-Phase 4   [░░░░░░░░░░]   0%
+Phase 3   [█████████░]  90%   (CrisisScenario bridge pending)
+Phase 4   [████░░░░░░]  40%   ← NEXT (compressed-time demo)
 Phase 5   [░░░░░░░░░░]   0%
 Phase 6   [░░░░░░░░░░]   0%
 Phase 7   [█████░░░░░]  50%   (Ollama scenarios done; MAF workflow pending)
@@ -532,7 +533,7 @@ Phase 8   [░░░░░░░░░░]   0%
 Phase 9   [░░░░░░░░░░]   0%
 ```
 
-**Tests:** 14 passing (`CoreSystemsTests`, `AutoPolicyTests`, `CrimeDataTests`)
+**Tests:** 28 passing (`CoreSystemsTests`, `AutoPolicyTests`, `CrimeDataTests`, `TechTreeCatalogTests`, `DecisionGateTests`)
 
 ---
 
@@ -560,3 +561,4 @@ dotnet run --project src/TTS.Agents -- crime             # TTS 4 crime perspecti
 | [crime-data.md](crime-data.md) | 2b |
 | [README.md](README.md) | All (design source) |
 | [tech-tree.md](tech-tree.md) | 2b, 7 (procedural content) |
+| [tech-trees-by-tier.md](tech-trees-by-tier.md) | Per-TTS sub-tree design |

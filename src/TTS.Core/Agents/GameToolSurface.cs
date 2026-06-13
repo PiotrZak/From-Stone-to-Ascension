@@ -126,8 +126,24 @@ public class GameToolSurface : IGameToolSurface
     public ActionResult EmitGlobalEvent(GlobalEvent globalEvent)
     {
         _services.GlobalEvents.EmitEvent(_world, globalEvent);
+        _services.RecordNewEvent(globalEvent.Name);
         return new ActionResult(true, $"Global event '{globalEvent.Name}' applied.");
     }
+
+    public IReadOnlyList<DecisionGate> GetPendingDecisions(string civilizationId)
+    {
+        var civ = RequireCivilization(civilizationId);
+        return _services.DecisionGates.GetPendingGates(civ);
+    }
+
+    public GateResolutionResult ResolveDecision(string civilizationId, string gateId, string optionId)
+    {
+        var civ = RequireCivilization(civilizationId);
+        return _services.DecisionGates.Resolve(_world, civ, gateId, optionId, autoResolved: false, _services);
+    }
+
+    public AwaySummary GetAwaySummary(int fromTurn, int toTurn) =>
+        _services.AwaySummary.Build(_world, _services.TurnHistory, fromTurn, toTurn);
 
     private Civilization RequireCivilization(string civilizationId) =>
         _world.Civilizations.FirstOrDefault(c => c.Id == civilizationId)

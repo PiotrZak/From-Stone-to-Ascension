@@ -9,6 +9,8 @@ public class WorldState
     public List<Technology> Technologies { get; } = [];
     public List<KnowledgeNetwork> KnowledgeNetworks { get; } = [];
     public List<GlobalEvent> ActiveEvents { get; } = [];
+    public DateTimeOffset SimulatedNow { get; set; } = DateTimeOffset.UtcNow;
+    public MatchState? Match { get; set; }
 }
 
 /// <summary>Global event affecting one or more civilizations or regions.</summary>

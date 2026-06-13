@@ -1,4 +1,7 @@
 🌌 CIVILIZATION TECH UNIVERSE TREE (CTUT)
+
+**Per-tier sub-trees (diagrams + node tables):** [tech-trees-by-tier.md](tech-trees-by-tier.md)
+
 🧠 DESIGN PRINCIPLE
 
 Instead of a flat tree:
