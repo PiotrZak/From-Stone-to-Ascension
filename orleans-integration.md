@@ -4,7 +4,7 @@
 **Framework:** [Microsoft Orleans](https://github.com/dotnet/orleans)  
 **Status:** Design document — simulation runs in-process today (`TTS.Game` console host)
 
-**Related:** [agent-framework-integration.md](agent-framework-integration.md) (MAF intelligence layer)
+**Related:** [agent-framework-integration.md](agent-framework-integration.md) (MAF intelligence layer) · [async-multiplayer-gameplay.md](async-multiplayer-gameplay.md) (slow-evolving MP design) · [implementation-plan.md](implementation-plan.md) (master roadmap)
 
 ---
 
@@ -359,44 +359,30 @@ Orleans grain persistence stores match state across restarts.
 
 ## 12. Implementation Roadmap
 
-### Phase 0 — Local simulation (current)
+> **Master plan:** [implementation-plan.md](implementation-plan.md) — unified Phases 0–9 across Core, async MP, Orleans, and MAF.
 
-- [x] `TTS.Core` models and systems
-- [x] `GameLoop` in-process
-- [x] `TTS.Game` console demo
-- [x] Orleans strategy documented (this file)
+| Phase | This document | Status |
+|-------|---------------|--------|
+| 0–1 | Local simulation scaffold | Done |
+| 2–4 | Auto policy, gates, ticks (in `TTS.Core`) | Before Orleans |
+| **5–6** | **Orleans silo + MP API** | **This doc** |
+| 8–9 | MAF in grains + cloud | See [agent-framework-integration.md](agent-framework-integration.md) |
 
-### Phase 1 — Classical AI (before Orleans)
+### Phase 5 — Orleans local silo
 
-1. Implement rival civ research below TTS 5 in `GameLoop`
-2. Keep everything in `TTS.Game` — no silo yet
+- [ ] Add `TTS.Server` (`Microsoft.Orleans.Server`)
+- [ ] `WorldGrain` + `CivilizationGrain` wrapping `TTS.Core`
+- [ ] `TTS.Game` as Orleans client
+- [ ] Integration test: demo-equivalent output via grains
 
-### Phase 2 — Orleans local silo
+### Phase 6 — Async multiplayer API
 
-1. Add `TTS.Server` with `Microsoft.Orleans.Server`
-2. Implement `WorldGrain` + `CivilizationGrain` wrapping `TTS.Core`
-3. Run single silo locally; `TTS.Game` becomes Orleans client
-4. Verify same 8-turn demo output via grains
+- [ ] Add `TTS.Api` (REST or SignalR)
+- [ ] Orleans reminders for tick schedule on `WorldGrain`
+- [ ] Grain persistence
+- [ ] Policy, decisions, away summary endpoints
 
-```bash
-# Future local dev
-dotnet run --project src/TTS.Server    # start silo
-dotnet run --project src/TTS.Game      # client connects to localhost
-```
-
-### Phase 3 — Multiplayer slice
-
-1. Add `TTS.Api` gateway (minimal REST or SignalR)
-2. Player actions → `CivilizationGrain` → `TechTreeSystem`
-3. `WorldGrain.AdvanceTurnAsync()` when all players ready (or timer)
-4. Match creation: `world-{guid}` grain per game
-
-### Phase 4 — Cloud + MAF inside grains
-
-1. Orleans cluster (Azure Container Apps, AKS, or local cluster)
-2. Grain persistence for saved worlds
-3. `CivilizationGrain.RunAgentTurnAsync()` wires MAF at TTS 5+
-4. Rate limits and observability (OpenTelemetry across silo + MAF)
+Details and exit criteria: [implementation-plan.md § Phase 5–6](implementation-plan.md#phase-5--orleans-local-silo).
 
 ---
 

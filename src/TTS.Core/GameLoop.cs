@@ -11,12 +11,12 @@ public class GameLoop
 {
     private readonly WorldState _world;
     private readonly StabilitySystem _stabilitySystem = new();
-    private readonly TechTreeSystem _techTreeSystem = new();
     private readonly FactionSystem _factionSystem = new();
     private readonly GlobalEventSystem _globalEventSystem = new();
     private readonly KnowledgeDiffusionSystem _knowledgeDiffusionSystem = new();
-    private readonly ForbiddenTechSystem _forbiddenTechSystem = new();
+    private readonly CrimeSystem _crimeSystem = new();
     private readonly WinLossSystem _winLossSystem = new();
+    private readonly ClassicalAiSystem _classicalAiSystem = new();
     private readonly AgentOrchestrator _agentOrchestrator;
 
     public GameLoop(WorldState world)
@@ -49,18 +49,19 @@ public class GameLoop
         foreach (var civilization in _world.Civilizations)
         {
             _stabilitySystem.ApplyTurnDecay(civilization);
-
-            var available = _techTreeSystem.GetAvailableTechnologies(civilization, _world).ToList();
-            if (available.Count > 0 && civilization.IsPlayerControlled)
-            {
-                var next = available[0];
-                _techTreeSystem.Research(civilization, next, _forbiddenTechSystem);
-            }
-            else if (!civilization.IsPlayerControlled)
-            {
-                _agentOrchestrator.RunTurn(civilization, _world);
-            }
+            RunCivilizationTurn(civilization);
         }
+    }
+
+    private void RunCivilizationTurn(Civilization civilization)
+    {
+        if (!civilization.IsPlayerControlled && civilization.CurrentTier >= TechTier.EarlyAI)
+        {
+            _agentOrchestrator.RunTurn(civilization, _world);
+            return;
+        }
+
+        _classicalAiSystem.RunTurn(civilization, _world);
     }
 
     private void RunSecondaryLoop()
@@ -69,6 +70,9 @@ public class GameLoop
 
         foreach (var civilization in _world.Civilizations)
             _factionSystem.ApplyTurnInfluence(civilization);
+
+        foreach (var civilization in _world.Civilizations)
+            _crimeSystem.ApplyTurnPressure(civilization, _world);
 
         var newEvent = _globalEventSystem.MaybeGenerateEvent(_world);
         if (newEvent is not null)

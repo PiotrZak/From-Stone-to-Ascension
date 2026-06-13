@@ -1,5 +1,9 @@
 # TTS: TECHNOLOGY TIER SIMULATION
 
+**Implementation:** [implementation-plan.md](implementation-plan.md) — master roadmap (Phases 0–9)  
+**Local AI:** [ollama-scenarios.md](ollama-scenarios.md) — Ollama scenarios (TTS.Agents)  
+**TTS 4 data:** [crime-data.md](crime-data.md) — crime/income CSV perspective
+
 ---
 
 ## 1. HIGH CONCEPT
@@ -262,6 +266,8 @@ Free simulation of civilizations
 
 ### ⚔️ Multiplayer Mode (optional)
 Competing civilizations across same world timeline  
+
+See [async-multiplayer-gameplay.md](async-multiplayer-gameplay.md) for the slow-evolving, asynchronous multiplayer design.
 
 ### 🧪 Experiment Mode
 Test extreme scenarios (instant TTS jumps, disasters)  

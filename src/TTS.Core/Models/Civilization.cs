@@ -22,6 +22,7 @@ public class Civilization
     public HashSet<string> ResearchedTechnologyIds { get; } = new(StringComparer.Ordinal);
     public List<string> ControlledRegionIds { get; } = [];
     public List<Faction> Factions { get; } = [];
+    public CivilizationPolicy Policy { get; set; } = CivilizationPolicy.Balanced();
 
     public Civilization(string id, string name, bool isPlayerControlled = false)
     {

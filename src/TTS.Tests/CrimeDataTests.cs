@@ -1,0 +1,68 @@
+using TTS.Core;
+using TTS.Core.Models;
+using TTS.Core.Systems;
+
+namespace TTS.Tests;
+
+public class CrimeDataTests
+{
+    [Fact]
+    public void CrimeDataRepository_LoadsCalifornia2015()
+    {
+        var path = CrimeDataRepository.ResolveDefaultPath();
+        var repo = new CrimeDataRepository(path);
+        if (!repo.IsLoaded)
+            return;
+
+        var profile = repo.ToProfile("California", 2015);
+
+        Assert.NotNull(profile);
+        Assert.Equal("California", profile!.SourceState);
+        Assert.Equal(2015, profile.DataYear);
+        Assert.True(profile.ViolentCrimeRate > 0);
+        Assert.True(profile.GdpPerCapita > 0);
+    }
+
+    [Fact]
+    public void SampleWorld_AttachesCrimeProfilesToRegions()
+    {
+        var world = SampleWorldFactory.Create();
+        var repo = CrimeDataRepository.Default;
+        if (!repo.IsLoaded)
+            return;
+
+        var greenBasin = world.Regions.First(r => r.Id == "reg-a");
+        var ironCoast = world.Regions.First(r => r.Id == "reg-b");
+
+        Assert.NotNull(greenBasin.CrimeProfile);
+        Assert.NotNull(ironCoast.CrimeProfile);
+        Assert.Equal("California", greenBasin.CrimeProfile!.SourceState);
+        Assert.Equal("Louisiana", ironCoast.CrimeProfile!.SourceState);
+    }
+
+    [Fact]
+    public void CrimeSystem_AppliesPressureAtTts4()
+    {
+        var world = SampleWorldFactory.Create();
+        var player = world.Civilizations.First(c => c.IsPlayerControlled);
+        player.CurrentTier = TechTier.InformationAge;
+        var stabilityBefore = player.PoliticalStability;
+
+        new CrimeSystem().ApplyTurnPressure(player, world);
+
+        if (world.Regions.Any(r => r.CrimeProfile is not null))
+            Assert.True(player.PoliticalStability < stabilityBefore);
+    }
+
+    [Fact]
+    public void CrimePerspective_UnavailableBelowTts4()
+    {
+        var world = SampleWorldFactory.Create();
+        var player = world.Civilizations.First(c => c.IsPlayerControlled);
+        player.CurrentTier = TechTier.EarlyElectronics;
+
+        var summary = new CrimeSystem().GetPerspective(player, world);
+
+        Assert.False(summary.Available);
+    }
+}

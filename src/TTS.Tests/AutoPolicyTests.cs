@@ -1,0 +1,86 @@
+using TTS.Core;
+using TTS.Core.Models;
+using TTS.Core.Systems;
+
+namespace TTS.Tests;
+
+public class AutoPolicyTests
+{
+    [Fact]
+    public void AutoPolicy_StabilityFirst_AvoidsForbiddenTech()
+    {
+        var world = CreatePolicyTestWorld();
+        var civ = world.Civilizations[0];
+        civ.ResearchedTechnologyIds.Add("tech-ml");
+        civ.CurrentTier = TechTier.InformationAge;
+
+        var autoPolicy = new AutoPolicySystem();
+        var next = autoPolicy.SelectNextTechnology(civ, world, CivilizationPolicy.StabilityFirst());
+
+        Assert.NotNull(next);
+        Assert.NotEqual("tech-forbidden", next.Id);
+    }
+
+    [Fact]
+    public void AutoPolicy_TechRush_PrefersRiskyAiTech()
+    {
+        var world = CreatePolicyTestWorld();
+        var civ = world.Civilizations[0];
+        civ.ResearchedTechnologyIds.Add("tech-ml");
+        civ.CurrentTier = TechTier.InformationAge;
+        civ.Policy = CivilizationPolicy.TechRush();
+
+        var autoPolicy = new AutoPolicySystem();
+        var next = autoPolicy.SelectNextTechnology(civ, world, civ.Policy);
+
+        Assert.NotNull(next);
+        Assert.Equal("tech-recursive-ai", next.Id);
+    }
+
+    [Fact]
+    public void ClassicalAi_RivalResearchesOnFirstTurn()
+    {
+        var world = SampleWorldFactory.Create();
+        var rival = world.Civilizations.First(c => !c.IsPlayerControlled);
+        var classicalAi = new ClassicalAiSystem();
+
+        var result = classicalAi.RunTurn(rival, world);
+
+        Assert.True(result.DidResearch);
+        Assert.Single(rival.ResearchedTechnologyIds);
+    }
+
+    [Fact]
+    public void GameLoop_RivalProgressesOverMultipleTurns()
+    {
+        var world = SampleWorldFactory.Create();
+        var loop = new GameLoop(world);
+        var rival = world.Civilizations.First(c => !c.IsPlayerControlled);
+
+        for (var i = 0; i < 4; i++)
+            loop.RunTurn();
+
+        Assert.True(rival.ResearchedTechnologyIds.Count >= 3);
+        Assert.True((int)rival.CurrentTier >= (int)TechTier.EarlyElectronics);
+    }
+
+    [Fact]
+    public void GameLoop_PlayerUsesPolicyNotFirstTechOnly()
+    {
+        var world = SampleWorldFactory.Create();
+        var player = world.Civilizations.First(c => c.IsPlayerControlled);
+        player.Policy = CivilizationPolicy.StabilityFirst();
+
+        new GameLoop(world).RunTurn();
+
+        Assert.Contains("tech-agriculture", player.ResearchedTechnologyIds);
+    }
+
+    private static WorldState CreatePolicyTestWorld()
+    {
+        var world = SampleWorldFactory.Create();
+        world.Civilizations.Clear();
+        world.Civilizations.Add(new Civilization("civ-test", "Test Civ"));
+        return world;
+    }
+}

@@ -1,10 +1,12 @@
 using TTS.Core;
 using TTS.Core.Agents;
 using TTS.Core.Models;
+using TTS.Core.Systems;
 
 var world = SampleWorldFactory.Create();
 var loop = new GameLoop(world);
 var tools = new GameToolSurface(world);
+var crimeSystem = new CrimeSystem();
 
 Console.WriteLine("TTS: Technology Tier Simulation");
 Console.WriteLine("================================");
@@ -22,7 +24,19 @@ for (var i = 0; i < turnsToSimulate; i++)
         Console.WriteLine(
             $"{civilization.Name}: TTS {(int)civilization.CurrentTier}, " +
             $"stability {civilization.AverageStability:F1}, " +
-            $"techs {civilization.ResearchedTechnologyIds.Count}");
+            $"techs {civilization.ResearchedTechnologyIds.Count}, " +
+            $"policy {civilization.Policy.Research}");
+
+        if (civilization.CurrentTier >= TechTier.InformationAge)
+        {
+            var crime = crimeSystem.GetPerspective(civilization, world);
+            if (crime.Available)
+            {
+                Console.WriteLine(
+                    $"  Crime perspective: pressure {crime.AverageCrimePressure:F1}, " +
+                    $"violent {crime.AverageViolentCrimeRate:F0}/100k, poverty {crime.AveragePovertyRate:F1}%");
+            }
+        }
 
         if (outcome.IsVictory)
             Console.WriteLine($"  VICTORY: {outcome.Message}");
@@ -45,9 +59,17 @@ static void PrintWorldSummary(WorldState world, GameToolSurface tools)
     foreach (var civilization in world.Civilizations)
     {
         var snapshot = tools.GetCivilizationState(civilization.Id);
-        Console.WriteLine($"{snapshot.Name} ({snapshot.Id}) — TTS {(int)snapshot.CurrentTier}");
+        Console.WriteLine(
+            $"{snapshot.Name} ({snapshot.Id}) — TTS {(int)snapshot.CurrentTier}, policy {civilization.Policy.Research}");
     }
 
     Console.WriteLine($"Technologies loaded: {world.Technologies.Count}");
     Console.WriteLine($"Knowledge links: {world.KnowledgeNetworks.Count}");
+
+    foreach (var region in world.Regions.Where(r => r.CrimeProfile is not null))
+    {
+        var p = region.CrimeProfile!;
+        Console.WriteLine(
+            $"Crime data [{region.Name}]: {p.SourceState} {p.DataYear} — pressure {p.CrimePressureIndex:F1} (TTS 4+)");
+    }
 }

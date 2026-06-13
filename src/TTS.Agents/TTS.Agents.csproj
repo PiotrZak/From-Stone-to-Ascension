@@ -1,14 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <RootNamespace>TTS.Core</RootNamespace>
+    <RootNamespace>TTS.Agents</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\data\state_crime_income_merged.csv" Link="Data\state_crime_income_merged.csv" CopyToOutputDirectory="PreserveNewest" />
+    <ProjectReference Include="..\TTS.Core\TTS.Core.csproj" />
   </ItemGroup>
 
 </Project>

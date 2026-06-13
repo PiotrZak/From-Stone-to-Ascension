@@ -21,6 +21,9 @@ public class Region
     /// <summary>Controlling civilization, or null if unclaimed.</summary>
     public string? ControllingCivilizationId { get; set; }
 
+    /// <summary>TTS 4+ socioeconomic crime data mapped from state_crime_income_merged.csv.</summary>
+    public RegionalCrimeProfile? CrimeProfile { get; set; }
+
     public Region(string id, string name)
     {
         Id = id;

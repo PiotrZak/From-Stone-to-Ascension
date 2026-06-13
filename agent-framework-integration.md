@@ -4,7 +4,7 @@
 **Framework:** [Microsoft Agent Framework (MAF)](https://github.com/microsoft/agent-framework)  
 **Status:** Phase 2 started — .NET simulation scaffold with agent tool surface (MAF not wired yet)
 
-**Related:** [orleans-integration.md](orleans-integration.md) (distributed simulation server)
+**Related:** [orleans-integration.md](orleans-integration.md) (distributed simulation server) · [async-multiplayer-gameplay.md](async-multiplayer-gameplay.md) (slow-evolving MP design) · [implementation-plan.md](implementation-plan.md) (master roadmap)
 
 ---
 
@@ -52,6 +52,9 @@ From-Stone-to-Ascension/
 │       └── CoreSystemsTests.cs
 ├── README.md
 ├── tech-tree.md
+├── implementation-plan.md
+├── ollama-scenarios.md          # Ollama integration — how it works
+├── async-multiplayer-gameplay.md
 ├── agent-framework-integration.md
 └── orleans-integration.md
 ```
@@ -79,7 +82,7 @@ dotnet run --project src/TTS.Game
 
 ### Next MAF wiring step
 
-Add a `TTS.Agents` project and reference `Microsoft.Agents.AI`. Implement MAF tools that delegate to `IGameToolSurface`:
+Add a `TTS.Agents` project and reference `Microsoft.Agents.AI` with your chosen **LLM provider** (OpenAI, Gemini, or Ollama — not Azure Foundry required). See [§3.1 LLM Provider Strategy](#31-llm-provider-strategy).
 
 ```csharp
 // Future: TTS.Agents/Tools/CivilizationTools.cs
@@ -114,6 +117,107 @@ Add a `TTS.Agents` project and reference `Microsoft.Agents.AI`. Implement MAF to
 | **MAF agent service** | Reasoning, dialogue, strategy proposals, procedural content |
 
 The simulation remains the **source of truth**. Agents read state and propose actions; the engine validates and applies them.
+
+---
+
+### 3.1 LLM Provider Strategy
+
+**Project choice:** Use **OpenAI**, **Google Gemini**, or a **free/local model** at the start. **Azure Foundry is optional** — not required for TTS.
+
+| When | API keys needed? |
+|------|------------------|
+| **Now** (Phases 0–2, TTS 5+ stub) | **No** — `ClassicalAiSystem` + local `AgentOrchestrator` |
+| **Phase 7–8** (real MAF agents) | **Yes** — one provider below |
+| **MAF disabled / key missing** | **No** — fallback to `ClassicalAiSystem` |
+
+#### Recommended providers (in order for getting started)
+
+| Provider | Cost to start | .NET package | Best for |
+|----------|---------------|--------------|----------|
+| **Ollama** (local) | **Free** — runs on your machine | `Microsoft.Agents.AI.OpenAI` (OpenAI-compatible endpoint) | Dev, offline, zero API spend |
+| **Google Gemini** | **Free tier** — [Google AI Studio](https://aistudio.google.com/apikey) | `Microsoft.Agents.AI.OpenAI` (OpenAI-compatible) or Python `agent-framework-gemini` | Cheap flash models, good quality |
+| **OpenAI** | Pay-as-you-go | `Microsoft.Agents.AI.OpenAI` | Simplest docs, reliable tool calling |
+| Azure Foundry | Azure subscription | `Microsoft.Agents.AI.Foundry` | Enterprise / Azure-only shops |
+
+#### Default recommendation for this project
+
+Start with **Ollama** (free, local) — **implemented** in `TTS.Agents`. See [ollama-scenarios.md](ollama-scenarios.md) for architecture and usage.
+
+#### Environment variables (never commit to git)
+
+Create a local `.env` or use `dotnet user-secrets` in `TTS.Agents`:
+
+**Option A — OpenAI**
+
+```bash
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4.1-mini    # or gpt-4o-mini — pick a small/cheap model
+```
+
+**Option B — Google Gemini** (OpenAI-compatible endpoint)
+
+```bash
+GEMINI_API_KEY=...           # from Google AI Studio
+GEMINI_MODEL=gemini-2.0-flash
+# MAF/OpenAI client base URL (set in code):
+# https://generativelanguage.googleapis.com/v1beta/openai/
+```
+
+**Option C — Ollama** (free, local — install from https://ollama.com)
+
+```bash
+# No API key. Pull a model first:
+ollama pull llama3.2
+
+OLLAMA_BASE_URL=http://localhost:11434/v1
+OLLAMA_MODEL=llama3.2
+```
+
+#### Provider selection in code (sketch)
+
+```csharp
+// TTS.Agents/AgentProviderFactory.cs — pick via TTS_LLM_PROVIDER env var
+// Values: "ollama" | "openai" | "gemini" | "none"
+
+public static IChatClient? CreateClient()
+{
+    return Environment.GetEnvironmentVariable("TTS_LLM_PROVIDER") switch
+    {
+        "openai" => CreateOpenAi(),
+        "gemini" => CreateGeminiOpenAiCompatible(),
+        "ollama" => CreateOllama(),
+        "none" or null or "" => null,   // classical AI fallback
+        _ => null
+    };
+}
+```
+
+#### Fallback rule (important)
+
+If no provider is configured or the call fails:
+
+1. Log the error
+2. `AgentOrchestrator` delegates to `ClassicalAiSystem` (same as today)
+3. Game never blocks on LLM availability
+
+This keeps TTS playable without any API key.
+
+#### Cost control for TTS 5+
+
+| Rule | Why |
+|------|-----|
+| MAF only at **TTS 5+** | Most ticks use free classical AI |
+| MAF only for **AI civ turns** and **decision gates** | Not every tick, not every player action |
+| Use **small models** (`gpt-4.1-mini`, `gemini-2.0-flash`, `llama3.2`) | Enough for research/diplomacy choices |
+| **Rate limit** agent calls per match | Prevents runaway cost in multiplayer |
+
+#### What to add to `.gitignore`
+
+```
+.env
+.env.*
+secrets.json
+```
 
 ---
 
@@ -382,38 +486,33 @@ For production or heavy playtesting:
 
 ## 12. Implementation Roadmap
 
-### Phase 0 — Design
+> **Master plan:** [implementation-plan.md](implementation-plan.md) — unified Phases 0–9 across Core, async MP, Orleans, and MAF.
 
-- [x] Game systems and tech tree documented
-- [x] MAF integration strategy documented (this file)
+| Phase | This document | Status |
+|-------|---------------|--------|
+| 0–1 | Design + core scaffold | Done |
+| 2–4 | Auto policy, decision gates, scheduled ticks | See [async-multiplayer-gameplay.md](async-multiplayer-gameplay.md) |
+| 5–6 | Orleans silo + MP API | See [orleans-integration.md](orleans-integration.md) |
+| **7–8** | **MAF tooling + in-game agents** | **This doc** |
+| 9 | Cloud scale | All docs |
 
-### Phase 1 — .NET simulation scaffold (current)
+### Phase 7 — MAF tooling (offline)
 
-- [x] .NET 8 solution (`TTS.Core`, `TTS.Game`, `TTS.Tests`)
-- [x] Core models: `TechTier`, `Region`, `Faction`, `Technology`, `Civilization`, `KnowledgeNetwork`
-- [x] Systems: stability, tech tree, factions, events, diffusion, forbidden tech, win/loss
-- [x] `GameLoop` with primary + secondary loops
-- [x] `IGameToolSurface` + `GameToolSurface` + `AgentOrchestrator` stub
-- [x] Unit tests for core systems and tier gating
-- [ ] Build verified locally (`dotnet build && dotnet test`)
+- [ ] Add `TTS.Agents` with `Microsoft.Agents.AI.OpenAI` (not Foundry)
+- [ ] Provider: Ollama (free local) or Gemini / OpenAI API key — see [§3.1](agent-framework-integration.md#31-llm-provider-strategy)
+- [ ] `TTS_LLM_PROVIDER=none` keeps classical AI fallback
+- [ ] Tech fusion workflow: generate → validate → export nodes
+- [ ] Agent Skills from `tech-tree.md` / `README.md`
 
-### Phase 2 — MAF tooling prototype
+### Phase 8 — MAF in-game (TTS 5+)
 
-1. Add `TTS.Agents` project with `Microsoft.Agents.AI`
-2. Expose `IGameToolSurface` methods as MAF tools
-3. Tech fusion workflow: generate → validate → `register_tech_nodes`
+- [ ] Replace `AgentOrchestrator` stub with real MAF workflow (OpenAI / Gemini / Ollama)
+- [ ] Fallback to `ClassicalAiSystem` when `TTS_LLM_PROVIDER=none` or API fails
+- [ ] Alignment crisis → `DecisionGate` + narration
+- [ ] In-world advisor (read-only tools)
+- [ ] Auto policy at TTS 5+ with classical fallback
 
-### Phase 3 — TTS 5 gameplay slice
-
-1. Wire alignment crisis workflow to `GlobalEventSystem` + `StabilitySystem`
-2. Replace `AgentOrchestrator` stub with real MAF workflow for AI civs at TTS 5+
-3. In-world advisor with read-only tools for player civ
-
-### Phase 4 — Scale
-
-1. Multi-civ agent scheduling and cost controls
-2. Human-in-the-loop content pipeline for generated tech
-3. Multiplayer: agent service per region or shared orchestrator (TBD)
+Details and exit criteria: [implementation-plan.md § Phase 7–8](implementation-plan.md#phase-7--maf-tooling-offline).
 
 ---
 
