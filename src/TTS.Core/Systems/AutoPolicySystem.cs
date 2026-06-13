@@ -17,14 +17,72 @@ public class AutoPolicySystem
 
     public Technology? SelectNextTechnology(Civilization civilization, WorldState world, CivilizationPolicy policy)
     {
-        var candidates = _techTreeSystem
-            .GetAvailableTechnologies(civilization, world)
-            .Where(t => IsAllowedByRisk(t, policy))
-            .Select(t => (Tech: t, Score: ScoreTechnology(t, civilization, policy)))
-            .OrderByDescending(x => x.Score)
-            .ToList();
+        var pick = EvaluateCandidates(civilization, world, policy).FirstOrDefault(c => c.AllowedByRisk);
+        if (string.IsNullOrEmpty(pick.TechnologyId))
+            return null;
 
-        return candidates.FirstOrDefault().Tech;
+        return world.Technologies.FirstOrDefault(t => t.Id == pick.TechnologyId);
+    }
+
+    public PolicyResearchAnalysis Analyze(Civilization civilization, WorldState world, CivilizationPolicy policy)
+    {
+        var ranked = EvaluateCandidates(civilization, world, policy);
+        var recommended = ranked.FirstOrDefault(c => c.AllowedByRisk);
+        ResearchCandidateEvaluation? pick = recommended.AllowedByRisk ? recommended : null;
+        return new PolicyResearchAnalysis(
+            policy.Research,
+            policy.Risk,
+            policy.BranchWeights,
+            ranked,
+            pick);
+    }
+
+    public IReadOnlyList<ResearchCandidateEvaluation> EvaluateCandidates(
+        Civilization civilization,
+        WorldState world,
+        CivilizationPolicy policy)
+    {
+        return _techTreeSystem
+            .GetAvailableTechnologies(civilization, world)
+            .Select(t => BuildEvaluation(t, civilization, policy))
+            .OrderByDescending(e => e.AllowedByRisk)
+            .ThenByDescending(e => e.TotalScore)
+            .ToList();
+    }
+
+    private static ResearchCandidateEvaluation BuildEvaluation(
+        Technology technology,
+        Civilization civilization,
+        CivilizationPolicy policy)
+    {
+        var branch = TechBranchMapping.CategoryToBranch(technology.Category);
+        var allowed = IsAllowedByRisk(technology, policy);
+        var branchWeight = GetBranchWeight(technology, policy);
+        var stanceBonus = GetStanceBonus(technology, civilization, policy);
+        var total = allowed ? branchWeight + stanceBonus : 0;
+
+        return new ResearchCandidateEvaluation(
+            technology.Id,
+            technology.Name,
+            technology.Category,
+            branch,
+            technology.FusionTags,
+            technology.Tier,
+            technology.RiskLevel,
+            technology.IsForbidden,
+            allowed,
+            branchWeight,
+            stanceBonus,
+            total,
+            allowed ? null : DescribeRejection(technology, policy));
+    }
+
+    private static string DescribeRejection(Technology technology, CivilizationPolicy policy)
+    {
+        if (technology.IsForbidden && policy.Risk != RiskTolerance.High)
+            return "forbidden tech blocked (risk tolerance too low)";
+
+        return $"risk {technology.RiskLevel} exceeds policy cap";
     }
 
     private static bool IsAllowedByRisk(Technology technology, CivilizationPolicy policy)
@@ -46,20 +104,14 @@ public class AutoPolicySystem
         return technology.RiskLevel <= maxRisk;
     }
 
-    private static double ScoreTechnology(Technology technology, Civilization civilization, CivilizationPolicy policy)
-    {
-        var score = GetBranchWeight(technology, policy);
-
-        score += policy.Research switch
+    private static double GetStanceBonus(Technology technology, Civilization civilization, CivilizationPolicy policy) =>
+        policy.Research switch
         {
             ResearchStance.TechRush => (int)technology.Tier * 2.0 + technology.RiskLevel * 0.1,
             ResearchStance.StabilityFirst => -(technology.RiskLevel * 0.5),
             ResearchStance.Expansionist => IsNewBranch(technology, civilization) ? 3.0 : 0,
             _ => (int)technology.Tier * 0.5
         };
-
-        return score;
-    }
 
     private static double GetBranchWeight(Technology technology, CivilizationPolicy policy)
     {
@@ -75,7 +127,7 @@ public class AutoPolicySystem
             }
         }
 
-        var categoryKey = CategoryToBranch(technology.Category);
+        var categoryKey = TechBranchMapping.CategoryToBranch(technology.Category);
         if (policy.BranchWeights.TryGetValue(categoryKey, out var categoryWeight))
         {
             score += categoryWeight;
@@ -87,24 +139,8 @@ public class AutoPolicySystem
 
     private static bool IsNewBranch(Technology technology, Civilization civilization)
     {
-        var categoryKey = CategoryToBranch(technology.Category);
+        var categoryKey = TechBranchMapping.CategoryToBranch(technology.Category);
         return !civilization.ResearchedTechnologyIds.Any(id =>
             id.Contains(categoryKey, StringComparison.OrdinalIgnoreCase));
     }
-
-    private static string CategoryToBranch(TechCategory category) => category switch
-    {
-        TechCategory.Agriculture => "agriculture",
-        TechCategory.Manufacturing => "manufacturing",
-        TechCategory.Energy => "energy",
-        TechCategory.Communication => "communication",
-        TechCategory.Computing => "computing",
-        TechCategory.Military => "military",
-        TechCategory.Biology => "biology",
-        TechCategory.Nanotechnology => "nano",
-        TechCategory.ArtificialIntelligence => "ai",
-        TechCategory.TemporalManipulation => "temporal",
-        TechCategory.RealityEngineering => "reality",
-        _ => "general"
-    };
 }

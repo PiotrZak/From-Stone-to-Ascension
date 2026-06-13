@@ -83,4 +83,30 @@ public class CrimeDataTests
         if (world.Regions.Any(r => r.CrimeProfile is not null))
             Assert.True(summary.Available);
     }
+
+    [Fact]
+    public void GameToolSurface_PolicyResearchAnalysis_MapsCategoryToBranch()
+    {
+        var services = new SimulationServices();
+        var world = SampleWorldFactory.Create();
+        var player = world.Civilizations.First(c => c.IsPlayerControlled);
+        var tools = services.CreateToolSurface(world);
+
+        var analysis = tools.GetPolicyResearchAnalysis(player.Id);
+        var agriculture = analysis.RankedCandidates.First(c => c.TechnologyId == "tech-agriculture");
+
+        Assert.Equal(TechCategory.Agriculture, agriculture.Category);
+        Assert.Equal("agriculture", agriculture.Branch);
+    }
+
+    [Fact]
+    public void GameLoop_RecordsResearchDecisions()
+    {
+        var services = new SimulationServices();
+        var world = SampleWorldFactory.Create();
+        var result = services.CreateGameLoop(world).RunTurn();
+
+        Assert.NotEmpty(result.ResearchDecisions);
+        Assert.Contains(result.ResearchDecisions, d => d.Researched && d.TechnologyId is not null);
+    }
 }

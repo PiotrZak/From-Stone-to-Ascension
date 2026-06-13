@@ -61,6 +61,35 @@ public class GameToolSurface : IGameToolSurface
         return _services.Crime.GetPerspective(civ, _world);
     }
 
+    public PolicyResearchAnalysis GetPolicyResearchAnalysis(string civilizationId)
+    {
+        var civ = RequireCivilization(civilizationId);
+        return _services.AutoPolicy.Analyze(civ, _world, civ.Policy);
+    }
+
+    public TechnologyDetailSnapshot GetTechnologyDetail(string technologyId)
+    {
+        var technology = _world.Technologies.FirstOrDefault(t => t.Id == technologyId)
+            ?? throw new KeyNotFoundException($"Technology '{technologyId}' not found.");
+        var branch = TechBranchMapping.Describe(technology);
+        return new TechnologyDetailSnapshot(
+            technology.Id,
+            technology.Name,
+            technology.Tier,
+            branch.Category,
+            branch.Branch,
+            branch.FusionTags,
+            technology.Prerequisites,
+            technology.RiskLevel,
+            technology.IsForbidden);
+    }
+
+    public IReadOnlyDictionary<string, double> GetPolicyBranchWeights(string civilizationId)
+    {
+        var civ = RequireCivilization(civilizationId);
+        return civ.Policy.BranchWeights;
+    }
+
     public ActionResult SetResearchPriority(string civilizationId, string branch, double weight)
     {
         if (weight is < 0 or > 1)

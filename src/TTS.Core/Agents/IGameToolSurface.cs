@@ -16,6 +16,9 @@ public interface IGameToolSurface
     IReadOnlyList<Technology> GetAvailableTechnologies(string civilizationId);
     IReadOnlyList<GlobalEvent> GetGlobalEvents(bool activeOnly);
     CrimePerspectiveSummary GetCrimePerspective(string civilizationId);
+    PolicyResearchAnalysis GetPolicyResearchAnalysis(string civilizationId);
+    TechnologyDetailSnapshot GetTechnologyDetail(string technologyId);
+    IReadOnlyDictionary<string, double> GetPolicyBranchWeights(string civilizationId);
 
     ActionResult SetResearchPriority(string civilizationId, string branch, double weight);
     ActionResult ProposeDiplomaticAction(string civilizationId, string action, string targetCivilizationId);

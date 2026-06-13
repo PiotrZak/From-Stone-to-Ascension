@@ -8,6 +8,8 @@ public sealed class ClassicalAiTurnRunner : ICivilizationTurnRunner
 
     public ClassicalAiTurnRunner(SimulationServices services) => _services = services;
 
+    public string RunnerId => "classical-ai";
+
     public bool CanHandle(Civilization civilization, WorldState world) =>
         civilization.IsPlayerControlled || civilization.CurrentTier < TechTier.EarlyAI;
 
@@ -15,7 +17,7 @@ public sealed class ClassicalAiTurnRunner : ICivilizationTurnRunner
     {
         var result = _services.ClassicalAi.RunTurn(civilization, world);
         return result.DidResearch
-            ? CivilizationTurnResult.Completed(result.Message, result.TechnologyId)
+            ? CivilizationTurnResult.Completed(result.Message, result.TechnologyId, result.Evaluation)
             : CivilizationTurnResult.Skipped(result.Message);
     }
 }

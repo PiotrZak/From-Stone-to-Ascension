@@ -29,6 +29,8 @@ public class GameLoop
 
     public TurnResult RunTurn()
     {
+        _services.BeginTurn();
+
         foreach (var phase in _phases)
             phase.Execute(_world, _services);
 
@@ -38,8 +40,11 @@ public class GameLoop
             .Select(c => (Civilization: c, Outcome: _services.WinLoss.Evaluate(c)))
             .ToList();
 
-        return new TurnResult(_world.Turn - 1, outcomes);
+        return new TurnResult(_world.Turn - 1, outcomes, _services.TurnResearchDecisions.ToList());
     }
 }
 
-public readonly record struct TurnResult(int Turn, IReadOnlyList<(Civilization Civilization, GameOutcome Outcome)> Outcomes);
+public readonly record struct TurnResult(
+    int Turn,
+    IReadOnlyList<(Civilization Civilization, GameOutcome Outcome)> Outcomes,
+    IReadOnlyList<TurnResearchDecision> ResearchDecisions);

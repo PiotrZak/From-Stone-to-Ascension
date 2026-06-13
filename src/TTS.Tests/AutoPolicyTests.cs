@@ -39,6 +39,21 @@ public class AutoPolicyTests
     }
 
     [Fact]
+    public void AutoPolicy_EvaluateCandidates_IncludesScoreBreakdown()
+    {
+        var world = SampleWorldFactory.Create();
+        var player = world.Civilizations.First(c => c.IsPlayerControlled);
+        var services = new SimulationServices();
+
+        var candidates = services.AutoPolicy.EvaluateCandidates(player, world, player.Policy);
+        var pick = candidates.First(c => c.AllowedByRisk);
+
+        Assert.True(pick.TotalScore > 0);
+        Assert.Equal("agriculture", pick.Branch);
+        Assert.Equal(pick.BranchWeightScore + pick.StanceBonus, pick.TotalScore);
+    }
+
+    [Fact]
     public void ClassicalAi_RivalResearchesOnFirstTurn()
     {
         var services = new SimulationServices();

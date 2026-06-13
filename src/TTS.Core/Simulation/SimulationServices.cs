@@ -18,6 +18,7 @@ public sealed class SimulationServices
     public AutoPolicySystem AutoPolicy { get; }
     public ClassicalAiSystem ClassicalAi { get; }
     public ResearchExecutor Research { get; }
+    public List<TurnResearchDecision> TurnResearchDecisions { get; } = [];
 
     public SimulationServices()
     {
@@ -25,6 +26,10 @@ public sealed class SimulationServices
         Research = new ResearchExecutor(TechTree, ForbiddenTech);
         ClassicalAi = new ClassicalAiSystem(this);
     }
+
+    public void BeginTurn() => TurnResearchDecisions.Clear();
+
+    public void RecordResearchDecision(TurnResearchDecision decision) => TurnResearchDecisions.Add(decision);
 
     public GameToolSurface CreateToolSurface(WorldState world) => new(world, this);
 

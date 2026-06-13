@@ -2,6 +2,7 @@ namespace TTS.Core.Simulation;
 
 using TTS.Core.Agents;
 using TTS.Core.Models;
+using TTS.Core.Systems;
 
 public sealed class RegionGrowthPhase : ITurnPhase
 {
@@ -45,7 +46,15 @@ public sealed class CivilizationTurnPhase : ITurnPhase
                 if (!runner.CanHandle(civilization, world))
                     continue;
 
-                runner.Run(civilization, world);
+                var result = runner.Run(civilization, world);
+                services.RecordResearchDecision(new TurnResearchDecision(
+                    civilization.Id,
+                    civilization.Name,
+                    runner.RunnerId,
+                    result.Acted && result.TechnologyId is not null,
+                    result.TechnologyId,
+                    result.Evaluation,
+                    result.Message));
                 break;
             }
         }

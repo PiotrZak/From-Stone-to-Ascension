@@ -14,21 +14,26 @@ public class ClassicalAiSystem
 
     public ClassicalAiTurnResult RunTurn(Civilization civilization, WorldState world)
     {
-        var next = _services.AutoPolicy.SelectNextTechnology(civilization, world, civilization.Policy);
-        if (next is null)
+        var analysis = _services.AutoPolicy.Analyze(civilization, world, civilization.Policy);
+        if (analysis.Recommended is not ResearchCandidateEvaluation recommended)
             return ClassicalAiTurnResult.Skipped("No research candidates match current policy.");
 
+        var next = world.Technologies.First(t => t.Id == recommended.TechnologyId);
         var result = _services.Research.Execute(civilization, next);
         return result.Success
-            ? ClassicalAiTurnResult.Completed(next.Name, next.Id)
+            ? ClassicalAiTurnResult.Completed(next.Name, next.Id, recommended)
             : ClassicalAiTurnResult.Skipped(result.Message);
     }
 }
 
-public readonly record struct ClassicalAiTurnResult(bool DidResearch, string Message, string? TechnologyId = null)
+public readonly record struct ClassicalAiTurnResult(
+    bool DidResearch,
+    string Message,
+    string? TechnologyId = null,
+    ResearchCandidateEvaluation? Evaluation = null)
 {
-    public static ClassicalAiTurnResult Completed(string name, string id) =>
-        new(true, $"Researched '{name}'.", id);
+    public static ClassicalAiTurnResult Completed(string name, string id, ResearchCandidateEvaluation? evaluation = null) =>
+        new(true, $"Researched '{name}'.", id, evaluation);
 
     public static ClassicalAiTurnResult Skipped(string message) =>
         new(false, message);

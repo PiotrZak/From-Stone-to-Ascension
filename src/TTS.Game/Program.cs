@@ -2,6 +2,7 @@ using TTS.Core;
 using TTS.Core.Agents;
 using TTS.Core.Models;
 using TTS.Core.Simulation;
+using TTS.Game;
 
 var services = new SimulationServices();
 var world = SampleWorldFactory.Create();
@@ -11,6 +12,7 @@ var tools = services.CreateToolSurface(world);
 Console.WriteLine("TTS: Technology Tier Simulation");
 Console.WriteLine("================================");
 PrintWorldSummary(world, tools);
+SimulationReporter.PrintTechCatalog(world.Technologies, tools);
 
 const int turnsToSimulate = 8;
 for (var i = 0; i < turnsToSimulate; i++)
@@ -19,6 +21,9 @@ for (var i = 0; i < turnsToSimulate; i++)
     Console.WriteLine();
     Console.WriteLine($"--- Turn {result.Turn} ---");
 
+    foreach (var decision in result.ResearchDecisions)
+        SimulationReporter.PrintResearchDecision(decision, tools);
+
     foreach (var (civilization, outcome) in result.Outcomes)
     {
         Console.WriteLine(
@@ -26,6 +31,8 @@ for (var i = 0; i < turnsToSimulate; i++)
             $"stability {civilization.AverageStability:F1}, " +
             $"techs {civilization.ResearchedTechnologyIds.Count}, " +
             $"policy {civilization.Policy.Research}");
+
+        SimulationReporter.PrintResearchCandidates(civilization, tools);
 
         if (civilization.CurrentTier >= TechTier.InformationAge)
         {
@@ -52,15 +59,21 @@ Console.WriteLine();
 Console.WriteLine("Agent tool surface (MAF integration point):");
 var player = world.Civilizations.First(c => c.IsPlayerControlled);
 var snapshot = tools.GetCivilizationState(player.Id);
+var analysis = tools.GetPolicyResearchAnalysis(player.Id);
 Console.WriteLine($"  {snapshot.Name} @ TTS {(int)snapshot.CurrentTier} — agent tools ready from TTS 5+");
+if (analysis.Recommended is { } next)
+{
+    Console.WriteLine(
+        $"  Next policy pick: {next.Name} ({next.Category}→{next.Branch}, score {next.TotalScore:F1})");
+}
 
 static void PrintWorldSummary(WorldState world, GameToolSurface tools)
 {
     foreach (var civilization in world.Civilizations)
     {
         var snapshot = tools.GetCivilizationState(civilization.Id);
-        Console.WriteLine(
-            $"{snapshot.Name} ({snapshot.Id}) — TTS {(int)snapshot.CurrentTier}, policy {civilization.Policy.Research}");
+        Console.WriteLine($"{snapshot.Name} ({snapshot.Id}) — TTS {(int)snapshot.CurrentTier}");
+        SimulationReporter.PrintPolicyBranches(civilization, tools);
     }
 
     Console.WriteLine($"Technologies loaded: {world.Technologies.Count}");
