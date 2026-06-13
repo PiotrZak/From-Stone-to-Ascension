@@ -10,7 +10,7 @@ public sealed class FactionDebateScenario(OllamaClient ollama) : IScenario
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
-        var (world, _) = ScenarioWorldBuilder.CreateEarlyAiCrisis();
+        var (world, _, _) = ScenarioWorldBuilder.CreateEarlyAiCrisis();
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
         var factions = player.Factions;
 

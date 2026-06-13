@@ -1,6 +1,8 @@
 namespace TTS.Core.Agents;
 
 using TTS.Core.Models;
+using TTS.Core.Systems;
+using TTS.Core.Simulation;
 
 /// <summary>
 /// Contract for Microsoft Agent Framework tools. The simulation remains authoritative;
@@ -11,10 +13,13 @@ public interface IGameToolSurface
     CivilizationStateSnapshot GetCivilizationState(string civilizationId);
     IReadOnlyDictionary<string, double> GetFactionTensions(string civilizationId);
     IReadOnlyList<Technology> GetTechTreeLayer(TechTier tier);
+    IReadOnlyList<Technology> GetAvailableTechnologies(string civilizationId);
     IReadOnlyList<GlobalEvent> GetGlobalEvents(bool activeOnly);
+    CrimePerspectiveSummary GetCrimePerspective(string civilizationId);
 
     ActionResult SetResearchPriority(string civilizationId, string branch, double weight);
     ActionResult ProposeDiplomaticAction(string civilizationId, string action, string targetCivilizationId);
+    ProposeResearchResult ProposeResearch(string civilizationId, string technologyId);
     ActionResult EmitGlobalEvent(GlobalEvent globalEvent);
 }
 
@@ -29,3 +34,5 @@ public readonly record struct CivilizationStateSnapshot(
     IReadOnlyList<string> ControlledRegionIds);
 
 public readonly record struct ActionResult(bool Accepted, string Message);
+
+public readonly record struct ProposeResearchResult(bool Accepted, string Message, string? TechnologyId = null);

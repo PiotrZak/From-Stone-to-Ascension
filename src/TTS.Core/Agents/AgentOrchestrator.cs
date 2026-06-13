@@ -1,7 +1,7 @@
 namespace TTS.Core.Agents;
 
 using TTS.Core.Models;
-using TTS.Core.Systems;
+using TTS.Core.Simulation;
 
 /// <summary>
 /// Entry point for MAF-backed civilization turns. At TTS 5+ this orchestrator
@@ -10,8 +10,6 @@ using TTS.Core.Systems;
 public class AgentOrchestrator
 {
     private readonly IGameToolSurface _tools;
-    private readonly TechTreeSystem _techTreeSystem = new();
-    private readonly ForbiddenTechSystem _forbiddenTechSystem = new();
 
     public AgentOrchestrator(IGameToolSurface tools)
     {
@@ -26,16 +24,15 @@ public class AgentOrchestrator
         _ = _tools.GetCivilizationState(civilization.Id);
         _ = _tools.GetFactionTensions(civilization.Id);
 
-        var candidate = _techTreeSystem
-            .GetAvailableTechnologies(civilization, world)
+        var candidate = _tools.GetAvailableTechnologies(civilization.Id)
             .OrderByDescending(t => t.RiskLevel)
             .FirstOrDefault();
 
         if (candidate is null)
             return AgentTurnResult.Completed("No research candidates available.");
 
-        var result = _techTreeSystem.Research(civilization, candidate, _forbiddenTechSystem);
-        return result.Success
+        var result = _tools.ProposeResearch(civilization.Id, candidate.Id);
+        return result.Accepted
             ? AgentTurnResult.Completed($"Agent researched '{candidate.Name}'.")
             : AgentTurnResult.Completed(result.Message);
     }

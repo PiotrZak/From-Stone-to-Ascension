@@ -12,9 +12,9 @@ public sealed class CrimePerspectiveScenario(OllamaClient ollama) : IScenario
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
-        var (world, tools) = ScenarioWorldBuilder.CreateInformationAgeWithCrime();
+        var (world, tools, _) = ScenarioWorldBuilder.CreateInformationAgeWithCrime();
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
-        var crime = new CrimeSystem().GetPerspective(player, world);
+        var crime = tools.GetCrimePerspective(player.Id);
         var snapshot = tools.GetCivilizationState(player.Id);
 
         var regionDetails = world.Regions

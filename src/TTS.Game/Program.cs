@@ -1,12 +1,12 @@
 using TTS.Core;
 using TTS.Core.Agents;
 using TTS.Core.Models;
-using TTS.Core.Systems;
+using TTS.Core.Simulation;
 
+var services = new SimulationServices();
 var world = SampleWorldFactory.Create();
-var loop = new GameLoop(world);
-var tools = new GameToolSurface(world);
-var crimeSystem = new CrimeSystem();
+var loop = services.CreateGameLoop(world);
+var tools = services.CreateToolSurface(world);
 
 Console.WriteLine("TTS: Technology Tier Simulation");
 Console.WriteLine("================================");
@@ -29,7 +29,7 @@ for (var i = 0; i < turnsToSimulate; i++)
 
         if (civilization.CurrentTier >= TechTier.InformationAge)
         {
-            var crime = crimeSystem.GetPerspective(civilization, world);
+            var crime = tools.GetCrimePerspective(civilization.Id);
             if (crime.Available)
             {
                 Console.WriteLine(

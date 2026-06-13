@@ -7,7 +7,13 @@ using TTS.Core.Models;
 /// </summary>
 public class AutoPolicySystem
 {
-    private readonly TechTreeSystem _techTreeSystem = new();
+    private readonly TechTreeSystem _techTreeSystem;
+
+    public AutoPolicySystem() : this(new TechTreeSystem())
+    {
+    }
+
+    public AutoPolicySystem(TechTreeSystem techTreeSystem) => _techTreeSystem = techTreeSystem;
 
     public Technology? SelectNextTechnology(Civilization civilization, WorldState world, CivilizationPolicy policy)
     {

@@ -1,8 +1,8 @@
 # Implementation Plan
 
 **Project:** TTS — Technology Tier Simulation  
-**Last updated:** Phase 2 complete — Phase 3 is next  
-**Status:** Auto policy & classical AI implemented; both civs progress in demo
+**Last updated:** Phase 2b + Phase 7 (partial) complete — Phase 3 is next  
+**Status:** Auto policy, classical AI, TTS 4 crime perspective, and Ollama offline scenarios implemented; 14 tests passing
 
 ---
 
@@ -16,6 +16,8 @@ This document is the **master implementation plan**. It unifies work across:
 | [async-multiplayer-gameplay.md](async-multiplayer-gameplay.md) | Slow-evolving async MP |
 | [orleans-integration.md](orleans-integration.md) | Distributed server / grains |
 | [agent-framework-integration.md](agent-framework-integration.md) | MAF / LLM agents (TTS 5+) |
+| [ollama-scenarios.md](ollama-scenarios.md) | Local Ollama scenarios (`TTS.Agents`) |
+| [crime-data.md](crime-data.md) | TTS 4 crime/income CSV perspective |
 
 ### Principle
 
@@ -25,6 +27,19 @@ Build in layers. Each phase produces a **testable milestone**. Do not skip to Or
 TTS.Core (rules) → Auto policy & decisions → Scheduled ticks → Orleans → API → MAF
 ```
 
+### Current solution
+
+```
+From-Stone-to-Ascension.sln
+├── src/TTS.Core/       Models, systems, GameLoop, agent tool surface
+├── src/TTS.Game/       Console demo (8 instant turns)
+├── src/TTS.Tests/      14 xunit tests
+├── src/TTS.Agents/     Ollama offline scenarios (7 + ping)
+└── src/data/           state_crime_income_merged.csv (TTS 4)
+```
+
+**Not yet created:** `TTS.Server`, `TTS.Api`
+
 ---
 
 ## 2. Phase Map
@@ -33,7 +48,8 @@ TTS.Core (rules) → Auto policy & decisions → Scheduled ticks → Orleans →
 flowchart LR
     P0[Phase 0<br/>Design] --> P1[Phase 1<br/>Core scaffold]
     P1 --> P2[Phase 2<br/>Auto policy]
-    P2 --> P3[Phase 3<br/>Decision gates]
+    P2 --> P2b[Phase 2b<br/>Crime data]
+    P2b --> P3[Phase 3<br/>Decision gates]
     P3 --> P4[Phase 4<br/>Scheduled ticks]
     P4 --> P5[Phase 5<br/>Orleans silo]
     P5 --> P6[Phase 6<br/>MP API]
@@ -42,18 +58,20 @@ flowchart LR
     P8 --> P9[Phase 9<br/>Cloud scale]
 
     P2 -.-> P7
+    P2b -.-> P7
 ```
 
 | Phase | Name | Host | Status |
 |-------|------|------|--------|
 | **0** | Design & documentation | — | Done |
 | **1** | Core simulation scaffold | `TTS.Game` | Done |
-| **2** | Auto policy & classical AI | `TTS.Core` | **Done** |
+| **2** | Auto policy & classical AI | `TTS.Core` | Done |
+| **2b** | Crime data (TTS 4 perspective) | `TTS.Core` + `TTS.Agents` | Done |
 | **3** | Decision gates & away summary | `TTS.Core` | **Next** |
 | **4** | Scheduled ticks (local) | `TTS.Core` / `TTS.Game` | Planned |
 | **5** | Orleans local silo | `TTS.Server` | Planned |
 | **6** | Async multiplayer API | `TTS.Api` | Planned |
-| **7** | MAF tooling (offline) | `TTS.Agents` | Planned |
+| **7** | MAF tooling (offline) | `TTS.Agents` | **Partial** (~50%) |
 | **8** | MAF in-game (TTS 5+) | `TTS.Agents` + grains | Planned |
 | **9** | Cloud scale & polish | Cluster | Planned |
 
@@ -63,7 +81,7 @@ flowchart LR
 
 | Milestone | Phases | Player-visible outcome |
 |-----------|--------|------------------------|
-| **M1 — Credible sim** | 0–2 | Both civs progress; policy drives research |
+| **M1 — Credible sim** | 0–2, 2b | Both civs progress; policy drives research; TTS 4 crime pressure visible |
 | **M2 — Governor gameplay** | 3–4 | Decisions, timeouts, away summary; ticks on timer |
 | **M3 — Online match** | 5–6 | 2+ players in persistent world via API |
 | **M4 — Intelligent eras** | 7–8 | MAF advisors, crises, procedural tech |
@@ -85,6 +103,8 @@ flowchart LR
 - [x] [agent-framework-integration.md](agent-framework-integration.md)
 - [x] [orleans-integration.md](orleans-integration.md)
 - [x] [async-multiplayer-gameplay.md](async-multiplayer-gameplay.md)
+- [x] [ollama-scenarios.md](ollama-scenarios.md)
+- [x] [crime-data.md](crime-data.md)
 - [x] [implementation-plan.md](implementation-plan.md) (this file)
 
 ---
@@ -93,7 +113,7 @@ flowchart LR
 
 **Goal:** Runnable turn-based simulation with models, systems, and tests.
 
-**Status:** Done (verify build locally)
+**Status:** Done
 
 **Depends on:** Phase 0
 
@@ -104,22 +124,23 @@ flowchart LR
 - [x] `TTS.Core/Agents` — `IGameToolSurface`, `GameToolSurface`, `AgentOrchestrator` stub
 - [x] `TTS.Game` — console demo (8 instant turns)
 - [x] `TTS.Tests` — core system tests
-- [x] Confirm `dotnet build && dotnet test` passes on dev machine
+- [x] `dotnet build && dotnet test` passes (14 tests)
 
-### Key files (existing)
+### Key files
 
 ```
 src/TTS.Core/Models/          TechTier, Region, Faction, Technology, Civilization, ...
-src/TTS.Core/Systems/         Stability, TechTree, Faction, GlobalEvent, ...
+src/TTS.Core/Systems/         Stability, TechTree, Faction, GlobalEvent, ForbiddenTech, ...
 src/TTS.Core/GameLoop.cs      Primary + secondary loops
 src/TTS.Game/Program.cs       Demo host
 ```
 
-### Known gaps (fixed in Phase 2)
+### Known gaps (addressed in later phases)
 
-- Player auto-researches first available tech (no policy)
-- Rival civ does not research below TTS 5
-- No decision gates or scheduled ticks
+- ~~Player auto-researches first available tech~~ → fixed in Phase 2
+- ~~Rival civ does not research below TTS 5~~ → fixed in Phase 2
+- No decision gates or scheduled ticks → Phase 3–4
+- No TTS 4 socioeconomic perspective → Phase 2b
 
 ---
 
@@ -136,7 +157,7 @@ src/TTS.Game/Program.cs       Demo host
 ### Tasks
 
 - [x] Add `CivilizationPolicy` model (`ResearchStance`, `RiskTolerance`, `DiplomacyStance`, `BranchWeights`)
-- [x] Add policy presets: `Expansionist`, `TechRush`, `StabilityFirst`, `Diplomatic`
+- [x] Add policy presets: `Balanced`, `Expansionist`, `TechRush`, `StabilityFirst`, `Diplomatic`
 - [x] Add `AutoPolicySystem` — select next tech from policy + available tree
 - [x] Add `ClassicalAiSystem` — runs auto policy for non-player civs (all tiers)
 - [x] Refactor `GameLoop.RunPrimaryLoop()`:
@@ -147,7 +168,7 @@ src/TTS.Game/Program.cs       Demo host
 - [x] Unit tests: policy picks expected branch; rival researches over N turns
 - [x] Update `TTS.Game` output to show policy stance per civ
 
-### New files (proposed)
+### Files
 
 ```
 src/TTS.Core/Models/CivilizationPolicy.cs
@@ -156,10 +177,50 @@ src/TTS.Core/Systems/ClassicalAiSystem.cs
 src/TTS.Tests/AutoPolicyTests.cs
 ```
 
-### Exit criteria (M1 partial)
+### Exit criteria (M1)
 
 - Iron Dominion researches and advances tiers in 8-turn demo
 - Player civ follows `Balanced` policy without hard-coded “first tech”
+
+---
+
+## Phase 2b — Crime Data (TTS 4 Perspective)
+
+**Goal:** At TTS 4, regional stability reflects real-world-inspired crime and socioeconomic data.
+
+**Status:** Done
+
+**Depends on:** Phase 1 (parallel with Phase 2)
+
+**Doc:** [crime-data.md](crime-data.md) · [tech-tree.md § TTS 4](tech-tree.md)
+
+### Tasks
+
+- [x] Add `RegionalCrimeProfile` model with `CrimePressureIndex` composite score
+- [x] Add `CrimeDataRepository` — parse `src/data/state_crime_income_merged.csv`
+- [x] Copy CSV to output via `TTS.Core.csproj`
+- [x] Add `CrimeSystem` — stability pressure at TTS 4+; `tech-cybersecurity` mitigates 40%
+- [x] Wire `CrimeSystem` into `GameLoop` secondary loop
+- [x] Map demo regions: Green Basin → California 2015, Iron Coast → Louisiana 2015
+- [x] `TTS.Game` prints crime perspective from turn 4 onward
+- [x] `CrimePerspectiveScenario` in `TTS.Agents` (`dotnet run --project src/TTS.Agents -- crime`)
+- [x] Unit tests: CSV load, pressure index, TTS gate
+
+### Files
+
+```
+src/data/state_crime_income_merged.csv
+src/TTS.Core/Models/RegionalCrimeProfile.cs
+src/TTS.Core/Systems/CrimeDataRepository.cs
+src/TTS.Core/Systems/CrimeSystem.cs
+src/TTS.Agents/Scenarios/CrimePerspectiveScenario.cs
+src/TTS.Tests/CrimeDataTests.cs
+```
+
+### Exit criteria (M1 extension)
+
+- Demo shows differentiated crime pressure (CA ~65, LA ~81)
+- Crime stability penalty applies only at TTS 4+
 
 ---
 
@@ -167,11 +228,11 @@ src/TTS.Tests/AutoPolicyTests.cs
 
 **Goal:** Critical moments require player choice; world continues on timeout defaults.
 
-**Status:** Planned
+**Status:** Planned — **start here**
 
 **Depends on:** Phase 2
 
-**Doc:** [async-multiplayer-gameplay.md §6](async-multiplayer-gameplay.md#6-decision-gates)
+**Doc:** [async-multiplayer-gameplay.md §6](async-multiplayer-gameplay.md#6-decision-gates) · [ollama-scenarios.md § crisis](ollama-scenarios.md)
 
 ### Tasks
 
@@ -181,12 +242,14 @@ src/TTS.Tests/AutoPolicyTests.cs
   - [ ] `GlobalEventSystem` crises
   - [ ] `ForbiddenTechSystem` early unlock offers
   - [ ] Stability threshold (faction crisis)
+  - [ ] Crime pressure spike at TTS 4+ (optional hook from Phase 2b)
 - [ ] Add `PendingDecisions` queue on `Civilization`
 - [ ] Add `ResolveDecision(civId, option)` — validate and apply via existing systems
 - [ ] Add timeout handling in `GameLoop` — default option when expired
 - [ ] Add `AwaySummary` builder — digest of ticks, events, auto-resolved decisions
 - [ ] Demo: inject one gate in `SampleWorldFactory`; show timeout in console
 - [ ] Unit tests: gate creation, resolution, timeout default
+- [ ] Bridge `CrisisScenario` A/B/C choices to real gate options (design alignment)
 
 ### New files (proposed)
 
@@ -321,36 +384,51 @@ src/TTS.Api/Endpoints/MatchEndpoints.cs
 
 **Goal:** Procedural tech and content pipelines using MAF — no live match required.
 
-**Status:** Planned
+**Status:** Partial — Ollama scenarios done; MAF packages and fusion workflow not started
 
 **Depends on:** Phase 1 (can parallelize after Phase 2)
 
-**Doc:** [agent-framework-integration.md §3.1, §5.2](agent-framework-integration.md#31-llm-provider-strategy)
+**Doc:** [agent-framework-integration.md §3.1, §5.2](agent-framework-integration.md#31-llm-provider-strategy) · [ollama-scenarios.md](ollama-scenarios.md)
 
-**Related:** [ollama-scenarios.md](ollama-scenarios.md) — **how local Ollama integration works** (implemented)
+### Done (Ollama prototype)
 
-### Tasks
+- [x] Add `TTS.Agents` project (references `TTS.Core` only)
+- [x] `OllamaClient` + `OllamaSettings` (`OLLAMA_BASE_URL`, `OLLAMA_MODEL`)
+- [x] `IScenario` + `ScenarioWorldBuilder` shared test worlds
+- [x] Seven scenarios + `ping`:
+  - [x] `ping` — connectivity check
+  - [x] `advisor` — read-only civ state narration
+  - [x] `crisis` — A/B/C crisis choices (prototype for Phase 3 gates)
+  - [x] `rival-turn` — AI civ research proposal
+  - [x] `tech-lore` — fusion node lore generation
+  - [x] `faction-debate` — forbidden AI faction dialogue
+  - [x] `crime` — TTS 4 crime/income analysis from CSV
+- [x] CLI: `dotnet run --project src/TTS.Agents -- <scenario>`
+- [x] Document local setup in [ollama-scenarios.md](ollama-scenarios.md)
 
-- [ ] Add `TTS.Agents` project (`Microsoft.Agents.AI`, `Microsoft.Agents.AI.OpenAI`)
+### Remaining (MAF + content pipeline)
+
+- [ ] Add `Microsoft.Agents.AI` packages
 - [ ] `AgentProviderFactory` — `ollama` | `openai` | `gemini` | `none` via `TTS_LLM_PROVIDER`
-- [ ] Document local setup: Ollama (free) or Gemini API key from Google AI Studio
 - [ ] Implement MAF tools wrapping read-only / register operations
 - [ ] Workflow: fusion node `generate → validate → lore → export JSON`
 - [ ] Agent Skills: load `tech-tree.md`, `README.md`
 - [ ] CLI command: `dotnet run --project TTS.Agents -- generate-tech --parents A,B`
 - [ ] Human-in-the-loop export for designer review (optional)
+- [ ] Validate `rival-turn` tech IDs before applying (shared with Phase 8)
 
-### New files (proposed)
+### Files (existing)
 
 ```
 src/TTS.Agents/TTS.Agents.csproj
-src/TTS.Agents/Workflows/TechFusionWorkflow.cs
-src/TTS.Agents/Tools/TechTreeTools.cs
+src/TTS.Agents/Ollama/OllamaClient.cs
+src/TTS.Agents/Scenarios/*.cs
 ```
 
 ### Exit criteria (M4 partial)
 
-- Generate valid tech node JSON from fusion tags offline
+- [x] Run offline advisor/crisis/crime scenarios against live `TTS.Core` state
+- [ ] Generate valid tech node JSON from fusion tags offline
 
 ---
 
@@ -375,6 +453,7 @@ src/TTS.Agents/Tools/TechTreeTools.cs
 - [ ] Auto policy at TTS 5+: MAF proposes; `TTS.Core` validates
 - [ ] Timeout fallback to classical policy if MAF unavailable
 - [ ] OpenTelemetry: token usage per civ per tick
+- [ ] Add `GetCrimePerspective` to `IGameToolSurface` (optional)
 
 ### Exit criteria (M4)
 
@@ -413,19 +492,21 @@ src/TTS.Agents/Tools/TechTreeTools.cs
 | Orleans before Phase 4 | Need policy + gates + tick model in `TTS.Core` first |
 | MAF in live match before Phase 6 | Need stable tool surface and match API |
 | Unity / GUI client | API and sim must be credible first |
-| Full 500-node tech tree | Fusion workflow (Phase 7) before content scale |
+| Full 500-node tech tree | Fusion workflow (Phase 7 remainder) before content scale |
 | Multiverse / TTS 9+ | Core tiers 1–6 must play well first |
 
 ---
 
 ## 5. Suggested Work Order (Next 4 Sprints)
 
-| Sprint | Phase | Focus |
-|--------|-------|-------|
-| **1** | 2 | `CivilizationPolicy`, `AutoPolicySystem`, fix rival AI |
-| **2** | 3 | `DecisionGate`, timeout defaults, `AwaySummary` |
-| **3** | 4 | `TickScheduler`, compressed-time demo |
-| **4** | 5 | `TTS.Server` local silo + grain wrappers |
+| Sprint | Phase | Focus | Status |
+|--------|-------|-------|--------|
+| **1** | 2 + 2b | Auto policy, classical AI, crime data | Done |
+| **2** | 3 | `DecisionGate`, timeout defaults, `AwaySummary` | **Next** |
+| **3** | 4 | `TickScheduler`, compressed-time demo | Planned |
+| **4** | 5 | `TTS.Server` local silo + grain wrappers | Planned |
+
+**Parallel track:** Phase 7 remainder (MAF fusion workflow) can run alongside Sprint 2–3 without blocking Phase 3.
 
 ---
 
@@ -434,26 +515,44 @@ src/TTS.Agents/Tools/TechTreeTools.cs
 Update checkboxes here as phases complete.
 
 ```
-Phase 0  [██████████] 100%
-Phase 1  [██████████] 100%
-Phase 2  [██████████] 100%
-Phase 3  [░░░░░░░░░░]   0%   ← START HERE
-Phase 4  [░░░░░░░░░░]   0%
-Phase 5  [░░░░░░░░░░]   0%
-Phase 6  [░░░░░░░░░░]   0%
-Phase 7  [░░░░░░░░░░]   0%
-Phase 8  [░░░░░░░░░░]   0%
-Phase 9  [░░░░░░░░░░]   0%
+Phase 0   [██████████] 100%
+Phase 1   [██████████] 100%
+Phase 2   [██████████] 100%
+Phase 2b  [██████████] 100%
+Phase 3   [░░░░░░░░░░]   0%   ← START HERE
+Phase 4   [░░░░░░░░░░]   0%
+Phase 5   [░░░░░░░░░░]   0%
+Phase 6   [░░░░░░░░░░]   0%
+Phase 7   [█████░░░░░]  50%   (Ollama scenarios done; MAF workflow pending)
+Phase 8   [░░░░░░░░░░]   0%
+Phase 9   [░░░░░░░░░░]   0%
 ```
+
+**Tests:** 14 passing (`CoreSystemsTests`, `AutoPolicyTests`, `CrimeDataTests`)
 
 ---
 
-## 7. References
+## 7. Quick Commands
+
+```bash
+dotnet build && dotnet test                              # verify solution
+dotnet run --project src/TTS.Game                        # 8-turn sim demo
+dotnet run --project src/TTS.Agents -- list              # Ollama scenarios
+dotnet run --project src/TTS.Agents -- crime             # TTS 4 crime perspective
+```
+
+**Ollama setup:** `ollama pull llama3.2` · defaults: `http://localhost:11434`, model `llama3.2`
+
+---
+
+## 8. References
 
 | Doc | Phases |
 |-----|--------|
 | [async-multiplayer-gameplay.md](async-multiplayer-gameplay.md) | 2, 3, 4, 6 |
 | [orleans-integration.md](orleans-integration.md) | 5, 6, 8, 9 |
 | [agent-framework-integration.md](agent-framework-integration.md) | 7, 8, 9 |
+| [ollama-scenarios.md](ollama-scenarios.md) | 7, 8 |
+| [crime-data.md](crime-data.md) | 2b |
 | [README.md](README.md) | All (design source) |
-| [tech-tree.md](tech-tree.md) | 7 (procedural content) |
+| [tech-tree.md](tech-tree.md) | 2b, 7 (procedural content) |

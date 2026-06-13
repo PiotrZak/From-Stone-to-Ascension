@@ -1,5 +1,6 @@
 using TTS.Core;
 using TTS.Core.Models;
+using TTS.Core.Simulation;
 using TTS.Core.Systems;
 
 namespace TTS.Tests;
@@ -43,12 +44,13 @@ public class CrimeDataTests
     [Fact]
     public void CrimeSystem_AppliesPressureAtTts4()
     {
+        var services = new SimulationServices();
         var world = SampleWorldFactory.Create();
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
         player.CurrentTier = TechTier.InformationAge;
         var stabilityBefore = player.PoliticalStability;
 
-        new CrimeSystem().ApplyTurnPressure(player, world);
+        services.Crime.ApplyTurnPressure(player, world);
 
         if (world.Regions.Any(r => r.CrimeProfile is not null))
             Assert.True(player.PoliticalStability < stabilityBefore);
@@ -57,12 +59,28 @@ public class CrimeDataTests
     [Fact]
     public void CrimePerspective_UnavailableBelowTts4()
     {
+        var services = new SimulationServices();
         var world = SampleWorldFactory.Create();
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
         player.CurrentTier = TechTier.EarlyElectronics;
 
-        var summary = new CrimeSystem().GetPerspective(player, world);
+        var summary = services.Crime.GetPerspective(player, world);
 
         Assert.False(summary.Available);
+    }
+
+    [Fact]
+    public void GameToolSurface_ExposesCrimePerspective()
+    {
+        var services = new SimulationServices();
+        var world = SampleWorldFactory.Create();
+        var player = world.Civilizations.First(c => c.IsPlayerControlled);
+        player.CurrentTier = TechTier.InformationAge;
+        var tools = services.CreateToolSurface(world);
+
+        var summary = tools.GetCrimePerspective(player.Id);
+
+        if (world.Regions.Any(r => r.CrimeProfile is not null))
+            Assert.True(summary.Available);
     }
 }

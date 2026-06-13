@@ -1,7 +1,6 @@
 namespace TTS.Agents.Scenarios;
 
 using TTS.Agents.Ollama;
-using TTS.Core.Systems;
 
 public sealed class RivalTurnScenario(OllamaClient ollama) : IScenario
 {
@@ -11,10 +10,9 @@ public sealed class RivalTurnScenario(OllamaClient ollama) : IScenario
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
-        var (world, tools) = ScenarioWorldBuilder.CreateEarlyAiCrisis();
+        var (world, tools, _) = ScenarioWorldBuilder.CreateEarlyAiCrisis();
         var rival = world.Civilizations.First(c => !c.IsPlayerControlled);
-        var techTree = new TechTreeSystem();
-        var available = techTree.GetAvailableTechnologies(rival, world).ToList();
+        var available = tools.GetAvailableTechnologies(rival.Id);
 
         var userPrompt = $"""
             You control the AI civilization "{rival.Name}" in a tech strategy game.
@@ -39,6 +37,6 @@ public sealed class RivalTurnScenario(OllamaClient ollama) : IScenario
 
         Console.WriteLine(reply);
         Console.WriteLine();
-        Console.WriteLine("(In-game, TTS.Core validates and applies the choice via TechTreeSystem.)");
+        Console.WriteLine("(In-game, TTS.Core validates and applies the choice via ProposeResearch.)");
     }
 }

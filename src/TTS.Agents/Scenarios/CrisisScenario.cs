@@ -10,7 +10,7 @@ public sealed class CrisisScenario(OllamaClient ollama) : IScenario
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
-        var (world, tools) = ScenarioWorldBuilder.CreateEarlyAiCrisis();
+        var (world, tools, _) = ScenarioWorldBuilder.CreateEarlyAiCrisis();
         var player = tools.GetCivilizationState(world.Civilizations.First(c => c.IsPlayerControlled).Id);
         var crisis = world.ActiveEvents[0];
 

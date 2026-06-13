@@ -3,32 +3,34 @@ namespace TTS.Agents.Scenarios;
 using TTS.Core;
 using TTS.Core.Agents;
 using TTS.Core.Models;
-using TTS.Core.Systems;
+using TTS.Core.Simulation;
 
 /// <summary>Prepares demo worlds at specific TTS states for Ollama scenarios.</summary>
 public static class ScenarioWorldBuilder
 {
-    public static (WorldState World, GameToolSurface Tools) CreateEarlyAiCrisis()
-    {
-        var world = SampleWorldFactory.Create();
-        var loop = new GameLoop(world);
-        var tools = new GameToolSurface(world);
-        var forbidden = new ForbiddenTechSystem();
-        var techTree = new TechTreeSystem();
+    private static readonly string[] EarlyAiTechPath =
+    [
+        "tech-agriculture", "tech-governance", "tech-metallurgy", "tech-steam",
+        "tech-electrical", "tech-computing", "tech-ml"
+    ];
 
+    private static readonly string[] InformationAgeTechPath =
+    [
+        "tech-agriculture", "tech-governance", "tech-metallurgy", "tech-steam",
+        "tech-electrical", "tech-computing"
+    ];
+
+    public static (WorldState World, GameToolSurface Tools, SimulationServices Services) CreateEarlyAiCrisis()
+    {
+        var services = new SimulationServices();
+        var world = SampleWorldFactory.Create();
+        var tools = services.CreateToolSurface(world);
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
         var rival = world.Civilizations.First(c => !c.IsPlayerControlled);
 
-        foreach (var techId in new[] { "tech-agriculture", "tech-governance", "tech-metallurgy", "tech-steam",
-                     "tech-electrical", "tech-computing", "tech-ml" })
-        {
-            var tech = world.Technologies.First(t => t.Id == techId);
-            techTree.Research(player, tech, forbidden);
-            techTree.Research(rival, tech, forbidden);
-        }
-
-        player.CurrentTier = TechTier.EarlyAI;
-        rival.CurrentTier = TechTier.EarlyAI;
+        WorldAdvancer.ResearchTechnologiesForAll(world, [player, rival], EarlyAiTechPath, services);
+        WorldAdvancer.SetTier(player, TechTier.EarlyAI);
+        WorldAdvancer.SetTier(rival, TechTier.EarlyAI);
         player.TechnologicalStability = 45;
         rival.TechnologicalStability = 40;
 
@@ -41,31 +43,26 @@ public static class ScenarioWorldBuilder
             duration: 3));
 
         world.Turn = 42;
-        return (world, tools);
+        return (world, tools, services);
     }
 
-    public static (WorldState World, GameToolSurface Tools) CreateInformationAgeWithCrime()
+    public static (WorldState World, GameToolSurface Tools, SimulationServices Services) CreateInformationAgeWithCrime()
     {
+        var services = new SimulationServices();
         var world = SampleWorldFactory.Create();
-        var tools = new GameToolSurface(world);
-        var forbidden = new ForbiddenTechSystem();
-        var techTree = new TechTreeSystem();
+        var tools = services.CreateToolSurface(world);
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
 
-        foreach (var techId in new[] { "tech-agriculture", "tech-governance", "tech-metallurgy", "tech-steam", "tech-electrical", "tech-computing" })
-        {
-            var tech = world.Technologies.First(t => t.Id == techId);
-            techTree.Research(player, tech, forbidden);
-        }
-
-        player.CurrentTier = TechTier.InformationAge;
+        WorldAdvancer.ResearchTechnologies(world, player, InformationAgeTechPath, services);
+        WorldAdvancer.SetTier(player, TechTier.InformationAge);
         world.Turn = 30;
-        return (world, tools);
+        return (world, tools, services);
     }
 
-    public static (WorldState World, GameToolSurface Tools) CreateFreshWorld()
+    public static (WorldState World, GameToolSurface Tools, SimulationServices Services) CreateFreshWorld()
     {
+        var services = new SimulationServices();
         var world = SampleWorldFactory.Create();
-        return (world, new GameToolSurface(world));
+        return (world, services.CreateToolSurface(world), services);
     }
 }

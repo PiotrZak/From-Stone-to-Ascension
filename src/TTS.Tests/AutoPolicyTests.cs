@@ -1,5 +1,6 @@
 using TTS.Core;
 using TTS.Core.Models;
+using TTS.Core.Simulation;
 using TTS.Core.Systems;
 
 namespace TTS.Tests;
@@ -14,8 +15,8 @@ public class AutoPolicyTests
         civ.ResearchedTechnologyIds.Add("tech-ml");
         civ.CurrentTier = TechTier.InformationAge;
 
-        var autoPolicy = new AutoPolicySystem();
-        var next = autoPolicy.SelectNextTechnology(civ, world, CivilizationPolicy.StabilityFirst());
+        var services = new SimulationServices();
+        var next = services.AutoPolicy.SelectNextTechnology(civ, world, CivilizationPolicy.StabilityFirst());
 
         Assert.NotNull(next);
         Assert.NotEqual("tech-forbidden", next.Id);
@@ -30,8 +31,8 @@ public class AutoPolicyTests
         civ.CurrentTier = TechTier.InformationAge;
         civ.Policy = CivilizationPolicy.TechRush();
 
-        var autoPolicy = new AutoPolicySystem();
-        var next = autoPolicy.SelectNextTechnology(civ, world, civ.Policy);
+        var services = new SimulationServices();
+        var next = services.AutoPolicy.SelectNextTechnology(civ, world, civ.Policy);
 
         Assert.NotNull(next);
         Assert.Equal("tech-recursive-ai", next.Id);
@@ -40,11 +41,11 @@ public class AutoPolicyTests
     [Fact]
     public void ClassicalAi_RivalResearchesOnFirstTurn()
     {
+        var services = new SimulationServices();
         var world = SampleWorldFactory.Create();
         var rival = world.Civilizations.First(c => !c.IsPlayerControlled);
-        var classicalAi = new ClassicalAiSystem();
 
-        var result = classicalAi.RunTurn(rival, world);
+        var result = services.ClassicalAi.RunTurn(rival, world);
 
         Assert.True(result.DidResearch);
         Assert.Single(rival.ResearchedTechnologyIds);
@@ -53,8 +54,9 @@ public class AutoPolicyTests
     [Fact]
     public void GameLoop_RivalProgressesOverMultipleTurns()
     {
+        var services = new SimulationServices();
         var world = SampleWorldFactory.Create();
-        var loop = new GameLoop(world);
+        var loop = services.CreateGameLoop(world);
         var rival = world.Civilizations.First(c => !c.IsPlayerControlled);
 
         for (var i = 0; i < 4; i++)
@@ -67,11 +69,12 @@ public class AutoPolicyTests
     [Fact]
     public void GameLoop_PlayerUsesPolicyNotFirstTechOnly()
     {
+        var services = new SimulationServices();
         var world = SampleWorldFactory.Create();
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
         player.Policy = CivilizationPolicy.StabilityFirst();
 
-        new GameLoop(world).RunTurn();
+        services.CreateGameLoop(world).RunTurn();
 
         Assert.Contains("tech-agriculture", player.ResearchedTechnologyIds);
     }

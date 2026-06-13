@@ -1,6 +1,7 @@
 namespace TTS.Core.Agents;
 
 using TTS.Core.Models;
+using TTS.Core.Simulation;
 using TTS.Core.Systems;
 
 /// <summary>
@@ -10,12 +11,16 @@ using TTS.Core.Systems;
 public class GameToolSurface : IGameToolSurface
 {
     private readonly WorldState _world;
-    private readonly FactionSystem _factionSystem = new();
-    private readonly GlobalEventSystem _globalEventSystem = new();
+    private readonly SimulationServices _services;
 
-    public GameToolSurface(WorldState world)
+    public GameToolSurface(WorldState world) : this(world, new SimulationServices())
+    {
+    }
+
+    public GameToolSurface(WorldState world, SimulationServices services)
     {
         _world = world;
+        _services = services;
     }
 
     public CivilizationStateSnapshot GetCivilizationState(string civilizationId)
@@ -35,14 +40,26 @@ public class GameToolSurface : IGameToolSurface
     public IReadOnlyDictionary<string, double> GetFactionTensions(string civilizationId)
     {
         var civ = RequireCivilization(civilizationId);
-        return _factionSystem.GetFactionTensions(civ);
+        return _services.Faction.GetFactionTensions(civ);
     }
 
     public IReadOnlyList<Technology> GetTechTreeLayer(TechTier tier) =>
         _world.Technologies.Where(t => t.Tier == tier).ToList();
 
+    public IReadOnlyList<Technology> GetAvailableTechnologies(string civilizationId)
+    {
+        var civ = RequireCivilization(civilizationId);
+        return _services.TechTree.GetAvailableTechnologies(civ, _world).ToList();
+    }
+
     public IReadOnlyList<GlobalEvent> GetGlobalEvents(bool activeOnly) =>
-        activeOnly ? _world.ActiveEvents.ToList() : _world.ActiveEvents.ToList();
+        _world.ActiveEvents.ToList();
+
+    public CrimePerspectiveSummary GetCrimePerspective(string civilizationId)
+    {
+        var civ = RequireCivilization(civilizationId);
+        return _services.Crime.GetPerspective(civ, _world);
+    }
 
     public ActionResult SetResearchPriority(string civilizationId, string branch, double weight)
     {
@@ -63,9 +80,23 @@ public class GameToolSurface : IGameToolSurface
         return new ActionResult(true, $"Diplomatic proposal '{action}' queued for review.");
     }
 
+    public ProposeResearchResult ProposeResearch(string civilizationId, string technologyId)
+    {
+        var civ = RequireCivilization(civilizationId);
+        if (!_world.Technologies.Any(t => t.Id == technologyId))
+            return new ProposeResearchResult(false, $"Technology '{technologyId}' not found.");
+
+        var technology = _world.Technologies.First(t => t.Id == technologyId);
+        if (!_services.TechTree.CanResearch(civ, technology))
+            return new ProposeResearchResult(false, "Prerequisites not met or technology already researched.");
+
+        var result = _services.Research.Execute(civ, technology);
+        return new ProposeResearchResult(result.Success, result.Message, result.TechnologyId);
+    }
+
     public ActionResult EmitGlobalEvent(GlobalEvent globalEvent)
     {
-        _globalEventSystem.EmitEvent(_world, globalEvent);
+        _services.GlobalEvents.EmitEvent(_world, globalEvent);
         return new ActionResult(true, $"Global event '{globalEvent.Name}' applied.");
     }
 

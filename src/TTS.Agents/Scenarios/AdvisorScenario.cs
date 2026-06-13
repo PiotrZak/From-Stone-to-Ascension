@@ -11,7 +11,7 @@ public sealed class AdvisorScenario(OllamaClient ollama) : IScenario
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
-        var (world, tools) = ScenarioWorldBuilder.CreateEarlyAiCrisis();
+        var (world, tools, _) = ScenarioWorldBuilder.CreateEarlyAiCrisis();
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
         var snapshot = tools.GetCivilizationState(player.Id);
         var tensions = tools.GetFactionTensions(player.Id);
