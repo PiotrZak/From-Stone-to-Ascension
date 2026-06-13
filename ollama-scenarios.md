@@ -5,7 +5,7 @@ Run local LLM scenarios against live TTS game state. Uses your **Ollama** instan
 **Project:** `src/TTS.Agents`  
 **Requires:** [Ollama](https://ollama.com) running with at least one model (e.g. `llama3.2`)
 
-**Related:** [agent-framework-integration.md](agent-framework-integration.md) · [implementation-plan.md](implementation-plan.md) · [async-multiplayer-gameplay.md](async-multiplayer-gameplay.md)
+**Related:** [agent-framework-integration.md](agent-framework-integration.md) · [implementation-plan.md](implementation-plan.md) · [async-multiplayer-gameplay.md](async-multiplayer-gameplay.md) · [llm-deployment.md](llm-deployment.md) — **internet MP + cost**
 
 ---
 

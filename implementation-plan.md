@@ -18,6 +18,10 @@ This document is the **master implementation plan**. It unifies work across:
 | [agent-framework-integration.md](agent-framework-integration.md) | MAF / LLM agents (TTS 5+) |
 | [ollama-scenarios.md](ollama-scenarios.md) | Local Ollama scenarios (`TTS.Agents`) |
 | [crime-data.md](crime-data.md) | TTS 4 crime/income CSV perspective |
+| [match-modes.md](match-modes.md) | 8h / 24h / 36h / 48h match presets |
+| [ui-design.md](ui-design.md) | Client UI — dashboard, gates, screens |
+| [llm-deployment.md](llm-deployment.md) | LLM / Ollama — internet deploy + cost |
+| [company-sim.md](company-sim.md) | Separate game — async procurement sim (Supply Ascent) |
 
 ### Principle
 

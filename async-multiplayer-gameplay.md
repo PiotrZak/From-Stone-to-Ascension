@@ -6,6 +6,9 @@
 
 **Related:**
 - [README.md](README.md) — core game design
+- [match-modes.md](match-modes.md) — **8h / 24h / 36h / 48h presets** + [match lifecycle diagrams](match-modes.md#7-match-lifecycle)
+- [llm-deployment.md](llm-deployment.md) — Ollama vs cloud for internet MP + cost
+- [company-sim.md](company-sim.md) — separate procurement / company sim (Supply Ascent)
 - [orleans-integration.md](orleans-integration.md) — distributed server hosting
 - [agent-framework-integration.md](agent-framework-integration.md) — TTS 5+ agent intelligence
 - [implementation-plan.md](implementation-plan.md) — master roadmap (Phases 0–9)
@@ -379,8 +382,8 @@ Details, files, and exit criteria: [implementation-plan.md § Phase 2–4](imple
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `tick_interval_hours` | 4 | Real hours between world ticks |
-| `decision_window_hours` | 48 | Time before default applies |
+| `tick_interval_hours` | 3 (Standard) / 1 (Sprint) | Real hours between world ticks — see [match-modes.md](match-modes.md) |
+| `decision_window_hours` | 12 (Standard) / 2 (Sprint) | Time before default applies |
 | `max_pending_decisions` | 3 | Queue depth per civ |
 | `auto_research_enabled` | true | Civ researches on policy each tick |
 | `offline_progress_enabled` | true | Ticks run when player offline |

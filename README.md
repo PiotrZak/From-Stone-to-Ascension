@@ -1,8 +1,12 @@
 # TTS: TECHNOLOGY TIER SIMULATION
 
 **Implementation:** [implementation-plan.md](implementation-plan.md) — master roadmap (Phases 0–9)  
+**Match modes:** [match-modes.md](match-modes.md) — 8h / 24h / 36h / 48h async matches  
+**UI:** [ui-design.md](ui-design.md) — governor dashboard client (web MVP)  
+**LLM deploy:** [llm-deployment.md](llm-deployment.md) — Ollama vs cloud for internet MP + cost  
 **Local AI:** [ollama-scenarios.md](ollama-scenarios.md) — Ollama scenarios (TTS.Agents)  
-**TTS 4 data:** [crime-data.md](crime-data.md) — crime/income CSV perspective
+**TTS 4 data:** [crime-data.md](crime-data.md) — crime/income CSV perspective  
+**Separate game:** [company-sim.md](company-sim.md) — async procurement / company sim (Supply Ascent)
 
 ---
 

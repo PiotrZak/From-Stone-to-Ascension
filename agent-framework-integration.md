@@ -141,7 +141,7 @@ The simulation remains the **source of truth**. Agents read state and propose ac
 
 #### Default recommendation for this project
 
-Start with **Ollama** (free, local) — **implemented** in `TTS.Agents`. See [ollama-scenarios.md](ollama-scenarios.md) for architecture and usage.
+Start with **Ollama** (free, local) — **implemented** in `TTS.Agents`. See [ollama-scenarios.md](ollama-scenarios.md) for architecture and usage. For **internet multiplayer** deployment and cost, see [llm-deployment.md](llm-deployment.md).
 
 #### Environment variables (never commit to git)
 
