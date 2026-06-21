@@ -129,7 +129,7 @@ public sealed class DecisionGateSystem
         switch (optionId)
         {
             case "pursue":
-                services.Research.Execute(civilization, technology);
+                services.Research.Execute(civilization, technology, world);
                 break;
             case "ban":
                 civilization.BannedTechnologyIds.Add(technology.Id);

@@ -14,6 +14,7 @@ public sealed class SimulationServices
     public GlobalEventSystem GlobalEvents { get; } = new();
     public KnowledgeDiffusionSystem KnowledgeDiffusion { get; } = new();
     public CrimeSystem Crime { get; } = new();
+    public EconomySystem Economy { get; } = new();
     public WinLossSystem WinLoss { get; } = new();
     public DecisionGateSystem DecisionGates { get; } = new();
     public AwaySummaryBuilder AwaySummary { get; } = new();

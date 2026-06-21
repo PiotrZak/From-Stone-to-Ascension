@@ -33,4 +33,12 @@ public class RegionalCrimeProfile
             UnemploymentRate * 0.4 +
             CorruptionConvictionsPerMillion * 0.3,
             0, 100);
+
+    /// <summary>Composite 0–100 prosperity index from GDP, employment, and poverty.</summary>
+    public double EconomicHealthIndex =>
+        Math.Clamp(
+            GdpPerCapita / 1200.0 +
+            (100 - UnemploymentRate * 6) * 0.25 +
+            (100 - PovertyRate) * 0.25,
+            0, 100);
 }

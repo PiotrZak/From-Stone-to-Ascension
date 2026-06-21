@@ -147,6 +147,7 @@ app.MapGet("/api/matches/{matchId}", async (string matchId, MatchRegistry regist
     var status = await grain.GetStatusAsync();
     var gates = await grain.GetPendingGatesAsync();
     var civilizations = await grain.GetCivilizationsAsync();
+    var regions = await grain.GetRegionsAsync();
     var tickLogs = await grain.GetMatchLogAsync();
     var results = await grain.GetMatchResultsAsync();
 
@@ -178,6 +179,8 @@ app.MapGet("/api/matches/{matchId}", async (string matchId, MatchRegistry regist
         NextTickAt = status.NextTickAt,
         SimulatedNow = status.SimulatedNow,
         IsTickDue = status.IsTickDue,
+        VictoryTier = (int)config.VictoryTier,
+        VictoryStabilityMin = config.VictoryStabilityMin,
         Players = entry.Players.Select(p => new PlayerSlotDto
         {
             PlayerId = p.PlayerId,
@@ -195,8 +198,26 @@ app.MapGet("/api/matches/{matchId}", async (string matchId, MatchRegistry regist
             AverageStability = c.AverageStability,
             PoliticalStability = c.PoliticalStability,
             EconomicStability = c.EconomicStability,
+            TechnologicalStability = c.TechnologicalStability,
             PolicyLabel = c.PolicyLabel,
             TechCount = c.TechCount
+        }).ToList(),
+        Regions = regions.Select(r => new RegionDto
+        {
+            Id = r.Id,
+            Name = r.Name,
+            ControllingCivilizationId = r.ControllingCivilizationId,
+            ControllingCivilizationName = r.ControllingCivilizationName,
+            Population = r.Population,
+            Infrastructure = r.Infrastructure,
+            Resources = r.Resources,
+            SourceState = r.SourceState,
+            DataYear = r.DataYear,
+            GdpPerCapita = r.GdpPerCapita,
+            UnemploymentRate = r.UnemploymentRate,
+            PovertyRate = r.PovertyRate,
+            EconomicHealth = r.EconomicHealth,
+            CrimePressure = r.CrimePressure
         }).ToList(),
         PendingGates = gates.Select(g => new DecisionGateDto
         {

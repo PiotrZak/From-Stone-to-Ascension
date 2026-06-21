@@ -21,7 +21,11 @@ public class TechTreeSystem
         return technology.Prerequisites.All(civilization.ResearchedTechnologyIds.Contains);
     }
 
-    public ResearchResult Research(Civilization civilization, Technology technology, ForbiddenTechSystem forbiddenTechSystem)
+    public ResearchResult Research(
+        Civilization civilization,
+        Technology technology,
+        ForbiddenTechSystem forbiddenTechSystem,
+        WorldState world)
     {
         if (!CanResearch(civilization, technology))
             return ResearchResult.Rejected("Prerequisites not met or technology already researched.");
@@ -30,7 +34,7 @@ public class TechTreeSystem
             forbiddenTechSystem.ApplyForbiddenResearch(civilization, technology);
 
         civilization.ResearchedTechnologyIds.Add(technology.Id);
-        TryAdvanceTier(civilization);
+        TryAdvanceTier(civilization, world);
 
         return ResearchResult.Succeeded(technology.Id);
     }
@@ -45,20 +49,29 @@ public class TechTreeSystem
         return world.Technologies.Where(t => t.Tier == tier);
     }
 
-    private static void TryAdvanceTier(Civilization civilization)
+    private static void TryAdvanceTier(Civilization civilization, WorldState world)
     {
         var researchedCount = civilization.ResearchedTechnologyIds.Count;
-        var targetTier = researchedCount switch
+        var countTier = researchedCount switch
         {
-            >= 12 => TechTier.PostSingularity,
-            >= 10 => TechTier.Temporal,
-            >= 8 => TechTier.BioNano,
-            >= 6 => TechTier.EarlyAI,
+            >= 10 => TechTier.PostSingularity,
+            >= 8 => TechTier.Temporal,
+            >= 6 => TechTier.BioNano,
+            >= 5 => TechTier.EarlyAI,
             >= 4 => TechTier.InformationAge,
             >= 3 => TechTier.EarlyElectronics,
             >= 2 => TechTier.Industrial,
-            _ => civilization.CurrentTier
+            >= 1 => TechTier.PreIndustrial,
+            _ => TechTier.PreIndustrial
         };
+
+        var peakResearchedTier = world.Technologies
+            .Where(t => civilization.ResearchedTechnologyIds.Contains(t.Id))
+            .Select(t => (int)t.Tier)
+            .DefaultIfEmpty((int)TechTier.PreIndustrial)
+            .Max();
+
+        var targetTier = (TechTier)Math.Max((int)countTier, peakResearchedTier);
 
         if ((int)targetTier > (int)civilization.CurrentTier)
             civilization.CurrentTier = targetTier;

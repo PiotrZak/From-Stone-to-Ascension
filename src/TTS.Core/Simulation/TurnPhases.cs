@@ -93,6 +93,17 @@ public sealed class FactionInfluencePhase : ITurnPhase
     }
 }
 
+public sealed class EconomyPhase : ITurnPhase
+{
+    public string Name => "Economy";
+
+    public void Execute(WorldState world, SimulationServices services)
+    {
+        foreach (var civilization in world.Civilizations)
+            services.Economy.ApplyTurnEconomy(civilization, world);
+    }
+}
+
 public sealed class CrimePressurePhase : ITurnPhase
 {
     public string Name => "CrimePressure";
@@ -159,6 +170,7 @@ public static class TurnPhasePipeline
             new CivilizationTurnPhase(runners),
             new KnowledgeDiffusionPhase(),
             new FactionInfluencePhase(),
+            new EconomyPhase(),
             new CrimePressurePhase(),
             new GlobalEventGenerationPhase(),
             new EventImpactPhase(),

@@ -50,7 +50,7 @@ public class GameLoop
             match.TickCount = _world.Turn - 1;
 
         var outcomes = _world.Civilizations
-            .Select(c => (Civilization: c, Outcome: _services.WinLoss.Evaluate(c)))
+            .Select(c => (Civilization: c, Outcome: _services.WinLoss.Evaluate(c, _world.Match?.Config)))
             .ToList();
 
         return new TurnResult(

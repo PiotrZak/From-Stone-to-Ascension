@@ -15,8 +15,8 @@ public sealed class ResearchExecutor
         _forbiddenTech = forbiddenTech;
     }
 
-    public ResearchResult Execute(Civilization civilization, Technology technology) =>
-        _techTree.Research(civilization, technology, _forbiddenTech);
+    public ResearchResult Execute(Civilization civilization, Technology technology, WorldState world) =>
+        _techTree.Research(civilization, technology, _forbiddenTech, world);
 
     public ResearchResult ExecuteById(Civilization civilization, WorldState world, string technologyId)
     {
@@ -24,6 +24,6 @@ public sealed class ResearchExecutor
         if (technology is null)
             return ResearchResult.Rejected($"Technology '{technologyId}' not found.");
 
-        return Execute(civilization, technology);
+        return Execute(civilization, technology, world);
     }
 }

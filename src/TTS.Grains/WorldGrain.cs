@@ -1,3 +1,4 @@
+using Orleans;
 using TTS.Contracts;
 using TTS.Core.Models;
 using TTS.Core.Simulation;
@@ -10,14 +11,18 @@ public sealed class WorldGrain : Grain, IWorldGrain
 {
     private static readonly GateFableGenerator FableGenerator = new();
     private MatchHost? _host;
+    private IGrainTimer? _tickTimer;
 
-    public override Task OnActivateAsync(CancellationToken cancellationToken)
+    public override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
         var savePath = ResolveSavePath(this.GetPrimaryKeyString());
         if (File.Exists(savePath))
             _host = MatchHost.Load(savePath);
 
-        return base.OnActivateAsync(cancellationToken);
+        if (_host?.World.Match?.Status == MatchStatus.Running)
+            RegisterTickTimer();
+
+        await base.OnActivateAsync(cancellationToken);
     }
 
     public Task InitializeMatchAsync(string modeId, bool withDemoGate = false)
@@ -41,6 +46,10 @@ public sealed class WorldGrain : Grain, IWorldGrain
         var host = RequireHost();
         var result = host.TryRunDueTick(DateTimeOffset.UtcNow);
         await EnrichGateFablesAsync();
+
+        if (host.World.Match?.Status != MatchStatus.Running)
+            StopTickTimer();
+
         return GrainMapping.ToGrain(result);
     }
 
@@ -90,6 +99,7 @@ public sealed class WorldGrain : Grain, IWorldGrain
                 c.AverageStability,
                 c.PoliticalStability,
                 c.EconomicStability,
+                c.TechnologicalStability,
                 c.Policy.Research.ToString(),
                 c.ResearchedTechnologyIds.Count))
             .ToList();
@@ -158,6 +168,19 @@ public sealed class WorldGrain : Grain, IWorldGrain
                 crime.Regions?.Select(r => new GrainRegionCrime(r.RegionName, r.SourceState, r.CrimePressureIndex)).ToList() ?? [])
             : null;
 
+        var techTree = TechTreeViewBuilder.Build(civ, host.World, host.Services.TechTree)
+            .Select(n => new GrainTechTreeNode(
+                n.Id,
+                n.Name,
+                n.Tier,
+                n.Branch,
+                n.Role,
+                n.Prerequisites.ToList(),
+                n.RiskLevel,
+                n.IsForbidden,
+                n.Status))
+            .ToList();
+
         return Task.FromResult(new GrainCivDashboard(
             civilizationId,
             DetectPresetId(civ.Policy),
@@ -167,7 +190,9 @@ public sealed class WorldGrain : Grain, IWorldGrain
             recommended,
             researched,
             availableList,
-            crimeDto));
+            crimeDto,
+            techTree,
+            ResearchThroughput.SlotsFor(civ)));
     }
 
     public Task UpdatePolicyAsync(string civilizationId, string presetId)
@@ -179,7 +204,70 @@ public sealed class WorldGrain : Grain, IWorldGrain
     public Task StartMatchAsync()
     {
         RequireHost().StartMatch(DateTimeOffset.UtcNow);
+        RegisterTickTimer();
         return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<GrainRegionDetail>> GetRegionsAsync()
+    {
+        var host = RequireHost();
+        var civNames = host.World.Civilizations.ToDictionary(c => c.Id, c => c.Name);
+        var regions = host.World.Regions
+            .Select(r =>
+            {
+                var profile = r.CrimeProfile;
+                civNames.TryGetValue(r.ControllingCivilizationId ?? "", out var civName);
+                return new GrainRegionDetail(
+                    r.Id,
+                    r.Name,
+                    r.ControllingCivilizationId,
+                    civName,
+                    r.Population,
+                    r.Infrastructure,
+                    r.Resources,
+                    profile?.SourceState,
+                    profile?.DataYear,
+                    profile?.GdpPerCapita ?? 0,
+                    profile?.UnemploymentRate ?? 0,
+                    profile?.PovertyRate ?? 0,
+                    profile?.EconomicHealthIndex ?? Math.Clamp(r.Infrastructure + r.Resources * 0.5, 0, 100),
+                    profile?.CrimePressureIndex ?? 0);
+            })
+            .ToList();
+
+        return Task.FromResult<IReadOnlyList<GrainRegionDetail>>(regions);
+    }
+
+    private void RegisterTickTimer()
+    {
+        var match = _host?.World.Match;
+        if (match is not { Status: MatchStatus.Running })
+            return;
+
+        _tickTimer?.Dispose();
+        var period = TickPollPeriod(match.Config);
+        _tickTimer = this.RegisterGrainTimer(
+            async _ => await AdvanceTickIfDueAsync(),
+            new GrainTimerCreationOptions
+            {
+                DueTime = period,
+                Period = period,
+                Interleave = true
+            });
+    }
+
+    private void StopTickTimer()
+    {
+        _tickTimer?.Dispose();
+        _tickTimer = null;
+    }
+
+    private static TimeSpan TickPollPeriod(MatchConfig config)
+    {
+        if (config.TickInterval <= TimeSpan.FromMinutes(1))
+            return TimeSpan.FromSeconds(5);
+
+        return TimeSpan.FromMinutes(1);
     }
 
     private static GrainTechEntry ToTechEntry(TTS.Core.Models.Technology t)

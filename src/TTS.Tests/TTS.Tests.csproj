@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TTS.Core\TTS.Core.csproj" />
+    <ProjectReference Include="..\TTS.Llm\TTS.Llm.csproj" />
   </ItemGroup>
 
 </Project>

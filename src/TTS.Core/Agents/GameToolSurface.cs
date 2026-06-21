@@ -119,7 +119,7 @@ public class GameToolSurface : IGameToolSurface
         if (!_services.TechTree.CanResearch(civ, technology))
             return new ProposeResearchResult(false, "Prerequisites not met or technology already researched.");
 
-        var result = _services.Research.Execute(civ, technology);
+        var result = _services.Research.Execute(civ, technology, _world);
         return new ProposeResearchResult(result.Success, result.Message, result.TechnologyId);
     }
 

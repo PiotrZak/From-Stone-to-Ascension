@@ -59,7 +59,7 @@ Higher tiers literally modify game systems (economy, physics, AI behavior).
 
 The world is a single evolving planet or galaxy simulation divided into:
 
-- Regions (territories)  
+- **Regions / cities** — territories with population, economy, and (TTS 4+) socioeconomic data ([economy.md](economy.md))  
 - Civilizations (player or AI-controlled)  
 - Factions (internal political groups)  
 - Knowledge networks (science + tech diffusion)  

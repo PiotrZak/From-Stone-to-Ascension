@@ -28,6 +28,9 @@ public sealed class GateFableGenerator(OllamaClient? client = null)
         int civilizationTier,
         CancellationToken cancellationToken = default)
     {
+        if (!ShouldEnrich(type, civilizationTier))
+            return null;
+
         var narrativeTier = type == GateType.TierAdvancement
             ? ParseTierFromTitle(title)
             : civilizationTier;
@@ -35,6 +38,15 @@ public sealed class GateFableGenerator(OllamaClient? client = null)
         var (system, user) = BuildPrompt(civilizationName, type, title, description, narrativeTier);
         return await _client.TryChatAsync(system, user, cancellationToken);
     }
+
+    /// <summary>Gate types that require a minimum TTS tier before Ollama replaces hardcoded text.</summary>
+    public static bool ShouldEnrich(GateType type, int civilizationTier) => type switch
+    {
+        GateType.CrimePressure => civilizationTier >= (int)TechTier.InformationAge,
+        GateType.AiAlignment => civilizationTier >= (int)TechTier.EarlyAI,
+        GateType.ForbiddenTech => civilizationTier >= (int)TechTier.EarlyElectronics,
+        _ => true
+    };
 
     private static (string System, string User) BuildPrompt(
         string civilizationName,
@@ -46,12 +58,7 @@ public sealed class GateFableGenerator(OllamaClient? client = null)
         var era = TierNames.GetValueOrDefault(narrativeTier, $"TTS {narrativeTier}");
         var sciFi = IsSciFiTier(narrativeTier);
 
-        var baseContext = $"""
-            Civilization: {civilizationName}
-            Era: TTS {narrativeTier} — {era}
-            Situation: {title}
-            Details: {description}
-            """;
+        var baseContext = BuildContext(civilizationName, type, title, description, narrativeTier, era);
 
         var style = StyleBlock(sciFi);
         var setting = sciFi
@@ -86,8 +93,8 @@ public sealed class GateFableGenerator(OllamaClient? client = null)
                 : "Frame the ethical and stability risk of pursuing this technology too early.",
             GateType.FactionCrisis => "Describe faction unrest and pressure on leadership.",
             GateType.CrimePressure => sciFi
-                ? "Describe rising crime pressure and strain on governance."
-                : "Describe rising crime, poverty, or social disorder in realistic terms — cities, policing, inequality.",
+                ? "Describe rising crime pressure and strain on governance in the near-future city named in the title."
+                : "Describe public disorder in the named city using period-appropriate language (policing, poverty, unrest). Do not name US states or real 21st-century jurisdictions.",
             GateType.AiAlignment => "Describe autonomous systems challenging governance and alignment.",
             _ => "Summarize the decision facing leadership."
         };
@@ -119,18 +126,44 @@ public sealed class GateFableGenerator(OllamaClient? client = null)
             """;
     }
 
+    private static string BuildContext(
+        string civilizationName,
+        GateType type,
+        string title,
+        string description,
+        int narrativeTier,
+        string era)
+    {
+        if (type == GateType.CrimePressure)
+        {
+            return $"""
+                Civilization: {civilizationName}
+                Era: TTS {narrativeTier} — {era}
+                Situation: {title}
+                Use only the in-game city name from the title. Do not reference California, US states, or CSV statistics.
+                """;
+        }
+
+        return $"""
+            Civilization: {civilizationName}
+            Era: TTS {narrativeTier} — {era}
+            Situation: {title}
+            Details: {description}
+            """;
+    }
+
     private static string StyleBlock(bool sciFi) =>
         sciFi
             ? """
-              Write 2-3 sentences for a mobile strategy dashboard.
+              Write exactly 2-3 sentences as an in-world briefing for the governor.
               Tone: plausible near-future sci-fi — AI, autonomy, bio/nano only as appropriate to this tier.
-              No bullet points. No option labels. No markdown. No mythic or fantasy language.
+              No bullet points, headers, labels, or statistics blocks. No markdown.
               """
             : """
-              Write 2-3 sentences for a mobile strategy dashboard.
-              Tone: realistic historical briefing — governor's memo or newspaper dispatch.
-              No sci-fi, no spaceships, no AI, no nanotech, no singularity, no mythic fables.
-              No bullet points. No option labels. No markdown.
+              Write exactly 2-3 sentences as an in-world briefing for the governor.
+              Tone: realistic for the stated historical era — farms, workshops, mills, railways, telegraph, not smartphones or modern US crime reports.
+              No bullet points, headers, labels, or statistics blocks. No markdown.
+              Do not name US states, California, or 21st-century places unless era is TTS 4+.
               """;
 
     private static bool IsSciFiTier(int tier) => tier >= SciFiTierThreshold;

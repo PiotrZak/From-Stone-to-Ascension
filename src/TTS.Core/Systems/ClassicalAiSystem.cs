@@ -14,15 +14,35 @@ public class ClassicalAiSystem
 
     public ClassicalAiTurnResult RunTurn(Civilization civilization, WorldState world)
     {
-        var analysis = _services.AutoPolicy.Analyze(civilization, world, civilization.Policy);
-        if (analysis.Recommended is not ResearchCandidateEvaluation recommended)
+        var slots = ResearchThroughput.SlotsFor(civilization);
+        var researchedNames = new List<string>();
+        string? lastId = null;
+        ResearchCandidateEvaluation? lastEvaluation = null;
+
+        for (var slot = 0; slot < slots; slot++)
+        {
+            var analysis = _services.AutoPolicy.Analyze(civilization, world, civilization.Policy);
+            if (analysis.Recommended is not ResearchCandidateEvaluation recommended)
+                break;
+
+            var next = world.Technologies.First(t => t.Id == recommended.TechnologyId);
+            var result = _services.Research.Execute(civilization, next, world);
+            if (!result.Success)
+                break;
+
+            researchedNames.Add(next.Name);
+            lastId = next.Id;
+            lastEvaluation = recommended;
+        }
+
+        if (researchedNames.Count == 0)
             return ClassicalAiTurnResult.Skipped("No research candidates match current policy.");
 
-        var next = world.Technologies.First(t => t.Id == recommended.TechnologyId);
-        var result = _services.Research.Execute(civilization, next);
-        return result.Success
-            ? ClassicalAiTurnResult.Completed(next.Name, next.Id, recommended)
-            : ClassicalAiTurnResult.Skipped(result.Message);
+        var message = researchedNames.Count == 1
+            ? $"Researched '{researchedNames[0]}'."
+            : $"Researched {string.Join(", ", researchedNames.Select(n => $"'{n}'"))}.";
+
+        return ClassicalAiTurnResult.Completed(message, lastId!, lastEvaluation);
     }
 }
 
@@ -32,8 +52,11 @@ public readonly record struct ClassicalAiTurnResult(
     string? TechnologyId = null,
     ResearchCandidateEvaluation? Evaluation = null)
 {
-    public static ClassicalAiTurnResult Completed(string name, string id, ResearchCandidateEvaluation? evaluation = null) =>
-        new(true, $"Researched '{name}'.", id, evaluation);
+    public static ClassicalAiTurnResult Completed(
+        string message,
+        string id,
+        ResearchCandidateEvaluation? evaluation = null) =>
+        new(true, message, id, evaluation);
 
     public static ClassicalAiTurnResult Skipped(string message) =>
         new(false, message);

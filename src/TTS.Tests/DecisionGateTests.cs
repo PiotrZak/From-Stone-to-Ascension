@@ -33,14 +33,14 @@ public class DecisionGateTests
         var tools = services.CreateToolSurface(world);
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
         var gate = player.ActiveGate!;
-        var stabilityBefore = player.TechnologicalStability;
+        var stabilityBefore = player.PoliticalStability;
 
-        var resolution = tools.ResolveDecision(player.Id, gate.Id, "invest");
+        var resolution = tools.ResolveDecision(player.Id, gate.Id, "appease");
 
         Assert.True(resolution.Success);
         Assert.True(gate.IsResolved);
         Assert.False(services.DecisionGates.HasBlockingGate(player));
-        Assert.True(player.TechnologicalStability > stabilityBefore);
+        Assert.True(player.PoliticalStability > stabilityBefore);
     }
 
     [Fact]
@@ -51,15 +51,15 @@ public class DecisionGateTests
         var loop = services.CreateGameLoop(world);
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
         var gate = player.ActiveGate!;
-        var stabilityBefore = player.TechnologicalStability;
+        var stabilityBefore = player.PoliticalStability;
 
         world.SimulatedNow = gate.ExpiresAt.AddMinutes(1);
         loop.RunTurn(world.SimulatedNow);
 
         Assert.True(gate.IsResolved);
         Assert.True(gate.WasAutoResolved);
-        Assert.Equal("invest", gate.ResolvedOptionId);
-        Assert.True(player.TechnologicalStability > stabilityBefore);
+        Assert.Equal("appease", gate.ResolvedOptionId);
+        Assert.True(player.PoliticalStability > stabilityBefore);
     }
 
     [Fact]
@@ -104,7 +104,7 @@ public class DecisionGateTests
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
 
         loop.RunTurn();
-        tools.ResolveDecision(player.Id, "gate-demo-start", "invest");
+        tools.ResolveDecision(player.Id, "gate-demo-start", "appease");
 
         for (var i = 0; i < 3; i++)
             loop.RunTurn();

@@ -45,8 +45,26 @@ export interface Civilization {
   averageStability: number;
   politicalStability: number;
   economicStability: number;
+  technologicalStability: number;
   policyLabel: string;
   techCount: number;
+}
+
+export interface Region {
+  id: string;
+  name: string;
+  controllingCivilizationId: string | null;
+  controllingCivilizationName: string | null;
+  population: number;
+  infrastructure: number;
+  resources: number;
+  sourceState: string | null;
+  dataYear: number | null;
+  gdpPerCapita: number;
+  unemploymentRate: number;
+  povertyRate: number;
+  economicHealth: number;
+  crimePressure: number;
 }
 
 export interface MatchSummary {
@@ -64,8 +82,11 @@ export interface MatchSummary {
   nextTickAt: string;
   simulatedNow: string;
   isTickDue: boolean;
+  victoryTier: number;
+  victoryStabilityMin: number;
   players: PlayerSlot[];
   civilizations: Civilization[];
+  regions: Region[];
   pendingGates: DecisionGate[];
   awaySummary: string | null;
   resultsSummary: string | null;
@@ -88,6 +109,18 @@ export interface TickLogEntry {
   lines: string[];
 }
 
+export interface TechTreeNode {
+  id: string;
+  name: string;
+  tier: number;
+  branch: string;
+  role: string;
+  prerequisites: string[];
+  riskLevel: number;
+  isForbidden: boolean;
+  status: 'researched' | 'available' | 'locked' | 'blocked';
+}
+
 export interface CivDashboard {
   civilizationId: string;
   presetId: string;
@@ -97,6 +130,8 @@ export interface CivDashboard {
   recommendedTech: { id: string; name: string; tier: number; branch: string; score: number } | null;
   researchedTech: { id: string; name: string; tier: number; branch: string }[];
   availableTech: { id: string; name: string; tier: number; branch: string }[];
+  techTree: TechTreeNode[];
+  researchSlotsPerTurn: number;
   crime: {
     averageCrimePressure: number;
     averageViolentCrimeRate: number;

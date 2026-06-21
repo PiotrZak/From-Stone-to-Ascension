@@ -1,39 +1,26 @@
-# Crime Data — TTS 4 Perspective
+# Crime & City Data — TTS 4+ Perspective
 
 **Data file:** `src/data/state_crime_income_merged.csv`  
-**Unlocks at:** TTS 4 (Information Age)  
-**Systems:** `CrimeDataRepository`, `CrimeSystem`
+**Unlocks at:** TTS 4 (Information Age) for full perspective; city stats visible from match start  
+**Systems:** `CrimeDataRepository`, `CrimeSystem`, `EconomySystem`  
+**Economy design:** [economy.md](economy.md)
 
 ---
 
 ## Purpose
 
-At **TTS 4**, the simulation gains a **Crime perspective**: regional stability is influenced by real-world-inspired socioeconomic indicators — violent crime, poverty, inequality (Gini), unemployment, and corruption.
-
-This models the Information Age theme from `tech-tree.md`:
-
-- Cybersecurity systems  
-- Information manipulation  
-- Digital-era social pressure  
+At **TTS 4**, civs gain a **socioeconomic perspective**: crime, poverty, inequality, and labor market data influence stability. The same CSV powers **city economy** (GDP, unemployment) from the first tick — see [economy.md §4–5](economy.md#4-region-city-attributes).
 
 ---
 
-## Data source
+## Demo cities (not abstract regions)
 
-`state_crime_income_merged.csv` contains US state-level records (2005–2015) with:
+| City | Civ | CSV anchor | Character |
+|------|-----|------------|-----------|
+| **Meridian Bay** | Aurora Collective | California 2015 | High GDP coastal metro |
+| **Redstone Harbor** | Iron Dominion | Louisiana 2015 | Industrial port, higher poverty |
 
-| Column group | Examples |
-|--------------|----------|
-| **Crime** | Violent crime, property crime, rates by offense type |
-| **Economy** | GDP per capita, Gini coefficient, poverty rate, unemployment |
-| **Governance** | Corruption convictions per million |
-
-The game loads this file at runtime and maps **demo regions** to sample states:
-
-| Game region | Civ | CSV state | Role |
-|-------------|-----|-----------|------|
-| Green Basin | Aurora Collective | California 2015 | High GDP, moderate crime pressure |
-| Iron Coast | Iron Dominion | Louisiana 2015 | Higher poverty/inequality pressure |
+The UI shows both the **city name** and **data source** so California/Louisiana stats are intentional, not confusing metadata.
 
 ---
 
@@ -65,6 +52,12 @@ Composite score 0–100 from:
 ### Mitigation
 
 Research **`tech-cybersecurity`** (TTS 4) reduces crime pressure impact by **40%**.
+
+### Ollama gate text
+
+- Crime gates are **not** narrated by Ollama below TTS 4 (hardcoded text only).
+- At TTS 4+, prompts use in-game city names only — never “California” or US state names in the fable.
+- The dev **demo gate** at match start is a TTS 1 **faction dispute**, not a crime gate.
 
 ---
 

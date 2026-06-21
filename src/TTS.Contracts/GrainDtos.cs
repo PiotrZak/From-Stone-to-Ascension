@@ -93,6 +93,18 @@ public sealed record GrainTickLogEntry(
     [property: Id(1)] List<string> Lines);
 
 [GenerateSerializer]
+public sealed record GrainTechTreeNode(
+    [property: Id(0)] string Id,
+    [property: Id(1)] string Name,
+    [property: Id(2)] int Tier,
+    [property: Id(3)] string Branch,
+    [property: Id(4)] string Role,
+    [property: Id(5)] List<string> Prerequisites,
+    [property: Id(6)] int RiskLevel,
+    [property: Id(7)] bool IsForbidden,
+    [property: Id(8)] string Status);
+
+[GenerateSerializer]
 public sealed record GrainCivDashboard(
     [property: Id(0)] string CivilizationId,
     [property: Id(1)] string PresetId,
@@ -102,7 +114,9 @@ public sealed record GrainCivDashboard(
     [property: Id(5)] GrainRecommendedTech? RecommendedTech,
     [property: Id(6)] List<GrainTechEntry> ResearchedTech,
     [property: Id(7)] List<GrainTechEntry> AvailableTech,
-    [property: Id(8)] GrainCrimePerspective? Crime);
+    [property: Id(8)] GrainCrimePerspective? Crime,
+    [property: Id(9)] List<GrainTechTreeNode> TechTree,
+    [property: Id(10)] int ResearchSlotsPerTurn);
 
 [GenerateSerializer]
 public sealed record GrainRecommendedTech(
@@ -134,6 +148,23 @@ public sealed record GrainRegionCrime(
     [property: Id(2)] double CrimePressure);
 
 [GenerateSerializer]
+public sealed record GrainRegionDetail(
+    [property: Id(0)] string Id,
+    [property: Id(1)] string Name,
+    [property: Id(2)] string? ControllingCivilizationId,
+    [property: Id(3)] string? ControllingCivilizationName,
+    [property: Id(4)] long Population,
+    [property: Id(5)] double Infrastructure,
+    [property: Id(6)] double Resources,
+    [property: Id(7)] string? SourceState,
+    [property: Id(8)] int? DataYear,
+    [property: Id(9)] double GdpPerCapita,
+    [property: Id(10)] double UnemploymentRate,
+    [property: Id(11)] double PovertyRate,
+    [property: Id(12)] double EconomicHealth,
+    [property: Id(13)] double CrimePressure);
+
+[GenerateSerializer]
 public sealed record GrainCivDetail(
     [property: Id(0)] string Id,
     [property: Id(1)] string Name,
@@ -141,5 +172,6 @@ public sealed record GrainCivDetail(
     [property: Id(3)] double AverageStability,
     [property: Id(4)] double PoliticalStability,
     [property: Id(5)] double EconomicStability,
-    [property: Id(6)] string PolicyLabel,
-    [property: Id(7)] int TechCount);
+    [property: Id(6)] double TechnologicalStability,
+    [property: Id(7)] string PolicyLabel,
+    [property: Id(8)] int TechCount);

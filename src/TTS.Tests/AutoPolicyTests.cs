@@ -63,7 +63,7 @@ public class AutoPolicyTests
         var result = services.ClassicalAi.RunTurn(rival, world);
 
         Assert.True(result.DidResearch);
-        Assert.Single(rival.ResearchedTechnologyIds);
+        Assert.InRange(rival.ResearchedTechnologyIds.Count, 1, 2);
     }
 
     [Fact]

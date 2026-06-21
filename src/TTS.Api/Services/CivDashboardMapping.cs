@@ -46,6 +46,19 @@ public static class CivDashboardMapping
                 SourceState = r.SourceState,
                 CrimePressure = r.CrimePressure
             }).ToList()
-        }
+        },
+        TechTree = d.TechTree.Select(n => new TechTreeNodeDto
+        {
+            Id = n.Id,
+            Name = n.Name,
+            Tier = n.Tier,
+            Branch = n.Branch,
+            Role = n.Role,
+            Prerequisites = n.Prerequisites,
+            RiskLevel = n.RiskLevel,
+            IsForbidden = n.IsForbidden,
+            Status = n.Status
+        }).ToList(),
+        ResearchSlotsPerTurn = d.ResearchSlotsPerTurn
     };
 }

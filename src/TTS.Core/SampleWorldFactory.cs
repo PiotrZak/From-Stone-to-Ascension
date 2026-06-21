@@ -26,10 +26,11 @@ public static class SampleWorldFactory
         player.Factions.Add(new Faction("fac-corp", "Helix Industries", player.Id, FactionType.Corporation, FactionStance.Accelerationist));
         rival.Factions.Add(new Faction("fac-ai", "Silent Lattice", rival.Id, FactionType.AiCollective, FactionStance.Accelerationist));
 
-        var regionA = new Region("reg-a", "Green Basin") { ControllingCivilizationId = player.Id };
-        var regionB = new Region("reg-b", "Iron Coast") { ControllingCivilizationId = rival.Id };
+        var regionA = new Region("reg-a", "Meridian Bay") { ControllingCivilizationId = player.Id };
+        var regionB = new Region("reg-b", "Redstone Harbor") { ControllingCivilizationId = rival.Id };
 
-        AttachCrimeProfiles(regionA, regionB);
+        AttachCityProfile(regionA, "California", 2015);
+        AttachCityProfile(regionB, "Louisiana", 2015);
 
         player.ControlledRegionIds.Add(regionA.Id);
         rival.ControlledRegionIds.Add(regionB.Id);
@@ -111,27 +112,35 @@ public static class SampleWorldFactory
         player.PendingDecisions.Add(new DecisionGate(
             "gate-demo-start",
             player.Id,
-            GateType.CrimePressure,
-            "Regional crime briefing",
-            "California regional data shows elevated crime pressure. Choose a response before research continues.",
+            GateType.FactionCrisis,
+            "Granary dispute in Meridian Bay",
+            "Merchants and farmers quarrel over grain storage and road tolls as the young settlement grows.",
             [
-                new DecisionOption("invest", "Invest", "Fund cybersecurity and social programs."),
-                new DecisionOption("ignore", "Ignore", "Accept political erosion."),
-                new DecisionOption("crackdown", "Crackdown", "Law enforcement surge.")
+                new DecisionOption("appease", "Appease", "Offer concessions to ease tensions."),
+                new DecisionOption("suppress", "Suppress", "Send militia to restore order."),
+                new DecisionOption("reform", "Reform", "Revise tolls and storage rules.")
             ],
-            defaultOptionId: "invest",
+            defaultOptionId: "appease",
             world.SimulatedNow,
             world.SimulatedNow + window));
     }
 
-    private static void AttachCrimeProfiles(Region regionA, Region regionB)
+    private static void AttachCityProfile(Region region, string stateName, int year)
     {
         var repo = CrimeDataRepository.Default;
         if (!repo.IsLoaded)
             return;
 
-        // Demo mapping: player region ← California, rival ← Louisiana (contrasting crime/income)
-        regionA.CrimeProfile = repo.ToProfile("California", 2015);
-        regionB.CrimeProfile = repo.ToProfile("Louisiana", 2015);
+        var record = repo.GetRecord(stateName, year);
+        var profile = repo.ToProfile(stateName, year);
+        if (profile is null)
+            return;
+
+        region.CrimeProfile = profile;
+        if (record is not null)
+            region.Population = record.Population;
+
+        region.Infrastructure = Math.Clamp(profile.GdpPerCapita / 900.0, 20, 90);
+        region.Resources = Math.Clamp(100 - profile.PovertyRate * 2.5, 25, 90);
     }
 }

@@ -35,10 +35,13 @@ public class CrimeDataTests
         var greenBasin = world.Regions.First(r => r.Id == "reg-a");
         var ironCoast = world.Regions.First(r => r.Id == "reg-b");
 
+        Assert.Equal("Meridian Bay", greenBasin.Name);
+        Assert.Equal("Redstone Harbor", ironCoast.Name);
         Assert.NotNull(greenBasin.CrimeProfile);
         Assert.NotNull(ironCoast.CrimeProfile);
         Assert.Equal("California", greenBasin.CrimeProfile!.SourceState);
         Assert.Equal("Louisiana", ironCoast.CrimeProfile!.SourceState);
+        Assert.True(greenBasin.Population > 1_000_000);
     }
 
     [Fact]

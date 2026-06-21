@@ -9,16 +9,18 @@ public class WinLossSystem
 {
     private readonly StabilitySystem _stabilitySystem = new();
 
-    public GameOutcome Evaluate(Civilization civilization)
+    public GameOutcome Evaluate(Civilization civilization, MatchConfig? matchConfig = null)
     {
         if (_stabilitySystem.IsCollapsed(civilization))
             return GameOutcome.Defeat("Civilization collapsed due to instability.");
 
-        if (civilization.CurrentTier >= TechTier.BioNano && civilization.AverageStability >= 60)
-            return GameOutcome.Victory("Achieved a stable Bio/Nano civilization.");
-
-        if (civilization.CurrentTier >= TechTier.PostSingularity && civilization.TechnologicalStability >= 50)
-            return GameOutcome.Victory("Survived the post-singularity transition.");
+        if (matchConfig is not null
+            && civilization.CurrentTier >= matchConfig.VictoryTier
+            && civilization.AverageStability >= matchConfig.VictoryStabilityMin)
+        {
+            return GameOutcome.Victory(
+                $"Reached TTS {(int)matchConfig.VictoryTier} with stability {civilization.AverageStability:F0}.");
+        }
 
         return GameOutcome.InProgress();
     }

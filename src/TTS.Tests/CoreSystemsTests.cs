@@ -16,7 +16,7 @@ public class CoreSystemsTests
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
 
         var agriculture = world.Technologies.First(t => t.Id == "tech-agriculture");
-        var result = services.Research.Execute(player, agriculture);
+        var result = services.Research.Execute(player, agriculture, world);
 
         Assert.True(result.Success);
         Assert.Contains("tech-agriculture", player.ResearchedTechnologyIds);

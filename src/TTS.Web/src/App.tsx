@@ -8,6 +8,7 @@ export function App() {
       <div className="app-shell">
         <header className="app-header">
           <h1>TTS</h1>
+          <p className="muted app-tagline">Technology Tier Simulation</p>
         </header>
         <Routes>
           <Route path="/" element={<HomePage />} />

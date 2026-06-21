@@ -15,7 +15,7 @@ public sealed class MatchResultsBuilder
                 (int)c.CurrentTier,
                 c.AverageStability,
                 c.ResearchedTechnologyIds.Count,
-                FormatOutcome(services.WinLoss.Evaluate(c))))
+                FormatOutcome(services.WinLoss.Evaluate(c, world.Match?.Config))))
             .OrderByDescending(r => r.Tier)
             .ThenByDescending(r => r.Stability)
             .ThenByDescending(r => r.TechCount)

@@ -14,7 +14,7 @@ public static class WorldAdvancer
         foreach (var technologyId in technologyIds)
         {
             var technology = world.Technologies.First(t => t.Id == technologyId);
-            services.Research.Execute(civilization, technology);
+            services.Research.Execute(civilization, technology, world);
         }
     }
 

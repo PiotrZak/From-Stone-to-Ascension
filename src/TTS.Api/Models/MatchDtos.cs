@@ -49,8 +49,27 @@ public sealed class CivilizationDto
     public double AverageStability { get; init; }
     public double PoliticalStability { get; init; }
     public double EconomicStability { get; init; }
+    public double TechnologicalStability { get; init; }
     public required string PolicyLabel { get; init; }
     public int TechCount { get; init; }
+}
+
+public sealed class RegionDto
+{
+    public required string Id { get; init; }
+    public required string Name { get; init; }
+    public string? ControllingCivilizationId { get; init; }
+    public string? ControllingCivilizationName { get; init; }
+    public long Population { get; init; }
+    public double Infrastructure { get; init; }
+    public double Resources { get; init; }
+    public string? SourceState { get; init; }
+    public int? DataYear { get; init; }
+    public double GdpPerCapita { get; init; }
+    public double UnemploymentRate { get; init; }
+    public double PovertyRate { get; init; }
+    public double EconomicHealth { get; init; }
+    public double CrimePressure { get; init; }
 }
 
 public sealed class MatchSummaryDto
@@ -69,8 +88,11 @@ public sealed class MatchSummaryDto
     public DateTimeOffset NextTickAt { get; init; }
     public DateTimeOffset SimulatedNow { get; init; }
     public bool IsTickDue { get; init; }
+    public int VictoryTier { get; init; }
+    public double VictoryStabilityMin { get; init; }
     public required IReadOnlyList<PlayerSlotDto> Players { get; init; }
     public required IReadOnlyList<CivilizationDto> Civilizations { get; init; }
+    public required IReadOnlyList<RegionDto> Regions { get; init; }
     public required IReadOnlyList<DecisionGateDto> PendingGates { get; init; }
     public string? AwaySummary { get; init; }
     public string? ResultsSummary { get; init; }
@@ -192,6 +214,21 @@ public sealed class CivDashboardDto
     public required IReadOnlyList<TechEntryDto> ResearchedTech { get; init; }
     public required IReadOnlyList<TechEntryDto> AvailableTech { get; init; }
     public CrimePerspectiveDto? Crime { get; init; }
+    public required IReadOnlyList<TechTreeNodeDto> TechTree { get; init; }
+    public int ResearchSlotsPerTurn { get; init; }
+}
+
+public sealed class TechTreeNodeDto
+{
+    public required string Id { get; init; }
+    public required string Name { get; init; }
+    public int Tier { get; init; }
+    public required string Branch { get; init; }
+    public required string Role { get; init; }
+    public required IReadOnlyList<string> Prerequisites { get; init; }
+    public int RiskLevel { get; init; }
+    public bool IsForbidden { get; init; }
+    public required string Status { get; init; }
 }
 
 public sealed class RecommendedTechDto

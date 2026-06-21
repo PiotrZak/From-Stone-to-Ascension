@@ -2,6 +2,7 @@ namespace TTS.Api.Services;
 
 using TTS.Contracts;
 
+/// <summary>Falls back when grains are inactive; primary scheduling is grain timers on WorldGrain.</summary>
 public sealed class MatchTickBackgroundService(
     MatchRegistry registry,
     OrleansMatchService orleans,
