@@ -1,6 +1,7 @@
 # TTS: TECHNOLOGY TIER SIMULATION
 
 **Implementation:** [implementation-plan.md](implementation-plan.md) — master roadmap (Phases 0–9)  
+**Current code:** [current-state.md](current-state.md) — what's built and how to run it today  
 **Match modes:** [match-modes.md](match-modes.md) — 8h / 24h / 36h / 48h async matches  
 **UI:** [ui-design.md](ui-design.md) — governor dashboard client (web MVP)  
 **LLM deploy:** [llm-deployment.md](llm-deployment.md) — Ollama vs cloud for internet MP + cost  

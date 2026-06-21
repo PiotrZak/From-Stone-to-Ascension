@@ -1,4 +1,4 @@
-using TTS.Agents.Ollama;
+using TTS.Llm;
 using TTS.Agents.Scenarios;
 
 using var ollama = new OllamaClient();

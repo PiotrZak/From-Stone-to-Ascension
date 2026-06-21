@@ -1,4 +1,4 @@
-namespace TTS.Agents.Ollama;
+namespace TTS.Llm;
 
 public sealed class OllamaSettings
 {

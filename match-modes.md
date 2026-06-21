@@ -2,7 +2,7 @@
 
 **Project:** TTS — Technology Tier Simulation  
 **Purpose:** Preset match lengths for real-player games (8h–48h)  
-**Status:** Design — `MatchConfig` not implemented yet (Phase 4)
+**Status:** `MatchConfig` + `MatchHost` + CLI implemented (Phase 4)
 
 **Related:**
 - [async-multiplayer-gameplay.md](async-multiplayer-gameplay.md) — async MP concept, gates, away summary

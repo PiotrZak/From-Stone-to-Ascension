@@ -7,3 +7,8 @@ obj/
 .env
 .env.*
 secrets.json
+match-state.json
+**/matches/
+node_modules/
+dist/
+.dev-*.log

@@ -62,7 +62,9 @@ public class GameLoop
 
     private IReadOnlyList<DecisionGate> CollectActiveGates() =>
         _world.Civilizations
-            .SelectMany(c => c.PendingDecisions.Where(g => !g.IsResolved))
+            .Select(c => c.ActiveGate)
+            .Where(g => g is not null)
+            .Cast<DecisionGate>()
             .ToList();
 }
 

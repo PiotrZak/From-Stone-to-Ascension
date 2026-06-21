@@ -1,6 +1,6 @@
 namespace TTS.Agents.Scenarios;
 
-using TTS.Agents.Ollama;
+using TTS.Llm;
 using TTS.Core.Models;
 
 public sealed class TechLoreScenario(OllamaClient ollama) : IScenario

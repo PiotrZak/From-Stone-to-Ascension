@@ -1,6 +1,6 @@
 namespace TTS.Agents.Scenarios;
 
-using TTS.Agents.Ollama;
+using TTS.Llm;
 
 public sealed class FactionDebateScenario(OllamaClient ollama) : IScenario
 {

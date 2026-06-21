@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>TTS.Api</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Orleans.Client" Version="8.2.0" />
+    <PackageReference Include="Microsoft.Orleans.Sdk" Version="8.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TTS.Contracts\TTS.Contracts.csproj" />
+    <ProjectReference Include="..\TTS.Core\TTS.Core.csproj" />
+    <ProjectReference Include="..\TTS.Grains\TTS.Grains.csproj" />
+  </ItemGroup>
+
+</Project>

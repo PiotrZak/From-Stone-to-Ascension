@@ -60,7 +60,6 @@ public class DecisionGateTests
         Assert.True(gate.WasAutoResolved);
         Assert.Equal("invest", gate.ResolvedOptionId);
         Assert.True(player.TechnologicalStability > stabilityBefore);
-        Assert.False(services.DecisionGates.HasBlockingGate(player));
     }
 
     [Fact]

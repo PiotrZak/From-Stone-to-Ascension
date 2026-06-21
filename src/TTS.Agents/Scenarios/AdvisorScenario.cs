@@ -1,6 +1,6 @@
 namespace TTS.Agents.Scenarios;
 
-using TTS.Agents.Ollama;
+using TTS.Llm;
 using TTS.Core.Agents;
 
 public sealed class AdvisorScenario(OllamaClient ollama) : IScenario

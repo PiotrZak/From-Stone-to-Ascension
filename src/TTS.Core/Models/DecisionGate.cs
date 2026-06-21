@@ -42,6 +42,11 @@ public sealed class DecisionGate
     public string? ResolvedOptionId { get; set; }
     public bool WasAutoResolved { get; set; }
 
+    /// <summary>LLM-generated tier fable (optional).</summary>
+    public string? Fable { get; set; }
+
+    public string DisplayText => string.IsNullOrWhiteSpace(Fable) ? Description : Fable;
+
     public DecisionGate(
         string id,
         string civilizationId,

@@ -6,7 +6,10 @@ using TTS.Core.Systems;
 /// <summary>Creates a minimal playable world for demos and tests.</summary>
 public static class SampleWorldFactory
 {
-    public static WorldState Create(bool withDemoGate = false)
+    public static WorldState Create(bool withDemoGate = false) =>
+        Create(MatchPresets.Sprint8h, withDemoGate);
+
+    public static WorldState Create(MatchConfig config, bool withDemoGate = false)
     {
         var world = new WorldState();
 
@@ -38,8 +41,7 @@ public static class SampleWorldFactory
 
         world.Technologies.AddRange(LoadTechnologies());
 
-        var match = new MatchState("match-demo", MatchPresets.Sprint8h, DateTimeOffset.UtcNow);
-        new TickScheduler().StartMatch(match, match.StartedAt);
+        var match = new MatchState($"match-{Guid.NewGuid():N}"[..12], config, DateTimeOffset.UtcNow);
         world.Match = match;
 
         if (withDemoGate)
@@ -50,6 +52,8 @@ public static class SampleWorldFactory
 
         return world;
     }
+
+    internal static IEnumerable<Technology> CreateFallbackTechnologiesOnly() => CreateFallbackTechnologies();
 
     private static IEnumerable<Technology> LoadTechnologies()
     {

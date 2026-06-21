@@ -101,4 +101,31 @@ public static class MatchPresets
         VictoryStabilityMin = 45,
         EnableForbiddenTechGates = true
     };
+
+    /// <summary>Dev-only: 6 ticks × 30s ≈ 3 minutes wall-clock.</summary>
+    public static MatchConfig DevBlitz3m => new()
+    {
+        ModeId = "dev-blitz-3m",
+        DisplayName = "Dev Blitz (3m)",
+        MaxTicks = 6,
+        TickInterval = TimeSpan.FromSeconds(30),
+        DecisionWindow = TimeSpan.FromMinutes(2),
+        MinPlayers = 1,
+        MaxPlayers = 2,
+        VictoryTier = TechTier.EarlyElectronics,
+        VictoryStabilityMin = 50,
+        EnableForbiddenTechGates = false
+    };
+
+    public static MatchConfig Resolve(string modeId) => modeId.ToLowerInvariant() switch
+    {
+        "sprint-8h" or "sprint" => Sprint8h,
+        "blitz-24h" or "blitz" => Blitz24h,
+        "standard-36h" or "standard" => Standard36h,
+        "extended-48h" or "extended" => Extended48h,
+        "dev-blitz-3m" or "dev-blitz" or "dev" => DevBlitz3m,
+        _ => throw new ArgumentException($"Unknown match mode '{modeId}'.")
+    };
+
+    public static IReadOnlyList<MatchConfig> All => [Sprint8h, Blitz24h, Standard36h, Extended48h, DevBlitz3m];
 }

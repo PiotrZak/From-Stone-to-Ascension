@@ -2,7 +2,7 @@
 
 **Project:** TTS — Technology Tier Simulation  
 **Purpose:** Client screens and UX for 8h–48h async matches  
-**Status:** Design — no client project in repo yet (`TTS.Game` is console only)
+**Status:** MVP in progress — `TTS.Web` (React) + `TTS.Api` (REST) wired to Orleans
 
 **Related:**
 - [match-modes.md](match-modes.md) — match lengths, lifecycle diagrams
@@ -36,7 +36,8 @@ Most visits are **2–5 minutes**. The UI optimizes for **away summary** and **d
 |---------|------|--------|
 | `TTS.Game` console | Dev demo, verbose sim logs | Done |
 | `TTS.Agents` CLI | Ollama scenario testing | Done |
-| Web / mobile client | Player-facing match UI | **Not started** |
+| `TTS.Web` React | Player-facing match UI | **MVP** — home, join, dashboard |
+| `TTS.Api` REST | Orleans client + match registry | **MVP** |
 
 **Rule:** UI talks to **`TTS.Api`** only. It never embeds `TTS.Core` rules. Same boundary as `IGameToolSurface`.
 

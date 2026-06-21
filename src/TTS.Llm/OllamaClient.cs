@@ -1,7 +1,6 @@
-namespace TTS.Agents.Ollama;
+namespace TTS.Llm;
 
 using System.Net.Http.Json;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 
 public sealed class OllamaClient : IDisposable
@@ -34,33 +33,52 @@ public sealed class OllamaClient : IDisposable
         return response?.Models?.Select(m => m.Name).ToList() ?? [];
     }
 
-    public async Task<string> ChatAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default)
+    public async Task<string> ChatAsync(
+        string systemPrompt,
+        string userPrompt,
+        CancellationToken cancellationToken = default)
     {
-        var models = await ListModelsAsync(cancellationToken);
-        if (models.Count == 0)
+        var reply = await TryChatAsync(systemPrompt, userPrompt, cancellationToken);
+        return reply ?? throw new InvalidOperationException(
+            "Ollama is unavailable or returned an empty response. Run: ollama serve && ollama pull llama3.2");
+    }
+
+    public async Task<string?> TryChatAsync(
+        string systemPrompt,
+        string userPrompt,
+        CancellationToken cancellationToken = default)
+    {
+        try
         {
-            throw new InvalidOperationException(
-                "No Ollama models installed. Run: ollama pull llama3.2");
+            if (!await IsReachableAsync(cancellationToken))
+                return null;
+
+            var models = await ListModelsAsync(cancellationToken);
+            if (models.Count == 0)
+                return null;
+
+            var model = models.Contains(_settings.Model, StringComparer.OrdinalIgnoreCase)
+                ? _settings.Model
+                : models[0];
+
+            var request = new ChatRequest(
+                model,
+                [
+                    new ChatMessage("system", systemPrompt),
+                    new ChatMessage("user", userPrompt)
+                ],
+                Stream: false);
+
+            using var response = await _http.PostAsJsonAsync("/api/chat", request, cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            var payload = await response.Content.ReadFromJsonAsync<ChatResponse>(cancellationToken);
+            return payload?.Message?.Content?.Trim();
         }
-
-        var model = models.Contains(_settings.Model, StringComparer.OrdinalIgnoreCase)
-            ? _settings.Model
-            : models[0];
-
-        var request = new ChatRequest(
-            model,
-            [
-                new ChatMessage("system", systemPrompt),
-                new ChatMessage("user", userPrompt)
-            ],
-            Stream: false);
-
-        using var response = await _http.PostAsJsonAsync("/api/chat", request, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        var payload = await response.Content.ReadFromJsonAsync<ChatResponse>(cancellationToken);
-        return payload?.Message?.Content?.Trim()
-            ?? throw new InvalidOperationException("Ollama returned an empty response.");
+        catch
+        {
+            return null;
+        }
     }
 
     public void Dispose() => _http.Dispose();

@@ -1,8 +1,8 @@
 # Implementation Plan
 
 **Project:** TTS — Technology Tier Simulation  
-**Last updated:** Phase 3 + Phase 4 (partial) — tech catalog, decision gates, match presets  
-**Status:** 28 tests passing; governor gameplay (gates + away summary) implemented locally
+**Last updated:** Phase 3–5 (partial) — see [current-state.md](current-state.md) for full usage guide  
+**Status:** 32 tests passing; local + Orleans scheduled matches; decision gates; tech catalog
 
 ---
 
@@ -35,14 +35,18 @@ TTS.Core (rules) → Auto policy & decisions → Scheduled ticks → Orleans →
 
 ```
 From-Stone-to-Ascension.sln
-├── src/TTS.Core/       Models, systems, GameLoop, agent tool surface
-├── src/TTS.Game/       Console demo (8 instant turns)
-├── src/TTS.Tests/      28 xunit tests
+├── src/TTS.Core/       Models, systems, GameLoop, MatchHost
+├── src/TTS.Contracts/  IWorldGrain + wire DTOs
+├── src/TTS.Grains/     WorldGrain
+├── src/TTS.Server/     Orleans silo
+├── src/TTS.Game/       Console demo + local/Orleans CLI
+├── src/TTS.Tests/      32 xunit tests
 ├── src/TTS.Agents/     Ollama offline scenarios (7 + ping)
-└── src/data/           state_crime_income_merged.csv, tech/catalog.json
+└── src/data/           catalog.json, crime CSV
 ```
 
-**Not yet created:** `TTS.Server`, `TTS.Api`
+**Not yet created:** `TTS.Api`  
+**Usage guide:** [current-state.md](current-state.md)
 
 ---
 
@@ -72,8 +76,8 @@ flowchart LR
 | **2** | Auto policy & classical AI | `TTS.Core` | Done |
 | **2b** | Crime data (TTS 4 perspective) | `TTS.Core` + `TTS.Agents` | Done |
 | **3** | Decision gates & away summary | `TTS.Core` | **Done** |
-| **4** | Scheduled ticks (local) | `TTS.Core` / `TTS.Game` | **Partial** |
-| **5** | Orleans local silo | `TTS.Server` | Planned |
+| **4** | Scheduled ticks (local) | `TTS.Core` / `TTS.Game` | **Done** |
+| **5** | Orleans local silo | `TTS.Server` | **Partial** |
 | **6** | Async multiplayer API | `TTS.Api` | Planned |
 | **7** | MAF tooling (offline) | `TTS.Agents` | **Partial** (~50%) |
 | **8** | MAF in-game (TTS 5+) | `TTS.Agents` + grains | Planned |
@@ -275,7 +279,7 @@ src/TTS.Tests/DecisionGateTests.cs
 
 **Goal:** Ticks advance on a timer, not an instant loop — prove slow-evolution locally.
 
-**Status:** Partial — models + scheduler done; compressed-time demo loop pending
+**Status:** Done
 
 **Depends on:** Phase 3
 
@@ -286,11 +290,12 @@ src/TTS.Tests/DecisionGateTests.cs
 - [x] Add `MatchConfig` (`TickInterval`, `DecisionWindow`, presets)
 - [x] Add `MatchState` (`LastTickAt`, `TickCount`, config)
 - [x] Add `TickScheduler` — `ShouldTick(now)` / `AdvanceIfDue(world, now)`
-- [ ] Refactor `TTS.Game` to:
-  - [ ] Option A: simulate compressed time (1 tick per N seconds for demo)
-  - [ ] Option B: single tick per invocation with `--tick` flag
-- [ ] Log tick timestamp and next tick ETA
-- [x] Unit tests: scheduler respects interval
+- [x] Refactor `TTS.Game` to:
+  - [x] Option A: simulate compressed time (`--watch`, 1h → 60s)
+  - [x] Option B: single tick per invocation with `--tick` flag
+- [x] Log tick timestamp and next tick ETA (`--status`)
+- [x] `MatchPersistence` JSON save/load between invocations
+- [x] Unit tests: scheduler, persistence, MatchHost
 
 ### New files (proposed)
 
@@ -312,7 +317,7 @@ src/TTS.Tests/TickSchedulerTests.cs
 
 **Goal:** Same simulation logic runs inside grains on a local silo.
 
-**Status:** Planned
+**Status:** Partial — silo + `WorldGrain` scaffold; client + `CivilizationGrain` pending
 
 **Depends on:** Phase 4
 
@@ -320,14 +325,14 @@ src/TTS.Tests/TickSchedulerTests.cs
 
 ### Tasks
 
-- [ ] Add `TTS.Server` project (`Microsoft.Orleans.Server`, `Microsoft.Orleans.Sdk`)
-- [ ] Define `IWorldGrain`, `ICivilizationGrain` interfaces
-- [ ] Implement `WorldGrain` — holds `MatchState`, calls `GameLoop`
+- [x] Add `TTS.Server` project (`Microsoft.Orleans.Server`)
+- [x] Define `IWorldGrain` interface
+- [x] Implement `WorldGrain` — holds `MatchHost`, calls `GameLoop` via `MatchHost`
 - [ ] Implement `CivilizationGrain` — holds `Civilization`, policy, decision queue
-- [ ] Register grains; `UseLocalhostClustering()` for dev
+- [x] Register grains; `UseLocalhostClustering()` for dev
 - [ ] Refactor `TTS.Game` to Orleans client (`IGrainFactory`)
 - [ ] Integration test: 8 ticks via grains ≈ current demo output
-- [ ] `TTS.Core` has **zero** Orleans references
+- [x] `TTS.Core` has **zero** Orleans references
 
 ### New files (proposed)
 
@@ -507,7 +512,8 @@ src/TTS.Agents/Scenarios/*.cs
 |--------|-------|-------|--------|
 | **1** | 2 + 2b | Auto policy, classical AI, crime data | Done |
 | **2** | 3 | `DecisionGate`, timeout defaults, `AwaySummary` | Done |
-| **3** | 4 | `TickScheduler` compressed demo, `--tick` CLI | **Next** |
+| **3** | 5 | Orleans client in `TTS.Game`, `CivilizationGrain` | **Next** |
+| **4** | 6 | `TTS.Api` minimal endpoints | Planned |
 | **3** | 4 | `TickScheduler`, compressed-time demo | Planned |
 | **4** | 5 | `TTS.Server` local silo + grain wrappers | Planned |
 
@@ -524,26 +530,26 @@ Phase 0   [██████████] 100%
 Phase 1   [██████████] 100%
 Phase 2   [██████████] 100%
 Phase 2b  [██████████] 100%
-Phase 3   [█████████░]  90%   (CrisisScenario bridge pending)
-Phase 4   [████░░░░░░]  40%   ← NEXT (compressed-time demo)
-Phase 5   [░░░░░░░░░░]   0%
+Phase 3   [█████████░]  90%
+Phase 4   [██████████] 100%
+Phase 5   [████░░░░░░]  40%   ← NEXT (Orleans client)
 Phase 6   [░░░░░░░░░░]   0%
 Phase 7   [█████░░░░░]  50%   (Ollama scenarios done; MAF workflow pending)
 Phase 8   [░░░░░░░░░░]   0%
 Phase 9   [░░░░░░░░░░]   0%
 ```
 
-**Tests:** 28 passing (`CoreSystemsTests`, `AutoPolicyTests`, `CrimeDataTests`, `TechTreeCatalogTests`, `DecisionGateTests`)
-
----
-
-## 7. Quick Commands
+**Tests:** 32 passing
 
 ```bash
 dotnet build && dotnet test                              # verify solution
-dotnet run --project src/TTS.Game                        # 8-turn sim demo
+dotnet run --project src/TTS.Game                        # instant 8-turn demo
+dotnet run --project src/TTS.Game -- --new               # create saved match
+dotnet run --project src/TTS.Game -- --tick              # run one tick if due
+dotnet run --project src/TTS.Game -- --watch             # compressed schedule (~8 min sprint)
+dotnet run --project src/TTS.Game -- --status            # match status + next tick ETA
+dotnet run --project src/TTS.Server                      # Orleans silo (localhost)
 dotnet run --project src/TTS.Agents -- list              # Ollama scenarios
-dotnet run --project src/TTS.Agents -- crime             # TTS 4 crime perspective
 ```
 
 **Ollama setup:** `ollama pull llama3.2` · defaults: `http://localhost:11434`, model `llama3.2`

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>TTS.Grains</RootNamespace>
+    <OrleansTarget>Grain</OrleansTarget>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Orleans.Sdk" Version="8.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TTS.Contracts\TTS.Contracts.csproj" />
+    <ProjectReference Include="..\TTS.Core\TTS.Core.csproj" />
+    <ProjectReference Include="..\TTS.Llm\TTS.Llm.csproj" />
+  </ItemGroup>
+
+</Project>
