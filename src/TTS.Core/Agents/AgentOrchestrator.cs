@@ -1,26 +1,58 @@
 namespace TTS.Core.Agents;
 
 using TTS.Core.Models;
+using TTS.Core.Simulation;
 using TTS.Core.Systems;
 
 /// <summary>
-/// Entry point for MAF-backed civilization turns. At TTS 5+ this orchestrator
-/// can be wired to Microsoft Agent Framework workflows; below TTS 5 it no-ops.
+/// Entry point for LLM-backed civilization turns at TTS 5+.
+/// Falls back to classical auto-policy when LLM is disabled or fails.
 /// </summary>
 public class AgentOrchestrator
 {
     private readonly IGameToolSurface _tools;
+    private readonly ILlmTurnAgent? _llmAgent;
+    private readonly SimulationServices? _services;
 
-    public AgentOrchestrator(IGameToolSurface tools) => _tools = tools;
+    public AgentOrchestrator(IGameToolSurface tools, ILlmTurnAgent? llmAgent = null, SimulationServices? services = null)
+    {
+        _tools = tools;
+        _llmAgent = llmAgent;
+        _services = services;
+    }
 
     public AgentTurnResult RunTurn(Civilization civilization, WorldState world)
     {
         if ((int)civilization.CurrentTier < (int)TechTier.EarlyAI)
             return AgentTurnResult.Skipped("Classical AI handles turns below TTS 5.");
 
-        _ = _tools.GetCivilizationState(civilization.Id);
-        _ = _tools.GetFactionTensions(civilization.Id);
+        if (_llmAgent?.IsEnabled == true)
+        {
+            var llm = _llmAgent.TryRunTurn(civilization, _tools, TimeSpan.FromSeconds(45));
+            if (llm is { UsedAgent: true, TechnologyId: not null })
+                return llm.Value;
+        }
 
+        if (_services is not null)
+        {
+            var classical = _services.ClassicalAi.RunTurn(civilization, world);
+            if (classical.DidResearch && classical.TechnologyId is not null)
+            {
+                return AgentTurnResult.Completed(
+                    classical.Message,
+                    classical.TechnologyId,
+                    classical.Evaluation);
+            }
+
+            return AgentTurnResult.Completed(classical.Message);
+        }
+
+        return RunLegacyStub(civilization);
+    }
+
+    private AgentTurnResult RunLegacyStub(Civilization civilization)
+    {
+        _ = _tools.GetCivilizationState(civilization.Id);
         var candidate = _tools.GetAvailableTechnologies(civilization.Id)
             .OrderByDescending(t => t.RiskLevel)
             .FirstOrDefault();

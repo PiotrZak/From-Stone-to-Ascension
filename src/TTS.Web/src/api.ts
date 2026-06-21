@@ -109,6 +109,12 @@ export interface TickLogEntry {
   lines: string[];
 }
 
+export interface AdvisorBriefing {
+  available: boolean;
+  briefing: string;
+  source: string;
+}
+
 export interface TechTreeNode {
   id: string;
   name: string;
@@ -241,6 +247,9 @@ export const api = {
 
   getCivDashboard: (matchId: string, civilizationId: string) =>
     request<CivDashboard>(`/api/matches/${encodeURIComponent(matchId)}/civs/${encodeURIComponent(civilizationId)}`),
+
+  getAdvisorBriefing: (matchId: string, civilizationId: string) =>
+    request<AdvisorBriefing>(`/api/matches/${encodeURIComponent(matchId)}/civs/${encodeURIComponent(civilizationId)}/advisor`),
 
   updatePolicy: (matchId: string, civilizationId: string, presetId: string) =>
     request<CivDashboard>(`/api/matches/${encodeURIComponent(matchId)}/civs/${encodeURIComponent(civilizationId)}/policy`, {

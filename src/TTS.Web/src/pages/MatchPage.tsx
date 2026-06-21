@@ -6,6 +6,7 @@ import {
   loadSession,
   POLICY_PRESETS,
   saveSession,
+  type AdvisorBriefing,
   type CivDashboard,
   type Civilization,
   type MatchSummary,
@@ -126,6 +127,8 @@ export function MatchPage() {
   const [awayOpen, setAwayOpen] = useState(true);
   const [logOpen, setLogOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [advisor, setAdvisor] = useState<AdvisorBriefing | null>(null);
+  const [advisorLoading, setAdvisorLoading] = useState(false);
   const [, setClock] = useState(0);
 
   const civId = session?.civilizationId ?? 'civ-player';
@@ -134,6 +137,23 @@ export function MatchPage() {
     const timer = setInterval(() => setClock((t) => t + 1), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const refreshAdvisor = useCallback(async () => {
+    if (!matchId || !session) return;
+    const tier = summary?.civilizations.find((c) => c.id === civId)?.tier ?? 0;
+    if (tier < 5) {
+      setAdvisor(null);
+      return;
+    }
+    setAdvisorLoading(true);
+    try {
+      setAdvisor(await api.getAdvisorBriefing(matchId, civId));
+    } catch {
+      setAdvisor(null);
+    } finally {
+      setAdvisorLoading(false);
+    }
+  }, [matchId, civId, session, summary?.civilizations]);
 
   const refresh = useCallback(async () => {
     if (!matchId) return;
@@ -152,6 +172,10 @@ export function MatchPage() {
       setLoading(false);
     }
   }, [matchId, civId, session]);
+
+  useEffect(() => {
+    void refreshAdvisor();
+  }, [refreshAdvisor, summary?.tickCount]);
 
   useEffect(() => {
     void refresh();
@@ -488,6 +512,28 @@ export function MatchPage() {
                   </div>
                 )}
               </section>
+
+              {myCiv && myCiv.tier >= 5 && (
+                <section className="card panel-block advisor-panel">
+                  <div className="advisor-head">
+                    <h3 className="panel-title">Strategic advisor</h3>
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={advisorLoading}
+                      onClick={() => void refreshAdvisor()}
+                    >
+                      {advisorLoading ? 'Thinking…' : 'Refresh'}
+                    </button>
+                  </div>
+                  <p className="fable advisor-text">
+                    {advisor?.briefing ?? (advisorLoading ? 'Consulting advisor…' : 'Advisor briefing will appear at TTS 5+.')}
+                  </p>
+                  {advisor && (
+                    <p className="muted advisor-source">via {advisor.source}</p>
+                  )}
+                </section>
+              )}
 
               {dashboard.crime && myCiv && myCiv.tier >= 4 && (
                 <section className="card panel-block">

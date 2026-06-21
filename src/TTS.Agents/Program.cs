@@ -1,13 +1,14 @@
 using TTS.Llm;
+using TTS.Llm.Agents;
 using TTS.Agents.Scenarios;
 
 using var ollama = new OllamaClient();
 IScenario[] scenarios =
 [
     new PingScenario(ollama),
-    new AdvisorScenario(ollama),
-    new CrisisScenario(ollama),
-    new RivalTurnScenario(ollama),
+    new AdvisorScenario(),
+    new CrisisScenario(),
+    new RivalTurnScenario(),
     new TechLoreScenario(ollama),
     new FactionDebateScenario(ollama),
     new CrimePerspectiveScenario(ollama)
@@ -65,8 +66,9 @@ static void PrintHelp(IEnumerable<IScenario> scenarios)
     Console.WriteLine("Usage: dotnet run --project src/TTS.Agents -- <scenario>");
     Console.WriteLine();
     Console.WriteLine("Environment (optional):");
-    Console.WriteLine("  OLLAMA_BASE_URL  default http://localhost:11434");
-    Console.WriteLine("  OLLAMA_MODEL     default llama3.2");
+    Console.WriteLine("  TTS_LLM_PROVIDER  ollama | none (default ollama)");
+    Console.WriteLine("  OLLAMA_BASE_URL   default http://localhost:11434");
+    Console.WriteLine("  OLLAMA_MODEL      default llama3.2");
     Console.WriteLine();
     Console.WriteLine("Scenarios:");
     foreach (var s in scenarios)

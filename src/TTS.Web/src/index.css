@@ -995,6 +995,34 @@ select {
   margin: 0;
 }
 
+.advisor-panel {
+  border-color: #a371f755;
+  background: linear-gradient(180deg, #120d1a 0%, #161b22 100%);
+}
+
+.advisor-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.advisor-head .panel-title {
+  margin: 0;
+}
+
+.advisor-text {
+  margin: 0;
+  font-style: normal;
+  line-height: 1.45;
+}
+
+.advisor-source {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+}
+
 .tech-tree-panel {
   grid-column: 1 / -1;
 }

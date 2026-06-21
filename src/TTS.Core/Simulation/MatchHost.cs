@@ -28,20 +28,21 @@ public sealed class MatchHost
         MatchConfig config,
         string savePath,
         bool withDemoGate = false,
-        DateTimeOffset? startedAt = null)
+        DateTimeOffset? startedAt = null,
+        ILlmTurnAgent? llmTurnAgent = null)
     {
         var world = SampleWorldFactory.Create(config, withDemoGate);
-        var services = new SimulationServices();
+        var services = new SimulationServices { LlmTurnAgent = llmTurnAgent };
         RestoreTurnHistory(services, []);
         return new MatchHost(world, services, savePath);
     }
 
-    public static MatchHost Load(string savePath)
+    public static MatchHost Load(string savePath, ILlmTurnAgent? llmTurnAgent = null)
     {
         var persistence = new MatchPersistence();
         var doc = persistence.Load(savePath);
         var world = persistence.RestoreWorld(doc);
-        var services = new SimulationServices();
+        var services = new SimulationServices { LlmTurnAgent = llmTurnAgent };
         RestoreTurnHistory(services, persistence.RestoreTurnHistory(doc));
         return new MatchHost(world, services, savePath);
     }

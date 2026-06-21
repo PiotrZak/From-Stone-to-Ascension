@@ -1,12 +1,14 @@
 namespace TTS.Agents.Scenarios;
 
-using TTS.Llm;
+using TTS.Llm.Agents;
 
-public sealed class CrisisScenario(OllamaClient ollama) : IScenario
+public sealed class CrisisScenario(CrisisWorkflowAgent agent) : IScenario
 {
+    public CrisisScenario() : this(new CrisisWorkflowAgent()) { }
+
     public string Id => "crisis";
     public string Title => "AI Alignment Crisis";
-    public string Description => "Narrates a global crisis and proposes 3 structured player choices.";
+    public string Description => "Crisis workflow narrates event and proposes structured choices.";
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
@@ -14,27 +16,9 @@ public sealed class CrisisScenario(OllamaClient ollama) : IScenario
         var player = tools.GetCivilizationState(world.Civilizations.First(c => c.IsPlayerControlled).Id);
         var crisis = world.ActiveEvents[0];
 
-        var userPrompt = $"""
-            A global crisis has struck the simulation.
+        Console.WriteLine("Running crisis workflow...\n");
+        var reply = await agent.NarrateAsync(player.Name, crisis, player, cancellationToken);
 
-            Event: {crisis.Name}
-            Description: {crisis.Description}
-            Severity: {crisis.Severity}/5
-            Player civ: {player.Name} at TTS {(int)player.CurrentTier}
-            Technological stability: {player.TechnologicalStability:F0}
-
-            Write:
-            1. A dramatic 2-3 sentence player-facing briefing
-            2. Exactly three choices labeled A, B, C (e.g. regulate, accelerate, isolate)
-            3. One sentence each on stability impact of each choice
-            """;
-
-        Console.WriteLine("Prompting Ollama crisis narrator...\n");
-        var reply = await ollama.ChatAsync(
-            "You write crisis events for a sci-fi civilization strategy game. Output clear structured choices.",
-            userPrompt,
-            cancellationToken);
-
-        Console.WriteLine(reply);
+        Console.WriteLine(reply ?? "(Crisis narrator unavailable — is Ollama running?)");
     }
 }

@@ -43,7 +43,7 @@ public class CoreSystemsTests
         var rival = world.Civilizations.First(c => !c.IsPlayerControlled);
         rival.CurrentTier = TechTier.Industrial;
 
-        var result = new AgentOrchestrator(services.CreateToolSurface(world)).RunTurn(rival, world);
+        var result = new AgentOrchestrator(services.CreateToolSurface(world), services: services).RunTurn(rival, world);
 
         Assert.False(result.UsedAgent);
         Assert.Contains("TTS 5", result.Message);

@@ -119,6 +119,12 @@ public sealed record GrainCivDashboard(
     [property: Id(10)] int ResearchSlotsPerTurn);
 
 [GenerateSerializer]
+public sealed record GrainAdvisorBriefing(
+    [property: Id(0)] bool Available,
+    [property: Id(1)] string Briefing,
+    [property: Id(2)] string Source);
+
+[GenerateSerializer]
 public sealed record GrainRecommendedTech(
     [property: Id(0)] string Id,
     [property: Id(1)] string Name,

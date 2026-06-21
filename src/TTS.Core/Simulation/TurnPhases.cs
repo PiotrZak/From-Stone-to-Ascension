@@ -156,7 +156,7 @@ public static class TurnPhasePipeline
 {
     public static IReadOnlyList<ITurnPhase> CreateDefault(SimulationServices services, IGameToolSurface tools)
     {
-        var orchestrator = new AgentOrchestrator(tools);
+        var orchestrator = new AgentOrchestrator(tools, services.LlmTurnAgent, services);
         var runners = new ICivilizationTurnRunner[]
         {
             new AgentTurnRunner(orchestrator),

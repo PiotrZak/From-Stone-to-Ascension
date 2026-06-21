@@ -1,15 +1,19 @@
 using Orleans;
 using TTS.Contracts;
+using TTS.Core.Agents;
 using TTS.Core.Models;
 using TTS.Core.Simulation;
 using TTS.Core.Systems;
 using TTS.Llm;
+using TTS.Llm.Agents;
 
 namespace TTS.Grains;
 
 public sealed class WorldGrain : Grain, IWorldGrain
 {
     private static readonly GateFableGenerator FableGenerator = new();
+    private static readonly ILlmTurnAgent? SharedTurnAgent = AgentProviderFactory.CreateTurnAgent();
+    private static readonly AdvisorAgent AdvisorAgent = new();
     private MatchHost? _host;
     private IGrainTimer? _tickTimer;
 
@@ -17,7 +21,7 @@ public sealed class WorldGrain : Grain, IWorldGrain
     {
         var savePath = ResolveSavePath(this.GetPrimaryKeyString());
         if (File.Exists(savePath))
-            _host = MatchHost.Load(savePath);
+            _host = MatchHost.Load(savePath, SharedTurnAgent);
 
         if (_host?.World.Match?.Status == MatchStatus.Running)
             RegisterTickTimer();
@@ -30,7 +34,7 @@ public sealed class WorldGrain : Grain, IWorldGrain
         var savePath = ResolveSavePath(this.GetPrimaryKeyString());
         Directory.CreateDirectory(Path.GetDirectoryName(savePath)!);
 
-        _host = MatchHost.CreateNew(MatchPresets.Resolve(modeId), savePath, withDemoGate);
+        _host = MatchHost.CreateNew(MatchPresets.Resolve(modeId), savePath, withDemoGate, llmTurnAgent: SharedTurnAgent);
         _host.Save();
         return Task.CompletedTask;
     }
@@ -199,6 +203,39 @@ public sealed class WorldGrain : Grain, IWorldGrain
     {
         RequireHost().UpdatePolicy(civilizationId, presetId);
         return Task.CompletedTask;
+    }
+
+    public async Task<GrainAdvisorBriefing> GetAdvisorBriefingAsync(string civilizationId)
+    {
+        var host = RequireHost();
+        var civ = host.World.Civilizations.FirstOrDefault(c => c.Id == civilizationId);
+        if (civ is null || (int)civ.CurrentTier < (int)TechTier.EarlyAI)
+        {
+            return new GrainAdvisorBriefing(
+                false,
+                "Strategic advisor unlocks at TTS 5 (Early AI Age).",
+                "system");
+        }
+
+        var settings = AgentProviderSettings.FromEnvironment();
+        if (!settings.AgentsEnabled)
+        {
+            var tools = host.CreateToolSurface();
+            var analysis = tools.GetPolicyResearchAnalysis(civilizationId);
+            var rec = analysis.Recommended?.Name ?? "none";
+            return new GrainAdvisorBriefing(
+                true,
+                $"Classical advisor: policy {analysis.ResearchStance}, risk {analysis.RiskTolerance}. Recommended research: {rec}.",
+                "classical");
+        }
+
+        var briefing = await AdvisorAgent.GetBriefingAsync(civilizationId, host.CreateToolSurface());
+        return briefing is not null
+            ? new GrainAdvisorBriefing(true, briefing, "llm-tools")
+            : new GrainAdvisorBriefing(
+                true,
+                "Advisor unavailable — use policy panel and tech tree. Set TTS_LLM_PROVIDER=none to skip LLM.",
+                "fallback");
     }
 
     public Task StartMatchAsync()

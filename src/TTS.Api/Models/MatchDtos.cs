@@ -218,6 +218,13 @@ public sealed class CivDashboardDto
     public int ResearchSlotsPerTurn { get; init; }
 }
 
+public sealed class AdvisorBriefingDto
+{
+    public bool Available { get; init; }
+    public required string Briefing { get; init; }
+    public required string Source { get; init; }
+}
+
 public sealed class TechTreeNodeDto
 {
     public required string Id { get; init; }

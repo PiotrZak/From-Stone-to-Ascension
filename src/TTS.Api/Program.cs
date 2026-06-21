@@ -281,6 +281,20 @@ app.MapGet("/api/matches/{matchId}/civs/{civilizationId}", async (
     return Results.Ok(CivDashboardMapping.ToDto(dashboard));
 });
 
+app.MapGet("/api/matches/{matchId}/civs/{civilizationId}/advisor", async (
+    string matchId,
+    string civilizationId,
+    OrleansMatchService orleans) =>
+{
+    var briefing = await orleans.GetGrain(matchId).GetAdvisorBriefingAsync(civilizationId);
+    return Results.Ok(new AdvisorBriefingDto
+    {
+        Available = briefing.Available,
+        Briefing = briefing.Briefing,
+        Source = briefing.Source
+    });
+});
+
 app.MapPut("/api/matches/{matchId}/civs/{civilizationId}/policy", async (
     string matchId,
     string civilizationId,

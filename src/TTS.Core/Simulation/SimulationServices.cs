@@ -21,6 +21,7 @@ public sealed class SimulationServices
     public TickScheduler Scheduler { get; } = new();
     public AutoPolicySystem AutoPolicy { get; }
     public ClassicalAiSystem ClassicalAi { get; }
+    public ILlmTurnAgent? LlmTurnAgent { get; set; }
     public ResearchExecutor Research { get; }
     public List<TurnResearchDecision> TurnResearchDecisions { get; } = [];
     public TurnSnapshot? CurrentTurnSnapshot { get; private set; }

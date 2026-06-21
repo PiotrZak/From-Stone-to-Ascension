@@ -16,6 +16,7 @@ public interface IWorldGrain : IGrainWithStringKey
     Task<IReadOnlyList<GrainMatchResultEntry>> GetMatchResultsAsync();
     Task<IReadOnlyList<GrainTickLogEntry>> GetMatchLogAsync();
     Task<GrainCivDashboard> GetCivDashboardAsync(string civilizationId);
+    Task<GrainAdvisorBriefing> GetAdvisorBriefingAsync(string civilizationId);
     Task UpdatePolicyAsync(string civilizationId, string presetId);
     Task StartMatchAsync();
     Task<IReadOnlyList<GrainRegionDetail>> GetRegionsAsync();
