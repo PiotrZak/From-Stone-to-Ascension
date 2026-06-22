@@ -20,6 +20,17 @@ public class InformationAgeBootstrapTests
     }
 
     [Fact]
+    public void SprintMatch_DoesNotJumpToPostSingularityAfterFirstTick()
+    {
+        var services = new SimulationServices();
+        var world = SampleWorldFactory.Create(MatchPresets.Sprint8h);
+        services.CreateGameLoop(world).RunTurn();
+
+        foreach (var civ in world.Civilizations)
+            Assert.True((int)civ.CurrentTier <= (int)TechTier.EarlyAI);
+    }
+
+    [Fact]
     public void ClassicStone_StartsAtPreIndustrial()
     {
         var world = SampleWorldFactory.Create(MatchPresets.ClassicStone);

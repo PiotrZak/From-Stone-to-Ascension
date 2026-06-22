@@ -51,28 +51,16 @@ public class TechTreeSystem
 
     private static void TryAdvanceTier(Civilization civilization, WorldState world)
     {
-        var researchedCount = civilization.ResearchedTechnologyIds.Count;
-        var countTier = researchedCount switch
-        {
-            >= 10 => TechTier.PostSingularity,
-            >= 8 => TechTier.Temporal,
-            >= 6 => TechTier.BioNano,
-            >= 5 => TechTier.EarlyAI,
-            >= 4 => TechTier.InformationAge,
-            >= 3 => TechTier.EarlyElectronics,
-            >= 2 => TechTier.Industrial,
-            >= 1 => TechTier.PreIndustrial,
-            _ => TechTier.PreIndustrial
-        };
-
         var peakResearchedTier = world.Technologies
             .Where(t => civilization.ResearchedTechnologyIds.Contains(t.Id))
             .Select(t => (int)t.Tier)
-            .DefaultIfEmpty((int)TechTier.PreIndustrial)
+            .DefaultIfEmpty(0)
             .Max();
 
-        var targetTier = (TechTier)Math.Max((int)countTier, peakResearchedTier);
+        if (peakResearchedTier == 0)
+            return;
 
+        var targetTier = (TechTier)peakResearchedTier;
         if ((int)targetTier > (int)civilization.CurrentTier)
             civilization.CurrentTier = targetTier;
     }
