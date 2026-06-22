@@ -41,12 +41,12 @@ public class AutoPolicyTests
     [Fact]
     public void AutoPolicy_EvaluateCandidates_IncludesScoreBreakdown()
     {
-        var world = SampleWorldFactory.Create();
+        var world = SampleWorldFactory.Create(MatchPresets.ClassicStone);
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
         var services = new SimulationServices();
 
         var candidates = services.AutoPolicy.EvaluateCandidates(player, world, player.Policy);
-        var pick = candidates.First(c => c.AllowedByRisk);
+        var pick = candidates.First(c => c.AllowedByRisk && c.TechnologyId == "tech-agriculture");
 
         Assert.True(pick.TotalScore > 0);
         Assert.Equal("agriculture", pick.Branch);
@@ -57,7 +57,7 @@ public class AutoPolicyTests
     public void ClassicalAi_RivalResearchesOnFirstTurn()
     {
         var services = new SimulationServices();
-        var world = SampleWorldFactory.Create();
+        var world = SampleWorldFactory.Create(MatchPresets.ClassicStone);
         var rival = world.Civilizations.First(c => !c.IsPlayerControlled);
 
         var result = services.ClassicalAi.RunTurn(rival, world);
@@ -85,7 +85,7 @@ public class AutoPolicyTests
     public void GameLoop_PlayerUsesPolicyNotFirstTechOnly()
     {
         var services = new SimulationServices();
-        var world = SampleWorldFactory.Create();
+        var world = SampleWorldFactory.Create(MatchPresets.ClassicStone);
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
         player.Policy = CivilizationPolicy.StabilityFirst();
 

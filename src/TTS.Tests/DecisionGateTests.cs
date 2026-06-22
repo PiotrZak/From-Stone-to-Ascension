@@ -8,11 +8,14 @@ namespace TTS.Tests;
 
 public class DecisionGateTests
 {
+    private static WorldState ClassicWithGate() =>
+        SampleWorldFactory.Create(MatchPresets.ClassicStone, withDemoGate: true);
+
     [Fact]
     public void BlockingGate_PausesResearch()
     {
         var services = new SimulationServices();
-        var world = SampleWorldFactory.Create(withDemoGate: true);
+        var world = ClassicWithGate();
         var loop = services.CreateGameLoop(world);
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
         var startingTechCount = player.ResearchedTechnologyIds.Count;
@@ -29,7 +32,7 @@ public class DecisionGateTests
     public void ResolveDecision_UnblocksAndAppliesOption()
     {
         var services = new SimulationServices();
-        var world = SampleWorldFactory.Create(withDemoGate: true);
+        var world = ClassicWithGate();
         var tools = services.CreateToolSurface(world);
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
         var gate = player.ActiveGate!;
@@ -47,7 +50,7 @@ public class DecisionGateTests
     public void ExpiredGate_AppliesDefaultOption()
     {
         var services = new SimulationServices();
-        var world = SampleWorldFactory.Create(withDemoGate: true);
+        var world = ClassicWithGate();
         var loop = services.CreateGameLoop(world);
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
         var gate = player.ActiveGate!;
@@ -66,7 +69,7 @@ public class DecisionGateTests
     public void BanForbiddenTech_BlocksFutureResearch()
     {
         var services = new SimulationServices();
-        var world = SampleWorldFactory.Create(withDemoGate: true);
+        var world = ClassicWithGate();
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
         player.ResearchedTechnologyIds.Add("tech-ml");
         player.CurrentTier = TechTier.InformationAge;
@@ -98,7 +101,7 @@ public class DecisionGateTests
     public void AwaySummary_FormatsTurnDigest()
     {
         var services = new SimulationServices();
-        var world = SampleWorldFactory.Create(withDemoGate: true);
+        var world = ClassicWithGate();
         var loop = services.CreateGameLoop(world);
         var tools = services.CreateToolSurface(world);
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
@@ -110,9 +113,11 @@ public class DecisionGateTests
             loop.RunTurn();
 
         var summary = tools.GetAwaySummary(1, 3);
+        var structured = summary.ToStructured(world);
 
         Assert.True(summary.Ticks.Count >= 2);
-        Assert.Contains("While you were away", summary.Format(world));
+        Assert.False(string.IsNullOrWhiteSpace(structured.Headline));
+        Assert.NotEmpty(structured.Bullets);
     }
 
     [Fact]

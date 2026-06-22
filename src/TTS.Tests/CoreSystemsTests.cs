@@ -12,7 +12,7 @@ public class CoreSystemsTests
     public void TechTreeSystem_ResearchesPrerequisiteChain()
     {
         var services = new SimulationServices();
-        var world = SampleWorldFactory.Create();
+        var world = SampleWorldFactory.Create(MatchPresets.ClassicStone);
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
 
         var agriculture = world.Technologies.First(t => t.Id == "tech-agriculture");
@@ -66,7 +66,7 @@ public class CoreSystemsTests
     public void GameToolSurface_ProposeResearch_ValidatesPrerequisites()
     {
         var services = new SimulationServices();
-        var world = SampleWorldFactory.Create();
+        var world = SampleWorldFactory.Create(MatchPresets.ClassicStone);
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
         var tools = services.CreateToolSurface(world);
 

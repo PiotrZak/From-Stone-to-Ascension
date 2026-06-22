@@ -57,7 +57,8 @@ public sealed record GrainPendingGate(
 public sealed record GrainDecisionOptionDetail(
     [property: Id(0)] string Id,
     [property: Id(1)] string Label,
-    [property: Id(2)] string Description);
+    [property: Id(2)] string Description,
+    [property: Id(3)] string ImpactHint);
 
 [GenerateSerializer]
 public sealed record GrainDecisionGateDetail(
@@ -85,7 +86,14 @@ public sealed record GrainMatchResultEntry(
     [property: Id(3)] int Tier,
     [property: Id(4)] double Stability,
     [property: Id(5)] int TechCount,
-    [property: Id(6)] string Outcome);
+    [property: Id(6)] string Outcome,
+    [property: Id(7)] string OutcomeReason);
+
+[GenerateSerializer]
+public sealed record GrainAwaySummary(
+    [property: Id(0)] string Headline,
+    [property: Id(1)] List<string> Bullets,
+    [property: Id(2)] List<string> MissedGates);
 
 [GenerateSerializer]
 public sealed record GrainTickLogEntry(
@@ -171,6 +179,23 @@ public sealed record GrainRegionDetail(
     [property: Id(13)] double CrimePressure);
 
 [GenerateSerializer]
+public sealed record GrainLlmLayerStatus(
+    [property: Id(0)] bool ProviderEnabled,
+    [property: Id(1)] string Provider,
+    [property: Id(2)] string Model,
+    [property: Id(3)] bool TurnAgentReady,
+    [property: Id(4)] bool WorkflowReady,
+    [property: Id(5)] int RivalTierGate,
+    [property: Id(6)] int EligibleRivalCount,
+    [property: Id(7)] bool AnyRivalEligible,
+    [property: Id(8)] int MaxTurnCallsPerTick,
+    [property: Id(9)] int TurnCallsUsedThisTick,
+    [property: Id(10)] int MaxAdvisorCallsPerTick,
+    [property: Id(11)] int AdvisorCallsUsedThisTick,
+    [property: Id(12)] string? LastRivalRunner,
+    [property: Id(13)] string StatusMessage);
+
+[GenerateSerializer]
 public sealed record GrainCivDetail(
     [property: Id(0)] string Id,
     [property: Id(1)] string Name,
@@ -180,4 +205,5 @@ public sealed record GrainCivDetail(
     [property: Id(5)] double EconomicStability,
     [property: Id(6)] double TechnologicalStability,
     [property: Id(7)] string PolicyLabel,
-    [property: Id(8)] int TechCount);
+    [property: Id(8)] int TechCount,
+    [property: Id(9)] string? LastAction);

@@ -12,10 +12,22 @@ public class AgentRateLimiterTests
         const int tick = 3;
         const int max = 2;
 
-        Assert.True(limiter.TryAcquire(match, tick, max));
-        Assert.True(limiter.TryAcquire(match, tick, max));
-        Assert.False(limiter.TryAcquire(match, tick, max));
-        Assert.Equal(2, limiter.GetCallCount(match, tick));
+        Assert.True(limiter.TryAcquire(match, tick, max, AgentRateLimitScopes.Turn));
+        Assert.True(limiter.TryAcquire(match, tick, max, AgentRateLimitScopes.Turn));
+        Assert.False(limiter.TryAcquire(match, tick, max, AgentRateLimitScopes.Turn));
+        Assert.Equal(2, limiter.GetCallCount(match, tick, AgentRateLimitScopes.Turn));
+    }
+
+    [Fact]
+    public void TryAcquire_ScopesAreIndependent()
+    {
+        var limiter = new AgentRateLimiter();
+        const string match = "match-test";
+        const int tick = 1;
+
+        Assert.True(limiter.TryAcquire(match, tick, 1, AgentRateLimitScopes.Turn));
+        Assert.True(limiter.TryAcquire(match, tick, 1, AgentRateLimitScopes.Advisor));
+        Assert.False(limiter.TryAcquire(match, tick, 1, AgentRateLimitScopes.Turn));
     }
 
     [Fact]
@@ -25,8 +37,8 @@ public class AgentRateLimiterTests
         const string match = "match-test";
         const int max = 1;
 
-        Assert.True(limiter.TryAcquire(match, 1, max));
-        Assert.False(limiter.TryAcquire(match, 1, max));
-        Assert.True(limiter.TryAcquire(match, 2, max));
+        Assert.True(limiter.TryAcquire(match, 1, max, AgentRateLimitScopes.Turn));
+        Assert.False(limiter.TryAcquire(match, 1, max, AgentRateLimitScopes.Turn));
+        Assert.True(limiter.TryAcquire(match, 2, max, AgentRateLimitScopes.Turn));
     }
 }

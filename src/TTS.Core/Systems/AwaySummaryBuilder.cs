@@ -25,6 +25,11 @@ public sealed class AwaySummaryBuilder
     }
 }
 
+public sealed record AwaySummaryStructured(
+    string Headline,
+    IReadOnlyList<string> Bullets,
+    IReadOnlyList<string> MissedGates);
+
 public sealed class AwaySummary
 {
     public int FromTurn { get; }
@@ -50,19 +55,24 @@ public sealed class AwaySummary
         MatchDisplayName = matchDisplayName;
     }
 
-    public string Format(WorldState world)
+    public AwaySummaryStructured ToStructured(WorldState world) => BuildStructured(world);
+
+    public string Format(WorldState world) => FormatStructured(BuildStructured(world));
+
+    private AwaySummaryStructured BuildStructured(WorldState world)
     {
-        var sb = new StringBuilder();
-        var matchLine = MatchDisplayName is not null ? $"Match: {MatchDisplayName} — " : "";
-        sb.AppendLine($"{matchLine}While you were away ({Ticks.Count} ticks, {FormatElapsed(Elapsed)})");
-        sb.AppendLine();
+        var bullets = new List<string>();
+        var missedGates = new List<string>();
+        string? headline = null;
 
         foreach (var tick in Ticks)
         {
             foreach (var (civId, tierChange) in tick.TierChanges)
             {
                 var civ = world.Civilizations.First(c => c.Id == civId);
-                sb.AppendLine($"  TTS    {(int)tierChange.From} → {(int)tierChange.To}  ({civ.Name})");
+                var line = $"{civ.Name} reached TTS {(int)tierChange.To}";
+                bullets.Add(line);
+                headline ??= line;
             }
 
             foreach (var (civId, techs) in tick.ResearchedThisTurn)
@@ -71,36 +81,66 @@ public sealed class AwaySummary
                     continue;
 
                 var civ = world.Civilizations.First(c => c.Id == civId);
-                sb.AppendLine($"  Tech   {civ.Name}: {string.Join(", ", techs)}");
+                bullets.Add($"{civ.Name} researched {string.Join(", ", techs)}");
             }
 
             foreach (var resolution in tick.GateResolutions)
             {
-                var auto = resolution.WasAutoResolved ? " (auto)" : "";
-                sb.AppendLine($"  Gate   {resolution.Title}: {resolution.OptionId}{auto}");
+                var civ = world.Civilizations.FirstOrDefault(c => c.Id == resolution.CivilizationId);
+                var civName = civ?.Name ?? resolution.CivilizationId;
+                if (resolution.WasAutoResolved)
+                {
+                    var missed = $"{resolution.Title}: default '{resolution.OptionId}' applied";
+                    missedGates.Add(missed);
+                    bullets.Add($"Gate auto-resolved — {civName}: {resolution.Title} → {resolution.OptionId}");
+                }
+                else
+                {
+                    bullets.Add($"{civName} resolved {resolution.Title} → {resolution.OptionId}");
+                }
             }
 
             foreach (var eventName in tick.NewEvents)
-                sb.AppendLine($"  Event  {eventName}");
+                bullets.Add($"Global event: {eventName}");
         }
 
         if (PendingGates.Count > 0)
         {
-            sb.AppendLine();
-            sb.AppendLine($"  Pending: {PendingGates.Count} decision(s)");
             foreach (var gate in PendingGates)
-                sb.AppendLine($"    — {gate.Title}");
+                bullets.Add($"Pending decision: {gate.Title}");
+            headline ??= $"{PendingGates.Count} decision(s) awaiting your response";
+        }
+
+        headline ??= Ticks.Count switch
+        {
+            0 => "No ticks recorded yet",
+            1 => "One quiet tick while you were away",
+            _ => $"{Ticks.Count} ticks passed — review changes below"
+        };
+
+        return new AwaySummaryStructured(headline, bullets, missedGates);
+    }
+
+    private static string FormatStructured(AwaySummaryStructured structured)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine(structured.Headline);
+
+        if (structured.Bullets.Count > 0)
+        {
+            sb.AppendLine();
+            foreach (var bullet in structured.Bullets)
+                sb.AppendLine($"  · {bullet}");
+        }
+
+        if (structured.MissedGates.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("  Missed gates (defaults applied):");
+            foreach (var missed in structured.MissedGates)
+                sb.AppendLine($"    — {missed}");
         }
 
         return sb.ToString().TrimEnd();
-    }
-
-    private static string FormatElapsed(TimeSpan elapsed)
-    {
-        if (elapsed.TotalHours >= 1)
-            return $"~{elapsed.TotalHours:F0}h";
-        if (elapsed.TotalMinutes >= 1)
-            return $"~{elapsed.TotalMinutes:F0}m";
-        return $"{elapsed.TotalSeconds:F0}s";
     }
 }

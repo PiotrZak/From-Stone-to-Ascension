@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, loadSession, saveSession, type MatchListItem } from '../api';
+import { llmStatusShort, llmStatusTone } from '../llmStatus';
 
 function statusLabel(status: string): string {
   switch (status) {
@@ -25,6 +26,13 @@ function matchSortKey(m: MatchListItem): number {
   }
   if (status === 'lobby') return 2;
   return 3;
+}
+
+function formatCountdown(targetIso: string): string {
+  const sec = Math.max(0, Math.floor((new Date(targetIso).getTime() - Date.now()) / 1000));
+  if (sec === 0) return 'now';
+  if (sec < 3600) return `${Math.floor(sec / 60)}m`;
+  return `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`;
 }
 
 function MatchCard({
@@ -59,6 +67,11 @@ function MatchCard({
         <span className={`badge badge-status badge-${statusClass(match.status)}`}>
           {statusLabel(match.status)}
         </span>
+        {inProgress && match.llmStatus && (
+          <span className={`badge badge-llm badge-llm-${llmStatusTone(match.llmStatus)}`} title={match.llmStatus.statusMessage}>
+            {llmStatusShort(match.llmStatus)}
+          </span>
+        )}
       </div>
 
       <div className="match-card-code-row">
@@ -110,8 +123,15 @@ function MatchCard({
         </div>
       )}
 
+      {inProgress && match.llmStatus && (
+        <p className="match-card-llm muted">{match.llmStatus.statusMessage}</p>
+      )}
+
       {needsAction && (
-        <p className="match-card-alert">Decision required — your governor is waiting</p>
+        <p className="match-card-alert">
+          Decision required
+          {match.nextGateExpiresAt ? ` · ${formatCountdown(match.nextGateExpiresAt)} left` : ''}
+        </p>
       )}
 
       <button type="button" className="btn btn-primary match-card-open" onClick={onOpen}>
@@ -128,7 +148,7 @@ export function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [playerName, setPlayerName] = useState('Governor');
   const [joinCode, setJoinCode] = useState('');
-  const [modeId, setModeId] = useState('dev-blitz-3m');
+  const [modeId, setModeId] = useState('sprint-8h');
   const [busy, setBusy] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -231,11 +251,12 @@ export function HomePage() {
             <p className="home-setup-label">Create new match</p>
             <div className="row">
               <select value={modeId} onChange={(e) => setModeId(e.target.value)} aria-label="Mode">
-                <option value="dev-blitz-3m">Dev 3 min</option>
                 <option value="sprint-8h">Sprint 8h</option>
                 <option value="blitz-24h">Blitz 24h</option>
                 <option value="standard-36h">Standard 36h</option>
                 <option value="extended-48h">Extended 48h</option>
+                <option value="classic-stone">From Stone (Classic)</option>
+                <option value="dev-blitz-3m">Dev 3 min</option>
               </select>
               <button className="btn btn-primary" disabled={busy} onClick={() => void handleCreate()}>
                 Create

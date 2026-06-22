@@ -1,7 +1,9 @@
 # TTS: TECHNOLOGY TIER SIMULATION
 
 **Implementation:** [implementation-plan.md](implementation-plan.md) — master roadmap (Phases 0–9)  
+**Architecture:** [architecture-overview.md](architecture-overview.md) — **technical + gameplay diagrams** (high overview) · [assets/architecture-technical-overview.md](assets/architecture-technical-overview.md) — **exportable PNG** for posts  
 **Current code:** [current-state.md](current-state.md) — what's built and how to run it today  
+**Player UX:** [player-experience.md](player-experience.md) — async governor check-in design  
 **Match modes:** [match-modes.md](match-modes.md) — 8h / 24h / 36h / 48h async matches  
 **UI:** [ui-design.md](ui-design.md) — governor dashboard client (web MVP)  
 **LLM deploy:** [llm-deployment.md](llm-deployment.md) — Ollama vs cloud for internet MP + cost  

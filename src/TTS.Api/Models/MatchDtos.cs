@@ -1,5 +1,23 @@
 namespace TTS.Api.Models;
 
+public sealed class LlmLayerStatusDto
+{
+    public bool ProviderEnabled { get; init; }
+    public required string Provider { get; init; }
+    public required string Model { get; init; }
+    public bool TurnAgentReady { get; init; }
+    public bool WorkflowReady { get; init; }
+    public int RivalTierGate { get; init; }
+    public int EligibleRivalCount { get; init; }
+    public bool AnyRivalEligible { get; init; }
+    public int MaxTurnCallsPerTick { get; init; }
+    public int TurnCallsUsedThisTick { get; init; }
+    public int MaxAdvisorCallsPerTick { get; init; }
+    public int AdvisorCallsUsedThisTick { get; init; }
+    public string? LastRivalRunner { get; init; }
+    public required string StatusMessage { get; init; }
+}
+
 public sealed class MatchListItemDto
 {
     public required string MatchId { get; init; }
@@ -12,6 +30,9 @@ public sealed class MatchListItemDto
     public int PlayerCount { get; init; }
     public int MaxPlayers { get; init; }
     public int PendingGateCount { get; init; }
+    public DateTimeOffset? NextGateExpiresAt { get; init; }
+    public int StartingTier { get; init; }
+    public LlmLayerStatusDto? LlmStatus { get; init; }
 }
 
 public sealed class CreateMatchRequestDto
@@ -52,6 +73,7 @@ public sealed class CivilizationDto
     public double TechnologicalStability { get; init; }
     public required string PolicyLabel { get; init; }
     public int TechCount { get; init; }
+    public string? LastAction { get; init; }
 }
 
 public sealed class RegionDto
@@ -90,14 +112,17 @@ public sealed class MatchSummaryDto
     public bool IsTickDue { get; init; }
     public int VictoryTier { get; init; }
     public double VictoryStabilityMin { get; init; }
+    public int StartingTier { get; init; }
     public required IReadOnlyList<PlayerSlotDto> Players { get; init; }
     public required IReadOnlyList<CivilizationDto> Civilizations { get; init; }
     public required IReadOnlyList<RegionDto> Regions { get; init; }
     public required IReadOnlyList<DecisionGateDto> PendingGates { get; init; }
     public string? AwaySummary { get; init; }
+    public AwaySummaryStructuredDto? AwaySummaryStructured { get; init; }
     public string? ResultsSummary { get; init; }
     public required IReadOnlyList<MatchResultEntryDto> Results { get; init; }
     public required IReadOnlyList<TickLogEntryDto> TickLogs { get; init; }
+    public LlmLayerStatusDto? LlmStatus { get; init; }
 }
 
 public sealed class MatchResultEntryDto
@@ -109,6 +134,14 @@ public sealed class MatchResultEntryDto
     public double Stability { get; init; }
     public int TechCount { get; init; }
     public required string Outcome { get; init; }
+    public required string OutcomeReason { get; init; }
+}
+
+public sealed class AwaySummaryStructuredDto
+{
+    public required string Headline { get; init; }
+    public required IReadOnlyList<string> Bullets { get; init; }
+    public required IReadOnlyList<string> MissedGates { get; init; }
 }
 
 public sealed class TickLogEntryDto
@@ -145,6 +178,7 @@ public sealed class DecisionOptionDto
     public required string Id { get; init; }
     public required string Label { get; init; }
     public required string Description { get; init; }
+    public required string ImpactHint { get; init; }
 }
 
 public sealed class ResolveDecisionRequestDto

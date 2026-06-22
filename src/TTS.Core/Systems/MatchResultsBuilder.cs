@@ -9,13 +9,18 @@ public sealed class MatchResultsBuilder
     public IReadOnlyList<MatchResultEntry> Build(WorldState world, SimulationServices services)
     {
         return world.Civilizations
-            .Select(c => new MatchResultEntry(
-                c.Id,
-                c.Name,
-                (int)c.CurrentTier,
-                c.AverageStability,
-                c.ResearchedTechnologyIds.Count,
-                FormatOutcome(services.WinLoss.Evaluate(c, world.Match?.Config))))
+            .Select(c =>
+            {
+                var outcome = services.WinLoss.Evaluate(c, world.Match?.Config);
+                return new MatchResultEntry(
+                    c.Id,
+                    c.Name,
+                    (int)c.CurrentTier,
+                    c.AverageStability,
+                    c.ResearchedTechnologyIds.Count,
+                    FormatOutcomeLabel(outcome),
+                    outcome.Message);
+            })
             .OrderByDescending(r => r.Tier)
             .ThenByDescending(r => r.Stability)
             .ThenByDescending(r => r.TechCount)
@@ -33,12 +38,14 @@ public sealed class MatchResultsBuilder
         {
             sb.AppendLine(
                 $"{r.Rank}. {r.CivilizationName} — TTS {r.Tier}, stability {r.Stability:F0}, {r.TechCount} techs ({r.Outcome})");
+            if (!string.IsNullOrWhiteSpace(r.OutcomeReason) && r.OutcomeReason != "Simulation in progress.")
+                sb.AppendLine($"     {r.OutcomeReason}");
         }
 
         return sb.ToString().TrimEnd();
     }
 
-    private static string FormatOutcome(GameOutcome outcome) =>
+    private static string FormatOutcomeLabel(GameOutcome outcome) =>
         outcome.IsVictory ? "victory" : outcome.IsDefeat ? "defeat" : "finished";
 }
 
@@ -48,7 +55,8 @@ public sealed record MatchResultEntry(
     int Tier,
     double Stability,
     int TechCount,
-    string Outcome)
+    string Outcome,
+    string OutcomeReason)
 {
     public int Rank { get; init; }
 }

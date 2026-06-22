@@ -1,6 +1,7 @@
 namespace TTS.Core;
 
 using TTS.Core.Models;
+using TTS.Core.Simulation;
 using TTS.Core.Systems;
 
 /// <summary>Creates a minimal playable world for demos and tests.</summary>
@@ -46,10 +47,16 @@ public static class SampleWorldFactory
         world.Match = match;
 
         if (withDemoGate)
-            AttachDemoGate(world, player);
+            AttachDemoGate(world, player, config);
 
         world.KnowledgeNetworks.Add(new KnowledgeNetwork(player.Id, rival.Id, DiffusionChannel.Trade));
         world.KnowledgeNetworks.Add(new KnowledgeNetwork(rival.Id, player.Id, DiffusionChannel.Espionage));
+
+        if (config.StartingTier >= TechTier.InformationAge)
+        {
+            var services = new SimulationServices();
+            InformationAgeTechSpine.ApplyBootstrap(world, services, config.StartingTier);
+        }
 
         return world;
     }
@@ -103,12 +110,32 @@ public static class SampleWorldFactory
             fusionTags: ["ai", "forbidden"]);
     }
 
-    private static void AttachDemoGate(WorldState world, Civilization player)
+    private static void AttachDemoGate(WorldState world, Civilization player, MatchConfig config)
     {
         if (world.Match is null)
             return;
 
         var window = world.Match.Config.DecisionWindow;
+
+        if (config.StartingTier >= TechTier.InformationAge)
+        {
+            player.PendingDecisions.Add(new DecisionGate(
+                "gate-demo-start",
+                player.Id,
+                GateType.CrimePressure,
+                "Data sovereignty dispute",
+                "Platform regulators and civic groups clash over cross-border data flows in Meridian Bay.",
+                [
+                    new DecisionOption("invest", "Invest", "Fund cybersecurity and digital literacy programs.", "Stability +4 · crime −8"),
+                    new DecisionOption("ignore", "Ignore", "Defer regulation — accept erosion.", "Stability −3 · short-term calm"),
+                    new DecisionOption("crackdown", "Crackdown", "Restrict networks and enforce compliance.", "Stability +1 · factions −2")
+                ],
+                defaultOptionId: "invest",
+                world.SimulatedNow,
+                world.SimulatedNow + window));
+            return;
+        }
+
         player.PendingDecisions.Add(new DecisionGate(
             "gate-demo-start",
             player.Id,
@@ -116,9 +143,9 @@ public static class SampleWorldFactory
             "Granary dispute in Meridian Bay",
             "Merchants and farmers quarrel over grain storage and road tolls as the young settlement grows.",
             [
-                new DecisionOption("appease", "Appease", "Offer concessions to ease tensions."),
-                new DecisionOption("suppress", "Suppress", "Send militia to restore order."),
-                new DecisionOption("reform", "Reform", "Revise tolls and storage rules.")
+                new DecisionOption("appease", "Appease", "Offer concessions to ease tensions.", "Stability +3 · factions +2"),
+                new DecisionOption("suppress", "Suppress", "Send militia to restore order.", "Stability +1 · risk +2"),
+                new DecisionOption("reform", "Reform", "Revise tolls and storage rules.", "Stability +2 · long-term balance")
             ],
             defaultOptionId: "appease",
             world.SimulatedNow,

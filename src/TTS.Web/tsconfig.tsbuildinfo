@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/api.ts","./src/main.tsx","./src/vite-env.d.ts","./src/components/techtreeview.tsx","./src/pages/homepage.tsx","./src/pages/matchpage.tsx"],"version":"5.9.3"}
+{"root":["./src/app.tsx","./src/api.ts","./src/llmstatus.ts","./src/main.tsx","./src/tierlabels.ts","./src/vite-env.d.ts","./src/components/awaysummaryview.tsx","./src/components/techtreeview.tsx","./src/pages/homepage.tsx","./src/pages/matchpage.tsx"],"version":"5.9.3"}

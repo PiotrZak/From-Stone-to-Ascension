@@ -30,7 +30,23 @@ public static class MatchLogBuilder
             if (techs.Count == 0)
                 continue;
 
-            lines.Add($"{CivName(world, civId)} researched {string.Join(", ", techs)}");
+            var runner = tick.ResearchDecisions.FirstOrDefault(d => d.CivilizationId == civId).Runner;
+            var tag = RunnerTag(runner);
+            lines.Add($"{CivName(world, civId)} researched {string.Join(", ", techs)}{tag}");
+        }
+
+        foreach (var decision in tick.ResearchDecisions)
+        {
+            if (decision.Runner is not ("agent" or "classical-ai"))
+                continue;
+
+            if (decision.Researched)
+                continue;
+
+            if (string.IsNullOrWhiteSpace(decision.Message))
+                continue;
+
+            lines.Add($"{decision.CivilizationName}{RunnerTag(decision.Runner)}: {decision.Message}");
         }
 
         foreach (var resolution in tick.GateResolutions)
@@ -50,6 +66,13 @@ public static class MatchLogBuilder
 
     private static string CivName(WorldState world, string civId) =>
         world.Civilizations.FirstOrDefault(c => c.Id == civId)?.Name ?? civId;
+
+    private static string RunnerTag(string runner) => runner switch
+    {
+        "agent" => " · LLM",
+        "classical-ai" => " · classical",
+        _ => ""
+    };
 }
 
 public sealed record MatchTickLogEntry(int Tick, IReadOnlyList<string> Lines);

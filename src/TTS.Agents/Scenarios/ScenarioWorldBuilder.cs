@@ -4,6 +4,7 @@ using TTS.Core;
 using TTS.Core.Agents;
 using TTS.Core.Models;
 using TTS.Core.Simulation;
+using TTS.Core.Systems;
 
 /// <summary>Prepares demo worlds at specific TTS states for Ollama scenarios.</summary>
 public static class ScenarioWorldBuilder
@@ -14,11 +15,7 @@ public static class ScenarioWorldBuilder
         "tech-electrical", "tech-computing", "tech-ml"
     ];
 
-    private static readonly string[] InformationAgeTechPath =
-    [
-        "tech-agriculture", "tech-governance", "tech-metallurgy", "tech-steam",
-        "tech-electrical", "tech-computing"
-    ];
+    private static readonly string[] InformationAgeTechPath = InformationAgeTechSpine.BaselineTechIds;
 
     public static (WorldState World, GameToolSurface Tools, SimulationServices Services) CreateEarlyAiCrisis()
     {

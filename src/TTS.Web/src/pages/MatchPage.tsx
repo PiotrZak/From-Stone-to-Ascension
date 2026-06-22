@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { AwaySummaryView } from '../components/AwaySummaryView';
 import { TechTreeView } from '../components/TechTreeView';
 import {
   api,
@@ -13,6 +14,9 @@ import {
   type PlayerSession,
   type Region,
 } from '../api';
+import { tierClass, tierLabel } from '../tierLabels';
+import { llmStatusLabel, llmStatusTone } from '../llmStatus';
+import type { LlmLayerStatus } from '../api';
 
 function formatCountdown(targetIso: string): string {
   const sec = Math.max(0, Math.floor((new Date(targetIso).getTime() - Date.now()) / 1000));
@@ -86,15 +90,45 @@ function CivVitals({ civ, compact }: { civ: Civilization; compact?: boolean }) {
     <div className={`vitals-block${compact ? ' vitals-compact' : ''}`}>
       <div className="vitals-head">
         <strong>{civ.name}</strong>
-        <span className="badge badge-tier">TTS {civ.tier}</span>
+        <span className={`badge badge-tier ${tierClass(civ.tier)}`}>TTS {civ.tier}</span>
         {!compact && <span className="muted">{civ.policyLabel}</span>}
       </div>
       {!compact && (
-        <p className="muted vitals-meta">{civ.techCount} technologies · avg stability {Math.round(civ.averageStability)}</p>
+        <p className="muted vitals-meta">
+          {tierLabel(civ.tier)} · {civ.techCount} technologies · avg stability {Math.round(civ.averageStability)}
+        </p>
+      )}
+      {civ.lastAction && (
+        <p className="muted civ-last-action">Last: {civ.lastAction}</p>
       )}
       <StabilityBar label="Political" value={civ.politicalStability} />
       <StabilityBar label="Economic" value={civ.economicStability} />
       <StabilityBar label="Tech" value={civ.technologicalStability} />
+    </div>
+  );
+}
+
+function LlmStatusStrip({ status, inLobby }: { status: LlmLayerStatus | null; inLobby: boolean }) {
+  if (inLobby || !status) return null;
+
+  const tone = llmStatusTone(status);
+  return (
+    <div className={`llm-status-strip llm-status-${tone}`}>
+      <div className="llm-status-head">
+        <span className={`badge badge-llm badge-llm-${tone}`}>{llmStatusLabel(status)}</span>
+        {status.providerEnabled && (
+          <span className="muted llm-status-provider">
+            {status.provider} · {status.model}
+          </span>
+        )}
+      </div>
+      <p className="muted llm-status-message">{status.statusMessage}</p>
+      {status.anyRivalEligible && (
+        <p className="muted llm-status-meta">
+          Turn budget {status.turnCallsUsedThisTick}/{status.maxTurnCallsPerTick} this tick
+          {status.lastRivalRunner ? ` · last rival runner: ${status.lastRivalRunner}` : ''}
+        </p>
+      )}
     </div>
   );
 }
@@ -126,6 +160,7 @@ export function MatchPage() {
   const [busy, setBusy] = useState(false);
   const [awayOpen, setAwayOpen] = useState(true);
   const [logOpen, setLogOpen] = useState(false);
+  const [techTreeOpen, setTechTreeOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [advisor, setAdvisor] = useState<AdvisorBriefing | null>(null);
   const [advisorLoading, setAdvisorLoading] = useState(false);
@@ -141,7 +176,7 @@ export function MatchPage() {
   const refreshAdvisor = useCallback(async () => {
     if (!matchId || !session) return;
     const tier = summary?.civilizations.find((c) => c.id === civId)?.tier ?? 0;
-    if (tier < 5) {
+    if (tier < 4) {
       setAdvisor(null);
       return;
     }
@@ -286,8 +321,9 @@ export function MatchPage() {
   const myGates = summary.pendingGates.filter((g) => g.civilizationId === civId);
   const myCities = summary.regions.filter((r) => r.controllingCivilizationId === civId);
   const otherCities = summary.regions.filter((r) => r.controllingCivilizationId !== civId);
-  const showModernStats = (myCiv?.tier ?? 1) >= 4;
+  const showModernStats = (summary.startingTier >= 4) || (myCiv?.tier ?? 1) >= 4;
   const nextTickLabel = summary.isTickDue ? 'due now' : formatCountdown(summary.nextTickAt);
+  const showOnboarding = !ended && !inLobby && summary.tickCount === 0 && session;
 
   return (
     <div className="match-page">
@@ -300,6 +336,15 @@ export function MatchPage() {
         </div>
 
         <h2 className="match-title">{summary.modeDisplayName}</h2>
+
+        {myCiv && !inLobby && (
+          <div className={`era-band ${tierClass(myCiv.tier)}`}>
+            <span className="era-band-label">{tierLabel(myCiv.tier)}</span>
+            <span className="muted">TTS {myCiv.tier} · starting era TTS {summary.startingTier}</span>
+          </div>
+        )}
+
+        <LlmStatusStrip status={summary.llmStatus} inLobby={inLobby} />
 
         <div className="match-meta">
           <button
@@ -351,8 +396,14 @@ export function MatchPage() {
         </div>
       )}
 
+      {showOnboarding && (
+        <p className="onboarding-strip card">
+          The world advances on schedule while you&apos;re away. Resolve decision gates when they appear and adjust policy between visits.
+        </p>
+      )}
+
       {myGates.map((gate) => (
-        <section key={gate.gateId} className="card gate-hero">
+        <section key={gate.gateId} className="card gate-hero gate-hero-sticky">
           <div className="gate-hero-head">
             <span className="gate-hero-label">Decision required</span>
             <span className="gate-timer">
@@ -374,6 +425,7 @@ export function MatchPage() {
                   {opt.id === gate.defaultOptionId && <span className="gate-default-tag">default</span>}
                 </button>
                 <p className="muted option-hint">{opt.description}</p>
+                {opt.impactHint && <p className="impact-hint">{opt.impactHint}</p>}
               </div>
             ))}
           </div>
@@ -392,6 +444,9 @@ export function MatchPage() {
                   <span className="muted">
                     TTS {r.tier} · stability {Math.round(r.stability)} · {r.techCount} techs · {r.outcome}
                   </span>
+                  {r.outcomeReason && r.outcomeReason !== 'Simulation in progress.' && (
+                    <span className="results-reason muted">{r.outcomeReason}</span>
+                  )}
                 </div>
               </li>
             ))}
@@ -449,22 +504,23 @@ export function MatchPage() {
               </section>
             )}
 
-            {!ended && summary.awaySummary && summary.tickCount > 0 && (
+            {!ended && (summary.awaySummaryStructured || summary.awaySummary) && summary.tickCount > 0 && (
               <section className="card panel-block away-block">
                 <button type="button" className="panel-toggle" onClick={() => setAwayOpen((v) => !v)}>
                   <span>While you were away</span>
                   <span className="muted">{awayOpen ? '▾' : '▸'}</span>
                 </button>
-                {awayOpen && <pre className="away-summary">{summary.awaySummary}</pre>}
+                {awayOpen && (
+                  summary.awaySummaryStructured
+                    ? <AwaySummaryView summary={summary.awaySummaryStructured} />
+                    : <pre className="away-summary">{summary.awaySummary}</pre>
+                )}
               </section>
             )}
 
             {summary.regions.length > 0 && (
               <section className="card panel-block">
                 <h3 className="panel-title">Cities</h3>
-                {!showModernStats && (
-                  <p className="muted panel-hint">Modern economic stats appear at TTS 4+.</p>
-                )}
                 <div className="city-grid">
                   {myCities.map((city) => (
                     <CityCard key={city.id} city={city} highlight showModernStats={showModernStats} />
@@ -513,10 +569,10 @@ export function MatchPage() {
                 )}
               </section>
 
-              {myCiv && myCiv.tier >= 5 && (
+              {myCiv && myCiv.tier >= 4 && (
                 <section className="card panel-block advisor-panel">
                   <div className="advisor-head">
-                    <h3 className="panel-title">Strategic advisor</h3>
+                    <h3 className="panel-title">{myCiv.tier >= 5 ? 'Strategic advisor' : 'Policy advisor'}</h3>
                     <button
                       type="button"
                       className="btn"
@@ -526,16 +582,29 @@ export function MatchPage() {
                       {advisorLoading ? 'Thinking…' : 'Refresh'}
                     </button>
                   </div>
+                  <div className="advisor-chips">
+                    {['What should I research?', 'Explain stability', 'Summarize rivals'].map((q) => (
+                      <button
+                        key={q}
+                        type="button"
+                        className="btn advisor-chip"
+                        disabled={advisorLoading}
+                        onClick={() => void refreshAdvisor()}
+                      >
+                        {q}
+                      </button>
+                    ))}
+                  </div>
                   <p className="fable advisor-text">
-                    {advisor?.briefing ?? (advisorLoading ? 'Consulting advisor…' : 'Advisor briefing will appear at TTS 5+.')}
+                    {advisor?.briefing ?? (advisorLoading ? 'Consulting advisor…' : 'Tap Refresh or a prompt for guidance.')}
                   </p>
                   {advisor && (
-                    <p className="muted advisor-source">via {advisor.source}</p>
+                    <p className="muted advisor-source">via {advisor.source}{myCiv.tier < 5 ? ' · LLM at TTS 5+' : ''}</p>
                   )}
                 </section>
               )}
 
-              {dashboard.crime && myCiv && myCiv.tier >= 4 && (
+              {dashboard.crime && showModernStats && (
                 <section className="card panel-block">
                   <h3 className="panel-title">Socioeconomic pressure</h3>
                   <p className="muted">
@@ -551,18 +620,24 @@ export function MatchPage() {
 
           {session && dashboard && !inLobby && (
             <section className="card panel-block tech-tree-panel">
-              <div className="tech-tree-panel-head">
-                <h3 className="panel-title">Technology tree</h3>
-                <p className="muted">
-                  {dashboard.researchSlotsPerTurn} researches per tick · {dashboard.researchedTech.length} completed
-                  {dashboard.recommendedTech ? ` · next: ${dashboard.recommendedTech.name}` : ''}
-                </p>
-              </div>
-              <TechTreeView
-                nodes={dashboard.techTree ?? []}
-                currentTier={myCiv?.tier ?? 1}
-                recommendedId={dashboard.recommendedTech?.id}
-              />
+              <button type="button" className="panel-toggle tech-tree-toggle" onClick={() => setTechTreeOpen((v) => !v)}>
+                <div className="tech-tree-panel-head">
+                  <h3 className="panel-title">Technology tree</h3>
+                  <p className="muted">
+                    {dashboard.researchSlotsPerTurn} researches per tick · {dashboard.researchedTech.length} completed
+                    {dashboard.recommendedTech ? ` · next: ${dashboard.recommendedTech.name}` : ''}
+                  </p>
+                </div>
+                <span className="muted">{techTreeOpen ? '▾' : '▸'}</span>
+              </button>
+              {techTreeOpen && (
+                <TechTreeView
+                  nodes={dashboard.techTree ?? []}
+                  currentTier={myCiv?.tier ?? 1}
+                  recommendedId={dashboard.recommendedTech?.id}
+                  startingTier={summary.startingTier}
+                />
+              )}
             </section>
           )}
         </div>
@@ -581,7 +656,12 @@ export function MatchPage() {
                   <p className="log-tick-title">Tick {entry.tick}</p>
                   <ul className="simple-list compact">
                     {entry.lines.map((line) => (
-                      <li key={line} className="muted">{line}</li>
+                      <li
+                        key={line}
+                        className={`muted${line.includes('· LLM') ? ' log-line-llm' : line.includes('· classical') ? ' log-line-classical' : ''}`}
+                      >
+                        {line}
+                      </li>
                     ))}
                   </ul>
                 </div>

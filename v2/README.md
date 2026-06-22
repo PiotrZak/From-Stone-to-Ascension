@@ -4,7 +4,9 @@ Planning documents for the next evolution of *From Stone to Ascension*: procedur
 
 | Document | Topic |
 |----------|-------|
-| [agent-integration.md](agent-integration.md) | **Shipped** — how MAF agents plug into ticks, advisor API, tools, and dev testing |
+| [architecture-overview.md](../architecture-overview.md) | **Technical + gameplay high overview** (mermaid diagrams) |
+| [player-experience.md](../player-experience.md) | Async governor UX — check-in design |
+| [agent-integration.md](agent-integration.md) | **Shipped** — MAF agents in ticks, advisor API, tools |
 | [tts4-start.md](tts4-start.md) | **Exploration** — remigrate default matches to start at TTS 4 (Information Age) |
 | [procedural-generation.md](procedural-generation.md) | Seeded worlds, regions, tech fusion, events, LLM narrative |
 | [hex-map.md](hex-map.md) | Hex grid layer, procedural terrain, territorial play — deferred until v2 |

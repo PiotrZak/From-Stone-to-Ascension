@@ -11,6 +11,7 @@ public interface IWorldGrain : IGrainWithStringKey
     Task<GrainTickResult> AdvanceTickIfDueAsync();
     Task<GrainDecisionResult> ResolveDecisionAsync(string civilizationId, string gateId, string optionId);
     Task<string> GetAwaySummaryAsync(int fromTurn, int toTurn);
+    Task<GrainAwaySummary> GetAwaySummaryStructuredAsync(int fromTurn, int toTurn);
     Task<IReadOnlyList<GrainDecisionGateDetail>> GetPendingGatesAsync(string? civilizationId = null);
     Task<IReadOnlyList<GrainCivDetail>> GetCivilizationsAsync();
     Task<IReadOnlyList<GrainMatchResultEntry>> GetMatchResultsAsync();
@@ -20,6 +21,7 @@ public interface IWorldGrain : IGrainWithStringKey
     Task UpdatePolicyAsync(string civilizationId, string presetId);
     Task StartMatchAsync();
     Task<IReadOnlyList<GrainRegionDetail>> GetRegionsAsync();
+    Task<GrainLlmLayerStatus> GetLlmLayerStatusAsync();
 }
 
 public static class GrainMapping

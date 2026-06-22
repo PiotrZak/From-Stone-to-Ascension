@@ -16,12 +16,14 @@ public sealed class DecisionOption
     public string Id { get; }
     public string Label { get; }
     public string Description { get; }
+    public string ImpactHint { get; }
 
-    public DecisionOption(string id, string label, string description)
+    public DecisionOption(string id, string label, string description, string impactHint = "")
     {
         Id = id;
         Label = label;
         Description = description;
+        ImpactHint = impactHint;
     }
 }
 

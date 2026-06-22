@@ -24,6 +24,7 @@ public class LlmTurnAgentTests
         var limits = AgentSessionLimits.FromEnvironment();
         Assert.True(limits.TurnTimeout.TotalSeconds >= 5);
         Assert.True(limits.MaxToolRounds >= 1);
-        Assert.True(limits.MaxLlmCallsPerMatchTick >= 1);
+        Assert.True(limits.MaxTurnCallsPerMatchTick >= 1);
+        Assert.True(limits.MaxAdvisorCallsPerMatchTick >= 1);
     }
 }

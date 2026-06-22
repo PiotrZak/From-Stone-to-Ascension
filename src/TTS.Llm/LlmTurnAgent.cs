@@ -39,7 +39,8 @@ public sealed class LlmTurnAgent : ILlmTurnAgent, IDisposable
         if (!AgentRateLimiter.Shared.TryAcquire(
                 context.MatchId,
                 context.TickCount,
-                _limits.MaxLlmCallsPerMatchTick))
+                _limits.MaxTurnCallsPerMatchTick,
+                AgentRateLimitScopes.Turn))
             return null;
 
         try

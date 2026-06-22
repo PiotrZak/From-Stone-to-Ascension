@@ -1,16 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { TechTreeNode } from '../api';
-
-const TIER_LABELS: Record<number, string> = {
-  1: 'Pre-Industrial',
-  2: 'Industrial',
-  3: 'Early Electronics',
-  4: 'Information Age',
-  5: 'Early AI',
-  6: 'Bio / Nano',
-  7: 'Temporal',
-  8: 'Post-Singularity',
-};
+import { tierLabel } from '../tierLabels';
 
 const STATUS_LABELS: Record<string, string> = {
   researched: 'Researched',
@@ -28,15 +18,20 @@ export function TechTreeView({
   nodes,
   currentTier,
   recommendedId,
+  startingTier = 1,
 }: {
   nodes: TechTreeNode[];
   currentTier: number;
   recommendedId?: string | null;
+  startingTier?: number;
 }) {
   const [expanded, setExpanded] = useState<Record<number, boolean>>(() => {
     const initial: Record<number, boolean> = {};
     for (let tier = 1; tier <= 8; tier++) {
-      initial[tier] = tier <= currentTier + 1;
+      if (tier < startingTier)
+        initial[tier] = false;
+      else
+        initial[tier] = tier <= currentTier + 1;
     }
     return initial;
   });
@@ -74,17 +69,24 @@ export function TechTreeView({
         <span className="tech-legend-item"><i className="tech-dot blocked" /> Blocked</span>
       </div>
 
+      {startingTier > 1 && (
+        <p className="muted tech-tree-historical-note">
+          TTS 1–{startingTier - 1} marked as historical foundation (completed at match start).
+        </p>
+      )}
+
       {Array.from({ length: 8 }, (_, i) => i + 1).map((tier) => {
         const tierNodes = byTier.get(tier);
         if (!tierNodes?.length) return null;
 
         const isCurrent = tier === currentTier;
+        const isHistorical = tier < startingTier;
         const isOpen = expanded[tier] ?? false;
 
         return (
           <section
             key={tier}
-            className={`tech-tier${isCurrent ? ' tech-tier-current' : ''}${isOpen ? ' tech-tier-open' : ''}`}
+            className={`tech-tier${isCurrent ? ' tech-tier-current' : ''}${isOpen ? ' tech-tier-open' : ''}${isHistorical ? ' tech-tier-historical' : ''}`}
           >
             <button
               type="button"
@@ -92,8 +94,9 @@ export function TechTreeView({
               onClick={() => setExpanded((prev) => ({ ...prev, [tier]: !isOpen }))}
             >
               <span className="tech-tier-title">
-                TTS {tier} · {TIER_LABELS[tier] ?? `Tier ${tier}`}
+                TTS {tier} · {tierLabel(tier)}
                 {isCurrent && <span className="badge badge-tier">You are here</span>}
+                {isHistorical && <span className="badge badge-historical">Historical</span>}
               </span>
               <span className="muted">{tierSummary(tierNodes)} · {isOpen ? '▾' : '▸'}</span>
             </button>

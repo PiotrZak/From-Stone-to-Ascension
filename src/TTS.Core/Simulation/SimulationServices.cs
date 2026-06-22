@@ -83,6 +83,16 @@ public sealed class SimulationServices
                 CurrentTurnSnapshot.TierChanges[civilization.Id] = new TierChangeRecord(start.Tier, civilization.CurrentTier);
         }
 
+        foreach (var decision in TurnResearchDecisions)
+        {
+            CurrentTurnSnapshot.ResearchDecisions.Add(new TurnResearchDecisionSnapshot(
+                decision.CivilizationId,
+                decision.CivilizationName,
+                decision.Runner,
+                decision.Researched,
+                decision.Message));
+        }
+
         TurnHistory.Add(CurrentTurnSnapshot);
         CurrentTurnSnapshot = null;
     }

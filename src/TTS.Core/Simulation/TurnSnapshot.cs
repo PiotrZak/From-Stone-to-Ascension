@@ -18,7 +18,15 @@ public sealed class TurnSnapshot
     public List<string> NewEvents { get; } = [];
     public Dictionary<string, List<string>> ResearchedThisTurn { get; } = new();
     public Dictionary<string, TierChangeRecord> TierChanges { get; } = new();
+    public List<TurnResearchDecisionSnapshot> ResearchDecisions { get; } = [];
 }
+
+public readonly record struct TurnResearchDecisionSnapshot(
+    string CivilizationId,
+    string CivilizationName,
+    string Runner,
+    bool Researched,
+    string Message);
 
 public readonly record struct GateResolutionRecord(
     string CivilizationId,

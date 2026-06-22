@@ -9,6 +9,26 @@ export interface MatchListItem {
   playerCount: number;
   maxPlayers: number;
   pendingGateCount: number;
+  nextGateExpiresAt: string | null;
+  startingTier: number;
+  llmStatus: LlmLayerStatus | null;
+}
+
+export interface LlmLayerStatus {
+  providerEnabled: boolean;
+  provider: string;
+  model: string;
+  turnAgentReady: boolean;
+  workflowReady: boolean;
+  rivalTierGate: number;
+  eligibleRivalCount: number;
+  anyRivalEligible: boolean;
+  maxTurnCallsPerTick: number;
+  turnCallsUsedThisTick: number;
+  maxAdvisorCallsPerTick: number;
+  advisorCallsUsedThisTick: number;
+  lastRivalRunner: string | null;
+  statusMessage: string;
 }
 
 export interface PlayerSlot {
@@ -24,6 +44,7 @@ export interface DecisionOption {
   id: string;
   label: string;
   description: string;
+  impactHint: string;
 }
 
 export interface DecisionGate {
@@ -48,6 +69,7 @@ export interface Civilization {
   technologicalStability: number;
   policyLabel: string;
   techCount: number;
+  lastAction: string | null;
 }
 
 export interface Region {
@@ -84,14 +106,23 @@ export interface MatchSummary {
   isTickDue: boolean;
   victoryTier: number;
   victoryStabilityMin: number;
+  startingTier: number;
   players: PlayerSlot[];
   civilizations: Civilization[];
   regions: Region[];
   pendingGates: DecisionGate[];
   awaySummary: string | null;
+  awaySummaryStructured: AwaySummaryStructured | null;
   resultsSummary: string | null;
   results: MatchResultEntry[];
   tickLogs: TickLogEntry[];
+  llmStatus: LlmLayerStatus | null;
+}
+
+export interface AwaySummaryStructured {
+  headline: string;
+  bullets: string[];
+  missedGates: string[];
 }
 
 export interface MatchResultEntry {
@@ -102,6 +133,7 @@ export interface MatchResultEntry {
   stability: number;
   techCount: number;
   outcome: string;
+  outcomeReason: string;
 }
 
 export interface TickLogEntry {

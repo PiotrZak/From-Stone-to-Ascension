@@ -527,6 +527,7 @@ select {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  flex-wrap: wrap;
   gap: 0.65rem;
   margin-bottom: 0.65rem;
 }
@@ -1188,4 +1189,229 @@ select {
   margin: 0.35rem 0 0;
   font-size: 0.72rem;
   line-height: 1.3;
+}
+
+/* Tier bands & UX polish */
+.era-band {
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #30363d;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  align-items: baseline;
+}
+
+.era-band-label {
+  font-weight: 600;
+}
+
+.tier-band-4 { background: rgba(110, 200, 255, 0.08); border-color: #388bfd44; }
+.tier-band-5 { background: rgba(163, 113, 247, 0.1); border-color: #a371f744; }
+.tier-band-6 { background: rgba(63, 185, 80, 0.08); border-color: #3fb95044; }
+.tier-band-7 { background: rgba(210, 153, 34, 0.1); border-color: #d2992244; }
+.tier-band-8 { background: rgba(248, 81, 73, 0.08); border-color: #f8514944; }
+
+.onboarding-strip {
+  margin-bottom: 0.75rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  color: #c9d1d9;
+  border-left: 3px solid #388bfd;
+}
+
+.gate-hero-sticky {
+  position: sticky;
+  top: 0.5rem;
+  z-index: 2;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.impact-hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.78rem;
+  color: #d29922;
+}
+
+.away-summary-structured {
+  margin-top: 0.5rem;
+}
+
+.away-headline {
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+}
+
+.away-bullets {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.away-bullets li {
+  margin-bottom: 0.25rem;
+}
+
+.away-missed {
+  margin-top: 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #30363d;
+}
+
+.away-missed-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.85rem;
+  color: #f85149;
+}
+
+.civ-last-action {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 0.82rem;
+}
+
+.advisor-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.advisor-chip {
+  font-size: 0.78rem;
+  padding: 0.3rem 0.55rem;
+}
+
+.results-reason {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.82rem;
+}
+
+.tech-tree-historical-note {
+  margin: 0 0 0.75rem;
+  font-size: 0.82rem;
+}
+
+.tech-tier-historical {
+  opacity: 0.72;
+}
+
+.badge-historical {
+  background: #30363d;
+  color: #8b949e;
+  font-size: 0.65rem;
+  margin-left: 0.35rem;
+}
+
+.tech-tree-toggle {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.tech-tree-toggle .tech-tree-panel-head {
+  flex: 1;
+}
+
+.match-card-alert {
+  margin: 0.35rem 0 0.65rem;
+  font-size: 0.85rem;
+  color: #f0b429;
+}
+
+.match-card-llm {
+  margin: 0 0 0.65rem;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.badge-llm {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.badge-llm-on {
+  background: rgba(63, 185, 80, 0.18);
+  color: #7ee787;
+  border: 1px solid #3fb95055;
+}
+
+.badge-llm-waiting {
+  background: rgba(210, 153, 34, 0.15);
+  color: #e3b341;
+  border: 1px solid #d2992255;
+}
+
+.badge-llm-off {
+  background: rgba(139, 148, 158, 0.12);
+  color: #8b949e;
+  border: 1px solid #484f58;
+}
+
+.llm-status-strip {
+  margin: 0 0 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #30363d;
+  background: #0d1117;
+}
+
+.llm-status-on {
+  border-color: #3fb95044;
+  background: rgba(63, 185, 80, 0.06);
+}
+
+.llm-status-waiting {
+  border-color: #d2992244;
+  background: rgba(210, 153, 34, 0.06);
+}
+
+.llm-status-off {
+  border-color: #484f58;
+}
+
+.llm-status-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.llm-status-provider {
+  font-size: 0.82rem;
+}
+
+.llm-status-message,
+.llm-status-meta {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.log-line-llm {
+  color: #7ee787 !important;
+}
+
+.log-line-classical {
+  color: #e3b341 !important;
+}
+
+@media (max-width: 520px) {
+  .gate-options {
+    flex-direction: column;
+  }
+
+  .gate-option-card,
+  .gate-option-btn {
+    width: 100%;
+  }
 }

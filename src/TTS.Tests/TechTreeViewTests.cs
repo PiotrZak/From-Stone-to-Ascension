@@ -10,7 +10,7 @@ public class TechTreeViewTests
     [Fact]
     public void TechTreeViewBuilder_MarksStartingTechAvailable()
     {
-        var world = SampleWorldFactory.Create();
+        var world = SampleWorldFactory.Create(MatchPresets.ClassicStone);
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
         var services = new SimulationServices();
 

@@ -3,6 +3,7 @@ using TTS.Api.Models;
 using TTS.Api.Services;
 using TTS.Contracts;
 using TTS.Core.Models;
+using TTS.Llm;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -47,14 +48,39 @@ app.UseExceptionHandler(handler =>
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 
+app.MapGet("/api/health/llm", () =>
+{
+    var status = AgentLayerStatusBuilder.BuildGlobal();
+    return Results.Ok(new
+    {
+        providerEnabled = status.ProviderEnabled,
+        provider = status.Provider,
+        model = status.Model,
+        turnAgentReady = status.TurnAgentReady,
+        workflowReady = status.WorkflowReady,
+        statusMessage = status.StatusMessage
+    });
+});
+
 app.MapGet("/api/matches", async (MatchRegistry registry, OrleansMatchService orleans) =>
 {
     var items = new List<MatchListItemDto>();
     foreach (var entry in registry.List())
     {
         GrainMatchStatus? status = null;
-        try { status = await orleans.GetGrain(entry.MatchId).GetStatusAsync(); }
+        GrainLlmLayerStatus? llmStatus = null;
+        try
+        {
+            status = await orleans.GetGrain(entry.MatchId).GetStatusAsync();
+            llmStatus = await orleans.GetGrain(entry.MatchId).GetLlmLayerStatusAsync();
+        }
         catch { /* grain not initialized yet */ }
+
+        var config = MatchPresets.Resolve(entry.ModeId);
+        var nextGateExpires = status?.PendingGates
+            .Select(g => g.ExpiresAt)
+            .OrderBy(d => d)
+            .FirstOrDefault();
 
         items.Add(new MatchListItemDto
         {
@@ -64,10 +90,13 @@ app.MapGet("/api/matches", async (MatchRegistry registry, OrleansMatchService or
             ModeDisplayName = entry.ModeDisplayName,
             Status = status?.Status ?? "Lobby",
             TickCount = status?.TickCount ?? 0,
-            MaxTicks = status?.MaxTicks ?? MatchPresets.Resolve(entry.ModeId).MaxTicks,
+            MaxTicks = status?.MaxTicks ?? config.MaxTicks,
             PlayerCount = entry.Players.Count,
-            MaxPlayers = MatchPresets.Resolve(entry.ModeId).MaxPlayers,
-            PendingGateCount = status?.PendingGates.Count ?? 0
+            MaxPlayers = config.MaxPlayers,
+            PendingGateCount = status?.PendingGates.Count ?? 0,
+            NextGateExpiresAt = status?.PendingGates.Count > 0 ? nextGateExpires : null,
+            StartingTier = (int)config.StartingTier,
+            LlmStatus = llmStatus is null ? null : LlmStatusMapping.ToDto(llmStatus)
         });
     }
 
@@ -150,10 +179,21 @@ app.MapGet("/api/matches/{matchId}", async (string matchId, MatchRegistry regist
     var regions = await grain.GetRegionsAsync();
     var tickLogs = await grain.GetMatchLogAsync();
     var results = await grain.GetMatchResultsAsync();
+    var llmStatus = await grain.GetLlmLayerStatusAsync();
 
     string? awaySummary = null;
+    AwaySummaryStructuredDto? awayStructured = null;
     if (status.TickCount > 0)
+    {
         awaySummary = await grain.GetAwaySummaryAsync(1, Math.Max(1, status.TickCount));
+        var structured = await grain.GetAwaySummaryStructuredAsync(1, Math.Max(1, status.TickCount));
+        awayStructured = new AwaySummaryStructuredDto
+        {
+            Headline = structured.Headline,
+            Bullets = structured.Bullets,
+            MissedGates = structured.MissedGates
+        };
+    }
 
     string? resultsSummary = status.Status == "Ended"
         ? string.Join('\n', results.Select(r =>
@@ -181,6 +221,7 @@ app.MapGet("/api/matches/{matchId}", async (string matchId, MatchRegistry regist
         IsTickDue = status.IsTickDue,
         VictoryTier = (int)config.VictoryTier,
         VictoryStabilityMin = config.VictoryStabilityMin,
+        StartingTier = (int)config.StartingTier,
         Players = entry.Players.Select(p => new PlayerSlotDto
         {
             PlayerId = p.PlayerId,
@@ -200,7 +241,8 @@ app.MapGet("/api/matches/{matchId}", async (string matchId, MatchRegistry regist
             EconomicStability = c.EconomicStability,
             TechnologicalStability = c.TechnologicalStability,
             PolicyLabel = c.PolicyLabel,
-            TechCount = c.TechCount
+            TechCount = c.TechCount,
+            LastAction = c.LastAction
         }).ToList(),
         Regions = regions.Select(r => new RegionDto
         {
@@ -233,10 +275,12 @@ app.MapGet("/api/matches/{matchId}", async (string matchId, MatchRegistry regist
             {
                 Id = o.Id,
                 Label = o.Label,
-                Description = o.Description
+                Description = o.Description,
+                ImpactHint = o.ImpactHint
             }).ToList()
         }).ToList(),
         AwaySummary = awaySummary,
+        AwaySummaryStructured = awayStructured,
         ResultsSummary = resultsSummary,
         Results = results.Select(r => new MatchResultEntryDto
         {
@@ -246,13 +290,15 @@ app.MapGet("/api/matches/{matchId}", async (string matchId, MatchRegistry regist
             Tier = r.Tier,
             Stability = r.Stability,
             TechCount = r.TechCount,
-            Outcome = r.Outcome
+            Outcome = r.Outcome,
+            OutcomeReason = r.OutcomeReason
         }).ToList(),
         TickLogs = tickLogs.Select(t => new TickLogEntryDto
         {
             Tick = t.Tick,
             Lines = t.Lines
-        }).ToList()
+        }).ToList(),
+        LlmStatus = LlmStatusMapping.ToDto(llmStatus)
     });
 });
 

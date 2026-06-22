@@ -16,6 +16,7 @@
     <ProjectReference Include="..\TTS.Contracts\TTS.Contracts.csproj" />
     <ProjectReference Include="..\TTS.Core\TTS.Core.csproj" />
     <ProjectReference Include="..\TTS.Grains\TTS.Grains.csproj" />
+    <ProjectReference Include="..\TTS.Llm\TTS.Llm.csproj" />
   </ItemGroup>
 
 </Project>

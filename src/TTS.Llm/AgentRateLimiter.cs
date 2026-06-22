@@ -10,12 +10,17 @@ public sealed class AgentRateLimiter
     private readonly ConcurrentDictionary<string, int> _calls = new();
     private int _pruneCounter;
 
-    public bool TryAcquire(string matchId, int tickCount, int maxPerTick)
+    public bool TryAcquire(string matchId, int tickCount, int maxPerTick, string scope) =>
+        TryAcquireCore($"{matchId}:{tickCount}:{scope}", maxPerTick);
+
+    public int GetCallCount(string matchId, int tickCount, string scope) =>
+        _calls.TryGetValue($"{matchId}:{tickCount}:{scope}", out var n) ? n : 0;
+
+    private bool TryAcquireCore(string key, int maxPerTick)
     {
         if (maxPerTick <= 0)
             return false;
 
-        var key = $"{matchId}:{tickCount}";
         while (true)
         {
             var current = _calls.AddOrUpdate(key, 1, static (_, old) => old + 1);
@@ -29,9 +34,6 @@ public sealed class AgentRateLimiter
             return false;
         }
     }
-
-    public int GetCallCount(string matchId, int tickCount) =>
-        _calls.TryGetValue($"{matchId}:{tickCount}", out var n) ? n : 0;
 
     private void MaybePrune()
     {

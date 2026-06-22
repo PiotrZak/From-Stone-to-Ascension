@@ -13,6 +13,7 @@ public sealed class MatchConfig
     public TechTier VictoryTier { get; init; }
     public double VictoryStabilityMin { get; init; }
     public bool EnableForbiddenTechGates { get; init; }
+    public TechTier StartingTier { get; init; } = TechTier.InformationAge;
 }
 
 public enum MatchStatus
@@ -55,9 +56,10 @@ public static class MatchPresets
         DecisionWindow = TimeSpan.FromHours(2),
         MinPlayers = 2,
         MaxPlayers = 4,
-        VictoryTier = TechTier.EarlyAI,
+        VictoryTier = TechTier.BioNano,
         VictoryStabilityMin = 55,
-        EnableForbiddenTechGates = false
+        EnableForbiddenTechGates = false,
+        StartingTier = TechTier.InformationAge
     };
 
     public static MatchConfig Blitz24h => new()
@@ -69,9 +71,10 @@ public static class MatchPresets
         DecisionWindow = TimeSpan.FromHours(8),
         MinPlayers = 2,
         MaxPlayers = 6,
-        VictoryTier = TechTier.BioNano,
+        VictoryTier = TechTier.Temporal,
         VictoryStabilityMin = 50,
-        EnableForbiddenTechGates = true
+        EnableForbiddenTechGates = true,
+        StartingTier = TechTier.InformationAge
     };
 
     public static MatchConfig Standard36h => new()
@@ -83,9 +86,10 @@ public static class MatchPresets
         DecisionWindow = TimeSpan.FromHours(12),
         MinPlayers = 2,
         MaxPlayers = 8,
-        VictoryTier = TechTier.BioNano,
+        VictoryTier = TechTier.Temporal,
         VictoryStabilityMin = 50,
-        EnableForbiddenTechGates = true
+        EnableForbiddenTechGates = true,
+        StartingTier = TechTier.InformationAge
     };
 
     public static MatchConfig Extended48h => new()
@@ -97,9 +101,26 @@ public static class MatchPresets
         DecisionWindow = TimeSpan.FromHours(24),
         MinPlayers = 2,
         MaxPlayers = 8,
-        VictoryTier = TechTier.Temporal,
+        VictoryTier = TechTier.PostSingularity,
         VictoryStabilityMin = 45,
-        EnableForbiddenTechGates = true
+        EnableForbiddenTechGates = true,
+        StartingTier = TechTier.InformationAge
+    };
+
+    /// <summary>Legacy full ascent from Pre-Industrial.</summary>
+    public static MatchConfig ClassicStone => new()
+    {
+        ModeId = "classic-stone",
+        DisplayName = "From Stone (Classic)",
+        MaxTicks = 12,
+        TickInterval = TimeSpan.FromHours(3),
+        DecisionWindow = TimeSpan.FromHours(12),
+        MinPlayers = 1,
+        MaxPlayers = 4,
+        VictoryTier = TechTier.BioNano,
+        VictoryStabilityMin = 50,
+        EnableForbiddenTechGates = true,
+        StartingTier = TechTier.PreIndustrial
     };
 
     /// <summary>Dev-only: 6 ticks × 30s ≈ 3 minutes wall-clock.</summary>
@@ -112,9 +133,10 @@ public static class MatchPresets
         DecisionWindow = TimeSpan.FromMinutes(2),
         MinPlayers = 1,
         MaxPlayers = 2,
-        VictoryTier = TechTier.EarlyElectronics,
+        VictoryTier = TechTier.EarlyAI,
         VictoryStabilityMin = 50,
-        EnableForbiddenTechGates = false
+        EnableForbiddenTechGates = false,
+        StartingTier = TechTier.InformationAge
     };
 
     public static MatchConfig Resolve(string modeId) => modeId.ToLowerInvariant() switch
@@ -123,9 +145,11 @@ public static class MatchPresets
         "blitz-24h" or "blitz" => Blitz24h,
         "standard-36h" or "standard" => Standard36h,
         "extended-48h" or "extended" => Extended48h,
+        "classic-stone" or "classic" => ClassicStone,
         "dev-blitz-3m" or "dev-blitz" or "dev" => DevBlitz3m,
         _ => throw new ArgumentException($"Unknown match mode '{modeId}'.")
     };
 
-    public static IReadOnlyList<MatchConfig> All => [Sprint8h, Blitz24h, Standard36h, Extended48h, DevBlitz3m];
+    public static IReadOnlyList<MatchConfig> All =>
+        [Sprint8h, Blitz24h, Standard36h, Extended48h, ClassicStone, DevBlitz3m];
 }

@@ -91,7 +91,7 @@ public class CrimeDataTests
     public void GameToolSurface_PolicyResearchAnalysis_MapsCategoryToBranch()
     {
         var services = new SimulationServices();
-        var world = SampleWorldFactory.Create();
+        var world = SampleWorldFactory.Create(MatchPresets.ClassicStone);
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
         var tools = services.CreateToolSurface(world);
 

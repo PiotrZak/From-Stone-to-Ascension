@@ -2,6 +2,7 @@ namespace TTS.Core.Simulation;
 
 using TTS.Core.Agents;
 using TTS.Core.Models;
+using TTS.Core.Simulation;
 using TTS.Core.Systems;
 
 /// <summary>Local scheduled match runner — load/save, tick on wall clock (Phase 4).</summary>
@@ -137,6 +138,15 @@ public sealed class MatchHost
 
     public IReadOnlyList<MatchTickLogEntry> GetTickLog() =>
         MatchLogBuilder.Build(World, Services.TurnHistory);
+
+    public AwaySummaryStructured GetAwaySummaryStructured(int fromTurn, int toTurn)
+    {
+        var summary = Services.AwaySummary.Build(World, Services.TurnHistory, fromTurn, toTurn);
+        return summary.ToStructured(World);
+    }
+
+    public string? GetLastAction(string civilizationId) =>
+        CivActionHistory.GetLastAction(civilizationId, Services.TurnHistory);
 
     public IReadOnlyList<TurnResult> RunInstantTicks(int count)
     {

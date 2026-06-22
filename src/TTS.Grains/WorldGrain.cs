@@ -12,17 +12,38 @@ namespace TTS.Grains;
 public sealed class WorldGrain : Grain, IWorldGrain
 {
     private static readonly GateFableGenerator FableGenerator = new();
-    private static readonly ILlmTurnAgent? SharedTurnAgent = AgentProviderFactory.CreateTurnAgent();
-    private static readonly IAgentWorkflow? SharedWorkflow = AgentProviderFactory.CreateWorkflow();
+    private static readonly object AgentInitLock = new();
+    private static bool _agentsInitialized;
+    private static ILlmTurnAgent? _sharedTurnAgent;
+    private static IAgentWorkflow? _sharedWorkflow;
     private static readonly AgentSessionLimits SharedLimits = AgentSessionLimits.FromEnvironment();
     private MatchHost? _host;
     private IGrainTimer? _tickTimer;
 
+    private static (ILlmTurnAgent? TurnAgent, IAgentWorkflow? Workflow) EnsureAgents()
+    {
+        if (_agentsInitialized)
+            return (_sharedTurnAgent, _sharedWorkflow);
+
+        lock (AgentInitLock)
+        {
+            if (!_agentsInitialized)
+            {
+                _sharedTurnAgent = AgentProviderFactory.CreateTurnAgent();
+                _sharedWorkflow = AgentProviderFactory.CreateWorkflow();
+                _agentsInitialized = true;
+            }
+        }
+
+        return (_sharedTurnAgent, _sharedWorkflow);
+    }
+
     public override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
+        EnsureAgents();
         var savePath = ResolveSavePath(this.GetPrimaryKeyString());
         if (File.Exists(savePath))
-            _host = MatchHost.Load(savePath, SharedTurnAgent);
+            _host = MatchHost.Load(savePath, EnsureAgents().TurnAgent);
 
         if (_host?.World.Match?.Status == MatchStatus.Running)
             RegisterTickTimer();
@@ -35,7 +56,7 @@ public sealed class WorldGrain : Grain, IWorldGrain
         var savePath = ResolveSavePath(this.GetPrimaryKeyString());
         Directory.CreateDirectory(Path.GetDirectoryName(savePath)!);
 
-        _host = MatchHost.CreateNew(MatchPresets.Resolve(modeId), savePath, withDemoGate, llmTurnAgent: SharedTurnAgent);
+        _host = MatchHost.CreateNew(MatchPresets.Resolve(modeId), savePath, withDemoGate, llmTurnAgent: EnsureAgents().TurnAgent);
         _host.Save();
         return Task.CompletedTask;
     }
@@ -71,6 +92,15 @@ public sealed class WorldGrain : Grain, IWorldGrain
         return Task.FromResult(summary.Format(host.World));
     }
 
+    public Task<GrainAwaySummary> GetAwaySummaryStructuredAsync(int fromTurn, int toTurn)
+    {
+        var structured = RequireHost().GetAwaySummaryStructured(fromTurn, toTurn);
+        return Task.FromResult(new GrainAwaySummary(
+            structured.Headline,
+            structured.Bullets.ToList(),
+            structured.MissedGates.ToList()));
+    }
+
     public async Task<IReadOnlyList<GrainDecisionGateDetail>> GetPendingGatesAsync(string? civilizationId = null)
     {
         await EnrichGateFablesAsync();
@@ -87,7 +117,7 @@ public sealed class WorldGrain : Grain, IWorldGrain
                 x.g.Type.ToString(),
                 x.g.DefaultOptionId,
                 x.g.ExpiresAt,
-                x.g.Options.Select(o => new GrainDecisionOptionDetail(o.Id, o.Label, o.Description)).ToList()))
+                x.g.Options.Select(o => new GrainDecisionOptionDetail(o.Id, o.Label, o.Description, o.ImpactHint)).ToList()))
             .ToList();
 
         return gates;
@@ -106,7 +136,8 @@ public sealed class WorldGrain : Grain, IWorldGrain
                 c.EconomicStability,
                 c.TechnologicalStability,
                 c.Policy.Research.ToString(),
-                c.ResearchedTechnologyIds.Count))
+                c.ResearchedTechnologyIds.Count,
+                host.GetLastAction(c.Id)))
             .ToList();
 
         return Task.FromResult<IReadOnlyList<GrainCivDetail>>(civs);
@@ -123,7 +154,8 @@ public sealed class WorldGrain : Grain, IWorldGrain
                 r.Tier,
                 r.Stability,
                 r.TechCount,
-                r.Outcome))
+                r.Outcome,
+                r.OutcomeReason))
             .ToList();
 
         return Task.FromResult<IReadOnlyList<GrainMatchResultEntry>>(results);
@@ -210,20 +242,41 @@ public sealed class WorldGrain : Grain, IWorldGrain
     {
         var host = RequireHost();
         var civ = host.World.Civilizations.FirstOrDefault(c => c.Id == civilizationId);
-        if (civ is null || (int)civ.CurrentTier < (int)TechTier.EarlyAI)
+        if (civ is null)
         {
             return new GrainAdvisorBriefing(
                 false,
-                "Strategic advisor unlocks at TTS 5 (Early AI Age).",
+                "Civilization not found.",
                 "system");
         }
 
-        var settings = AgentProviderSettings.FromEnvironment();
-        if (!settings.AgentsEnabled || SharedWorkflow is null)
+        if ((int)civ.CurrentTier < (int)TechTier.InformationAge)
         {
-            var tools = host.CreateToolSurface();
-            var analysis = tools.GetPolicyResearchAnalysis(civilizationId);
-            var rec = analysis.Recommended?.Name ?? "none";
+            return new GrainAdvisorBriefing(
+                false,
+                "Strategic advisor unlocks at TTS 4 (Information Age).",
+                "system");
+        }
+
+        var tools = host.CreateToolSurface();
+        var analysis = tools.GetPolicyResearchAnalysis(civilizationId);
+        var rec = analysis.Recommended?.Name ?? "none";
+        var branchSummary = string.Join(", ",
+            analysis.BranchWeights.OrderByDescending(kvp => kvp.Value).Take(3).Select(kvp => $"{kvp.Key} {kvp.Value:P0}"));
+
+        if ((int)civ.CurrentTier < (int)TechTier.EarlyAI)
+        {
+            return new GrainAdvisorBriefing(
+                true,
+                $"Policy advisor: stance {analysis.ResearchStance}, risk {analysis.RiskTolerance}. " +
+                $"Top branches: {branchSummary}. Recommended research: {rec}.",
+                "classical");
+        }
+
+        var settings = AgentProviderSettings.FromEnvironment();
+        var workflow = EnsureAgents().Workflow;
+        if (!settings.AgentsEnabled || workflow is null)
+        {
             return new GrainAdvisorBriefing(
                 true,
                 $"Classical advisor: policy {analysis.ResearchStance}, risk {analysis.RiskTolerance}. Recommended research: {rec}.",
@@ -233,7 +286,11 @@ public sealed class WorldGrain : Grain, IWorldGrain
         var match = host.World.Match;
         var tick = match?.TickCount ?? 0;
         var matchId = match?.MatchId ?? this.GetPrimaryKeyString();
-        if (!AgentRateLimiter.Shared.TryAcquire(matchId, tick, SharedLimits.MaxLlmCallsPerMatchTick))
+        if (!AgentRateLimiter.Shared.TryAcquire(
+                matchId,
+                tick,
+                SharedLimits.MaxAdvisorCallsPerMatchTick,
+                AgentRateLimitScopes.Advisor))
         {
             return new GrainAdvisorBriefing(
                 true,
@@ -242,7 +299,7 @@ public sealed class WorldGrain : Grain, IWorldGrain
         }
 
         using var cts = new CancellationTokenSource(SharedLimits.AdvisorTimeout);
-        var briefing = await SharedWorkflow.RunAdvisorBriefingAsync(
+        var briefing = await workflow.RunAdvisorBriefingAsync(
             civilizationId,
             host.CreateToolSurface(),
             SharedLimits,
@@ -254,6 +311,25 @@ public sealed class WorldGrain : Grain, IWorldGrain
                 true,
                 "Advisor unavailable — use policy panel and tech tree. Set TTS_LLM_PROVIDER=none to skip LLM.",
                 "fallback");
+    }
+
+    public Task<GrainLlmLayerStatus> GetLlmLayerStatusAsync()
+    {
+        var host = RequireHost();
+        var match = host.World.Match;
+        var matchId = match?.MatchId ?? this.GetPrimaryKeyString();
+        var tick = match?.TickCount ?? 0;
+        var agents = EnsureAgents();
+
+        var status = AgentLayerStatusBuilder.BuildForMatch(
+            matchId,
+            tick,
+            host.World,
+            host.Services.TurnHistory,
+            agents.TurnAgent,
+            agents.Workflow);
+
+        return Task.FromResult(ToGrain(status));
     }
 
     public Task StartMatchAsync()
@@ -342,6 +418,22 @@ public sealed class WorldGrain : Grain, IWorldGrain
 
         return "custom";
     }
+
+    private static GrainLlmLayerStatus ToGrain(AgentLayerStatus status) => new(
+        status.ProviderEnabled,
+        status.Provider,
+        status.Model,
+        status.TurnAgentReady,
+        status.WorkflowReady,
+        status.RivalTierGate,
+        status.EligibleRivalCount,
+        status.AnyRivalEligible,
+        status.MaxTurnCallsPerTick,
+        status.TurnCallsUsedThisTick,
+        status.MaxAdvisorCallsPerTick,
+        status.AdvisorCallsUsedThisTick,
+        status.LastRivalRunner,
+        status.StatusMessage);
 
     private async Task EnrichGateFablesAsync()
     {

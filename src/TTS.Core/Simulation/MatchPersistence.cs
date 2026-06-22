@@ -100,7 +100,7 @@ public sealed class MatchPersistence
                     gate.Type,
                     gate.Title,
                     gate.Description,
-                    gate.Options.Select(o => new DecisionOption(o.Id, o.Label, o.Description)),
+                    gate.Options.Select(o => new DecisionOption(o.Id, o.Label, o.Description, o.ImpactHint)),
                     gate.DefaultOptionId,
                     gate.CreatedAt,
                     gate.ExpiresAt,
@@ -244,7 +244,8 @@ public sealed class MatchPersistence
         {
             Id = o.Id,
             Label = o.Label,
-            Description = o.Description
+            Description = o.Description,
+            ImpactHint = o.ImpactHint
         }).ToList(),
         DefaultOptionId = gate.DefaultOptionId,
         CreatedAt = gate.CreatedAt,
@@ -275,7 +276,17 @@ public sealed class MatchPersistence
         ResearchedThisTurn = snapshot.ResearchedThisTurn.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToList()),
         TierChanges = snapshot.TierChanges.ToDictionary(
             kvp => kvp.Key,
-            kvp => new SavedTierChange { From = kvp.Value.From, To = kvp.Value.To })
+            kvp => new SavedTierChange { From = kvp.Value.From, To = kvp.Value.To }),
+        ResearchDecisions = snapshot.ResearchDecisions
+            .Select(d => new SavedResearchDecision
+            {
+                CivilizationId = d.CivilizationId,
+                CivilizationName = d.CivilizationName,
+                Runner = d.Runner,
+                Researched = d.Researched,
+                Message = d.Message
+            })
+            .ToList()
     };
 
     private static TurnSnapshot ToTurnSnapshot(SavedTurnSnapshot saved)
@@ -303,6 +314,16 @@ public sealed class MatchPersistence
 
         foreach (var (civId, change) in saved.TierChanges)
             snapshot.TierChanges[civId] = new TierChangeRecord(change.From, change.To);
+
+        foreach (var decision in saved.ResearchDecisions)
+        {
+            snapshot.ResearchDecisions.Add(new TurnResearchDecisionSnapshot(
+                decision.CivilizationId,
+                decision.CivilizationName,
+                decision.Runner,
+                decision.Researched,
+                decision.Message));
+        }
 
         return snapshot;
     }
@@ -414,6 +435,7 @@ public sealed class MatchPersistence
         public string Id { get; set; } = "";
         public string Label { get; set; } = "";
         public string Description { get; set; } = "";
+        public string ImpactHint { get; set; } = "";
     }
 
     public sealed class SavedTurnSnapshot
@@ -425,6 +447,16 @@ public sealed class MatchPersistence
         public List<string> NewEvents { get; set; } = [];
         public Dictionary<string, List<string>> ResearchedThisTurn { get; set; } = new();
         public Dictionary<string, SavedTierChange> TierChanges { get; set; } = new();
+        public List<SavedResearchDecision> ResearchDecisions { get; set; } = [];
+    }
+
+    public sealed class SavedResearchDecision
+    {
+        public string CivilizationId { get; set; } = "";
+        public string CivilizationName { get; set; } = "";
+        public string Runner { get; set; } = "";
+        public bool Researched { get; set; }
+        public string Message { get; set; } = "";
     }
 
     public sealed class SavedCivTurnStart
