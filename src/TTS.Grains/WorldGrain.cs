@@ -13,7 +13,8 @@ public sealed class WorldGrain : Grain, IWorldGrain
 {
     private static readonly GateFableGenerator FableGenerator = new();
     private static readonly ILlmTurnAgent? SharedTurnAgent = AgentProviderFactory.CreateTurnAgent();
-    private static readonly AdvisorAgent AdvisorAgent = new();
+    private static readonly IAgentWorkflow? SharedWorkflow = AgentProviderFactory.CreateWorkflow();
+    private static readonly AgentSessionLimits SharedLimits = AgentSessionLimits.FromEnvironment();
     private MatchHost? _host;
     private IGrainTimer? _tickTimer;
 
@@ -218,7 +219,7 @@ public sealed class WorldGrain : Grain, IWorldGrain
         }
 
         var settings = AgentProviderSettings.FromEnvironment();
-        if (!settings.AgentsEnabled)
+        if (!settings.AgentsEnabled || SharedWorkflow is null)
         {
             var tools = host.CreateToolSurface();
             var analysis = tools.GetPolicyResearchAnalysis(civilizationId);
@@ -229,7 +230,24 @@ public sealed class WorldGrain : Grain, IWorldGrain
                 "classical");
         }
 
-        var briefing = await AdvisorAgent.GetBriefingAsync(civilizationId, host.CreateToolSurface());
+        var match = host.World.Match;
+        var tick = match?.TickCount ?? 0;
+        var matchId = match?.MatchId ?? this.GetPrimaryKeyString();
+        if (!AgentRateLimiter.Shared.TryAcquire(matchId, tick, SharedLimits.MaxLlmCallsPerMatchTick))
+        {
+            return new GrainAdvisorBriefing(
+                true,
+                "Advisor rate limit reached for this tick — try again next tick.",
+                "rate-limit");
+        }
+
+        using var cts = new CancellationTokenSource(SharedLimits.AdvisorTimeout);
+        var briefing = await SharedWorkflow.RunAdvisorBriefingAsync(
+            civilizationId,
+            host.CreateToolSurface(),
+            SharedLimits,
+            cts.Token);
+
         return briefing is not null
             ? new GrainAdvisorBriefing(true, briefing, "llm-tools")
             : new GrainAdvisorBriefing(

@@ -3,9 +3,8 @@ namespace TTS.Llm;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using TTS.Core.Agents;
-using TTS.Llm.Tools;
 
+/// <summary>Simple Ollama HTTP client for narrative text (fables, scenarios) — not used for agent tool loops.</summary>
 public sealed class OllamaClient : IDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -57,19 +56,6 @@ public sealed class OllamaClient : IDisposable
         string userPrompt,
         CancellationToken cancellationToken = default)
     {
-        var response = await ChatWithToolsAsync(
-            [new OllamaMessage("system", systemPrompt), new OllamaMessage("user", userPrompt)],
-            [],
-            cancellationToken);
-
-        return response?.Content?.Trim();
-    }
-
-    public async Task<OllamaChatResponse?> ChatWithToolsAsync(
-        IReadOnlyList<OllamaMessage> messages,
-        IReadOnlyList<LlmToolDefinition> tools,
-        CancellationToken cancellationToken = default)
-    {
         try
         {
             if (!await IsReachableAsync(cancellationToken))
@@ -79,29 +65,22 @@ public sealed class OllamaClient : IDisposable
             if (model is null)
                 return null;
 
-            var payload = new ToolChatRequest
+            var payload = new ChatRequest
             {
                 Model = model,
-                Messages = messages.Select(ToPayloadMessage).ToList(),
                 Stream = false,
-                Tools = tools.Count > 0 ? tools.Select(ToToolSpec).ToList() : null
+                Messages =
+                [
+                    new ChatMessage { Role = "system", Content = systemPrompt },
+                    new ChatMessage { Role = "user", Content = userPrompt }
+                ]
             };
 
             using var response = await _http.PostAsJsonAsync("/api/chat", payload, JsonOptions, cancellationToken);
             response.EnsureSuccessStatusCode();
 
-            var body = await response.Content.ReadFromJsonAsync<ToolChatResponse>(JsonOptions, cancellationToken);
-            if (body?.Message is null)
-                return null;
-
-            var toolCalls = body.Message.ToolCalls?
-                .Select(tc => new OllamaToolCall(
-                    tc.Function?.Name ?? "",
-                    tc.Function?.Arguments is string s ? s : tc.Function?.Arguments?.ToString()))
-                .Where(tc => !string.IsNullOrEmpty(tc.Name))
-                .ToList() ?? [];
-
-            return new OllamaChatResponse(body.Message.Content?.Trim(), toolCalls);
+            var body = await response.Content.ReadFromJsonAsync<ChatResponse>(JsonOptions, cancellationToken);
+            return body?.Message?.Content?.Trim();
         }
         catch
         {
@@ -120,84 +99,29 @@ public sealed class OllamaClient : IDisposable
             : models[0];
     }
 
-    private static ToolChatMessage ToPayloadMessage(OllamaMessage msg)
-    {
-        var toolCalls = msg.ToolCalls?.Count > 0
-            ? msg.ToolCalls.Select(tc => new ToolCallPayload
-            {
-                Function = new ToolFunctionPayload { Name = tc.Name, Arguments = tc.ArgumentsJson ?? "{}" }
-            }).ToList()
-            : null;
-
-        return new ToolChatMessage
-        {
-            Role = msg.Role,
-            Content = msg.Content,
-            ToolCalls = toolCalls
-        };
-    }
-
-    private static ToolSpec ToToolSpec(LlmToolDefinition def) => new()
-    {
-        Type = "function",
-        Function = new ToolFunctionSpec
-        {
-            Name = def.Tool.ToApiName(),
-            Description = def.Description,
-            Parameters = def.ParametersSchema
-        }
-    };
-
     public void Dispose() => _http.Dispose();
 
-    private sealed class ToolChatRequest
+    private sealed class ChatRequest
     {
         public required string Model { get; init; }
-        public required List<ToolChatMessage> Messages { get; init; }
+        public required List<ChatMessage> Messages { get; init; }
         public bool Stream { get; init; }
-        public List<ToolSpec>? Tools { get; init; }
     }
 
-    private sealed class ToolChatMessage
+    private sealed class ChatMessage
     {
         public required string Role { get; init; }
-        public string? Content { get; init; }
-        public List<ToolCallPayload>? ToolCalls { get; init; }
+        public required string Content { get; init; }
     }
 
-    private sealed class ToolCallPayload
+    private sealed class ChatResponse
     {
-        public ToolFunctionPayload? Function { get; init; }
+        public ChatMessagePayload? Message { get; init; }
     }
 
-    private sealed class ToolFunctionPayload
-    {
-        public string? Name { get; init; }
-        public object? Arguments { get; init; }
-    }
-
-    private sealed class ToolSpec
-    {
-        public required string Type { get; init; }
-        public required ToolFunctionSpec Function { get; init; }
-    }
-
-    private sealed class ToolFunctionSpec
-    {
-        public required string Name { get; init; }
-        public required string Description { get; init; }
-        public required JsonElement Parameters { get; init; }
-    }
-
-    private sealed class ToolChatResponse
-    {
-        public ToolChatMessagePayload? Message { get; init; }
-    }
-
-    private sealed class ToolChatMessagePayload
+    private sealed class ChatMessagePayload
     {
         public string? Content { get; init; }
-        public List<ToolCallPayload>? ToolCalls { get; init; }
     }
 
     private sealed class TagsResponse

@@ -50,6 +50,17 @@ else
   fi
 fi
 
+if [[ -n "${OLLAMA_PID:-}" ]] || curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; then
+  export TTS_LLM_PROVIDER="${TTS_LLM_PROVIDER:-ollama}"
+  export TTS_LLM_TURN_TIMEOUT_SEC="${TTS_LLM_TURN_TIMEOUT_SEC:-20}"
+  export TTS_LLM_MAX_CALLS_PER_TICK="${TTS_LLM_MAX_CALLS_PER_TICK:-2}"
+  if command -v ollama >/dev/null 2>&1; then
+    ollama pull "${OLLAMA_MODEL:-llama3.2}" >/dev/null 2>&1 || true
+  fi
+else
+  export TTS_LLM_PROVIDER="${TTS_LLM_PROVIDER:-none}"
+fi
+
 log "Starting Orleans silo (TTS.Server)"
 dotnet run --project "$ROOT/src/TTS.Server" >"$ROOT/.dev-server.log" 2>&1 &
 PIDS+=($!)
@@ -73,6 +84,7 @@ log "Stack running:"
 echo "  UI:      http://localhost:5173"
 echo "  API:     http://localhost:5000"
 echo "  Ollama:  http://localhost:11434"
+echo "  Agents:  TTS_LLM_PROVIDER=${TTS_LLM_PROVIDER:-ollama} (max ${TTS_LLM_MAX_CALLS_PER_TICK:-2} LLM calls/tick)"
 echo "  Logs:    .dev-server.log  .dev-api.log  .dev-web.log  .dev-ollama.log"
 echo ""
 echo "Press Ctrl+C to stop all services."

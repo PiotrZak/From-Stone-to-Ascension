@@ -11,7 +11,8 @@ public interface ILlmTurnAgent
 
     AgentTurnResult? TryRunTurn(
         Civilization civilization,
+        WorldState world,
         IGameToolSurface tools,
-        TimeSpan timeout,
+        AgentTurnContext context,
         CancellationToken cancellationToken = default);
 }

@@ -2,9 +2,9 @@
 
 **Project:** TTS — Technology Tier Simulation  
 **Framework:** [Microsoft Agent Framework (MAF)](https://github.com/microsoft/agent-framework)  
-**Status:** Phase 2 started — .NET simulation scaffold with agent tool surface (MAF not wired yet)
+**Status:** MAF wired in `TTS.Llm` — see [v2/agent-integration.md](v2/agent-integration.md) for gameplay integration (ticks, advisor, tools).
 
-**Related:** [orleans-integration.md](orleans-integration.md) (distributed simulation server) · [async-multiplayer-gameplay.md](async-multiplayer-gameplay.md) (slow-evolving MP design) · [implementation-plan.md](implementation-plan.md) (master roadmap)
+**Related:** [v2/agent-integration.md](v2/agent-integration.md) · [v2/tts4-start.md](v2/tts4-start.md) · [orleans-integration.md](orleans-integration.md) (distributed simulation server) · [async-multiplayer-gameplay.md](async-multiplayer-gameplay.md) (slow-evolving MP design) · [implementation-plan.md](implementation-plan.md) (master roadmap)
 
 ---
 

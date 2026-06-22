@@ -26,10 +26,11 @@ public class AgentOrchestrator
         if ((int)civilization.CurrentTier < (int)TechTier.EarlyAI)
             return AgentTurnResult.Skipped("Classical AI handles turns below TTS 5.");
 
-        if (_llmAgent?.IsEnabled == true)
+        if (_llmAgent?.IsEnabled == true && world.Match is { } match)
         {
-            var llm = _llmAgent.TryRunTurn(civilization, _tools, TimeSpan.FromSeconds(45));
-            if (llm is { UsedAgent: true, TechnologyId: not null })
+            var context = new AgentTurnContext(match.MatchId, match.TickCount);
+            var llm = _llmAgent.TryRunTurn(civilization, world, _tools, context);
+            if (llm is { UsedAgent: true })
                 return llm.Value;
         }
 
