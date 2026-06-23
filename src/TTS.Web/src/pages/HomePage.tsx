@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { CollapsibleSection } from '../components/CollapsibleSection';
 import { api, loadSession, saveSession, type MatchListItem } from '../api';
 import { llmStatusShort, llmStatusTone } from '../llmStatus';
 
@@ -19,20 +20,36 @@ function statusClass(status: string): string {
   return key;
 }
 
-function matchSortKey(m: MatchListItem): number {
-  const status = m.status.toLowerCase();
-  if (status === 'active' || status === 'running') {
-    return m.pendingGateCount > 0 ? 0 : 1;
-  }
-  if (status === 'lobby') return 2;
-  return 3;
+function matchGroup(status: string, needsAction: boolean): 'action' | 'active' | 'lobby' | 'ended' {
+  if (needsAction) return 'action';
+  const key = status.toLowerCase();
+  if (key === 'lobby') return 'lobby';
+  if (key === 'ended') return 'ended';
+  return 'active';
 }
+
+const GROUP_LABELS: Record<string, string> = {
+  action: 'Needs your decision',
+  active: 'In progress',
+  lobby: 'Lobby',
+  ended: 'Finished',
+};
 
 function formatCountdown(targetIso: string): string {
   const sec = Math.max(0, Math.floor((new Date(targetIso).getTime() - Date.now()) / 1000));
   if (sec === 0) return 'now';
   if (sec < 3600) return `${Math.floor(sec / 60)}m`;
   return `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`;
+}
+
+function matchSummaryLine(match: MatchListItem): string {
+  const ended = match.status.toLowerCase() === 'ended';
+  const inLobby = match.status.toLowerCase() === 'lobby';
+  if (inLobby) return `${match.playerCount}/${match.maxPlayers} players · waiting to start`;
+  if (ended) return `Finished · ${match.tickCount}/${match.maxTicks} ticks`;
+  const parts = [`Tick ${match.tickCount}/${match.maxTicks}`, `${match.playerCount} players`];
+  if (match.pendingGateCount > 0) parts.unshift(`${match.pendingGateCount} gate${match.pendingGateCount === 1 ? '' : 's'}`);
+  return parts.join(' · ');
 }
 
 function MatchCard({
@@ -47,73 +64,41 @@ function MatchCard({
   copied: boolean;
 }) {
   const session = loadSession(match.matchId);
-  const ended = match.status.toLowerCase() === 'ended';
-  const inLobby = match.status.toLowerCase() === 'lobby';
-  const inProgress = !ended && !inLobby;
-  const tickPct = match.maxTicks > 0 ? Math.round((match.tickCount / match.maxTicks) * 100) : 0;
   const needsAction = match.pendingGateCount > 0;
+  const inProgress = !['ended', 'lobby'].includes(match.status.toLowerCase());
+  const tickPct = match.maxTicks > 0 ? Math.round((match.tickCount / match.maxTicks) * 100) : 0;
 
   return (
     <article className={`match-card${needsAction ? ' match-card-action' : ''}`}>
-      <div className="match-card-top">
-        <div className="match-card-title-block">
+      <div className="match-card-primary">
+        <div className="match-card-headline">
           <h3 className="match-card-title">{match.modeDisplayName}</h3>
+          <p className="muted match-card-summary">{matchSummaryLine(match)}</p>
           {session && (
-            <p className="match-card-you muted">
-              You · {session.civilizationName}
-            </p>
+            <p className="match-card-you muted">You · {session.civilizationName}</p>
           )}
         </div>
-        <span className={`badge badge-status badge-${statusClass(match.status)}`}>
-          {statusLabel(match.status)}
-        </span>
-        {inProgress && match.llmStatus && (
-          <span className={`badge badge-llm badge-llm-${llmStatusTone(match.llmStatus)}`} title={match.llmStatus.statusMessage}>
-            {llmStatusShort(match.llmStatus)}
+        <div className="match-card-badges">
+          <span className={`badge badge-status badge-${statusClass(match.status)}`}>
+            {statusLabel(match.status)}
           </span>
-        )}
-      </div>
-
-      <div className="match-card-code-row">
-        <button
-          type="button"
-          className="match-card-code"
-          onClick={(e) => {
-            e.stopPropagation();
-            onCopy();
-          }}
-          title="Copy join code"
-        >
-          <span className="join-code-label">Code</span>
-          <span className="join-code-value">{match.joinCode}</span>
-        </button>
-        <span className="muted match-card-copy-hint">{copied ? 'Copied' : 'Tap to copy'}</span>
-      </div>
-
-      <div className="match-card-stats">
-        <div className="match-card-stat">
-          <span className="match-card-stat-label">Players</span>
-          <strong>{match.playerCount}/{match.maxPlayers}</strong>
+          {inProgress && match.llmStatus && (
+            <span
+              className={`badge badge-llm badge-llm-${llmStatusTone(match.llmStatus)}`}
+              title={match.llmStatus.statusMessage}
+            >
+              {llmStatusShort(match.llmStatus)}
+            </span>
+          )}
         </div>
-        {inProgress && (
-          <div className="match-card-stat match-card-stat-grow">
-            <span className="match-card-stat-label">Progress</span>
-            <strong>Tick {match.tickCount}/{match.maxTicks}</strong>
-          </div>
-        )}
-        {inLobby && (
-          <div className="match-card-stat">
-            <span className="match-card-stat-label">Stage</span>
-            <strong>Waiting to start</strong>
-          </div>
-        )}
-        {ended && (
-          <div className="match-card-stat">
-            <span className="match-card-stat-label">Result</span>
-            <strong>{match.tickCount}/{match.maxTicks} ticks</strong>
-          </div>
-        )}
       </div>
+
+      {needsAction && (
+        <p className="match-card-alert">
+          Decision required
+          {match.nextGateExpiresAt ? ` · ${formatCountdown(match.nextGateExpiresAt)} left` : ''}
+        </p>
+      )}
 
       {inProgress && (
         <div className="match-card-progress">
@@ -123,20 +108,36 @@ function MatchCard({
         </div>
       )}
 
-      {inProgress && match.llmStatus && (
-        <p className="match-card-llm muted">{match.llmStatus.statusMessage}</p>
-      )}
+      <div className="match-card-actions">
+        <button type="button" className="btn btn-primary" onClick={onOpen}>
+          {needsAction ? 'Resolve decision' : session ? 'Open match' : 'View match'}
+        </button>
+      </div>
 
-      {needsAction && (
-        <p className="match-card-alert">
-          Decision required
-          {match.nextGateExpiresAt ? ` · ${formatCountdown(match.nextGateExpiresAt)} left` : ''}
-        </p>
-      )}
-
-      <button type="button" className="btn btn-primary match-card-open" onClick={onOpen}>
-        {needsAction ? 'Resolve decision' : session ? 'Open match' : 'View match'}
-      </button>
+      <CollapsibleSection
+        title="Match details"
+        subtitle={`Code ${match.joinCode}`}
+        className="match-card-details"
+      >
+        <div className="match-card-code-row">
+          <button
+            type="button"
+            className="match-card-code"
+            onClick={(e) => {
+              e.stopPropagation();
+              onCopy();
+            }}
+            title="Copy join code"
+          >
+            <span className="join-code-label">Code</span>
+            <span className="join-code-value">{match.joinCode}</span>
+          </button>
+          <span className="muted match-card-copy-hint">{copied ? 'Copied' : 'Tap to copy'}</span>
+        </div>
+        {inProgress && match.llmStatus && (
+          <p className="match-card-llm muted">{match.llmStatus.statusMessage}</p>
+        )}
+      </CollapsibleSection>
     </article>
   );
 }
@@ -169,12 +170,22 @@ export function HomePage() {
     return () => clearInterval(timer);
   }, [refresh]);
 
-  const sortedMatches = useMemo(
-    () => [...matches].sort((a, b) => matchSortKey(a) - matchSortKey(b) || b.tickCount - a.tickCount),
-    [matches],
-  );
+  const groupedMatches = useMemo(() => {
+    const groups: Record<string, MatchListItem[]> = { action: [], active: [], lobby: [], ended: [] };
+    for (const m of matches) {
+      const key = matchGroup(m.status, m.pendingGateCount > 0);
+      groups[key].push(m);
+    }
+    const sortByTick = (a: MatchListItem, b: MatchListItem) => b.tickCount - a.tickCount;
+    groups.action.sort(sortByTick);
+    groups.active.sort(sortByTick);
+    groups.lobby.sort((a, b) => b.playerCount - a.playerCount);
+    groups.ended.sort(sortByTick);
+    return groups;
+  }, [matches]);
 
   const actionCount = matches.filter((m) => m.pendingGateCount > 0).length;
+  const playDefaultOpen = matches.length === 0;
 
   const copyCode = async (matchId: string, code: string) => {
     try {
@@ -230,11 +241,17 @@ export function HomePage() {
     }
   };
 
+  const groupOrder = ['action', 'active', 'lobby', 'ended'] as const;
+
   return (
     <div className="home-page">
-      <section className="card home-setup">
-        <h2 className="home-section-title">Play</h2>
-        <p className="muted home-lead">Create a match, share the code, or join an existing game.</p>
+      <CollapsibleSection
+        title="Create or join"
+        subtitle="New match · join code"
+        defaultOpen={playDefaultOpen}
+        className="card home-setup"
+      >
+        <p className="muted home-lead">Share a code with friends or join an existing game.</p>
 
         <div className="field">
           <label htmlFor="playerName">Your name</label>
@@ -281,34 +298,47 @@ export function HomePage() {
         </div>
 
         {error && <p className="error">{error}</p>}
-      </section>
+      </CollapsibleSection>
 
       <section className="home-matches">
         <div className="home-matches-head">
           <div>
-            <h2 className="home-section-title">Matches</h2>
-            <p className="muted home-lead">
+            <h2 className="home-section-title">Your matches</h2>
+            <p className="muted home-lead home-matches-sub">
               {loading ? 'Loading…' : matches.length === 0
-                ? 'No matches yet — create one above.'
-                : `${matches.length} match${matches.length === 1 ? '' : 'es'}${actionCount > 0 ? ` · ${actionCount} need${actionCount === 1 ? 's' : ''} your decision` : ''}`}
+                ? 'No matches yet.'
+                : actionCount > 0
+                  ? `${actionCount} need${actionCount === 1 ? 's' : ''} your decision`
+                  : `${matches.length} match${matches.length === 1 ? '' : 'es'}`}
             </p>
           </div>
-          <button type="button" className="btn" disabled={loading} onClick={() => void refresh()}>
+          <button type="button" className="btn btn-ghost" disabled={loading} onClick={() => void refresh()}>
             Refresh
           </button>
         </div>
 
-        {!loading && sortedMatches.length > 0 && (
-          <div className="match-list">
-            {sortedMatches.map((m) => (
-              <MatchCard
-                key={m.matchId}
-                match={m}
-                copied={copiedId === m.matchId}
-                onCopy={() => void copyCode(m.matchId, m.joinCode)}
-                onOpen={() => navigate(`/match/${m.matchId}`)}
-              />
-            ))}
+        {!loading && matches.length > 0 && (
+          <div className="match-groups">
+            {groupOrder.map((key) => {
+              const items = groupedMatches[key];
+              if (items.length === 0) return null;
+              return (
+                <div key={key} className="match-group">
+                  <h3 className="match-group-label">{GROUP_LABELS[key]}</h3>
+                  <div className="match-list">
+                    {items.map((m) => (
+                      <MatchCard
+                        key={m.matchId}
+                        match={m}
+                        copied={copiedId === m.matchId}
+                        onCopy={() => void copyCode(m.matchId, m.joinCode)}
+                        onOpen={() => navigate(`/match/${m.matchId}`)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </section>

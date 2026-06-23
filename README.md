@@ -12,6 +12,14 @@
 **Tech sub-trees:** [tech-trees-by-tier.md](tech-trees-by-tier.md) — per-TTS layer trees + diagrams  
 **Separate game:** [company-sim.md](company-sim.md) — async procurement / company sim (Supply Ascent)
 
+### Quick start (web governor UI)
+
+```bash
+./dev.sh
+```
+
+Then open **http://localhost:5173** — create or join a match, resolve decision gates when they appear, and check back between ticks. API: `http://localhost:5000`. See [current-state.md](current-state.md) for stack details.
+
 ---
 
 ## 1. HIGH CONCEPT

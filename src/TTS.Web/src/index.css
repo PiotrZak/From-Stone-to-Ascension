@@ -518,6 +518,178 @@ select {
   background: #161b22;
 }
 
+.match-card-primary {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.match-card-headline {
+  flex: 1;
+  min-width: 0;
+}
+
+.match-card-summary {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+}
+
+.match-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}
+
+.match-card-actions {
+  margin-top: 0.5rem;
+}
+
+.match-card-actions .btn {
+  width: 100%;
+}
+
+.match-card-details {
+  margin-top: 0.65rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid #30363d;
+}
+
+.match-card-details.collapsible {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+}
+
+.match-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.match-group-label {
+  margin: 0 0 0.45rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #8b949e;
+}
+
+.home-matches-sub {
+  margin-bottom: 0;
+}
+
+.home-setup.collapsible {
+  padding: 0;
+  overflow: hidden;
+}
+
+.home-setup .collapsible-trigger {
+  padding: 1rem 1rem 0.75rem;
+}
+
+.home-setup .collapsible-body {
+  padding: 0 1rem 1rem;
+}
+
+.home-setup .home-lead {
+  margin-top: 0;
+}
+
+/* Collapsible panels */
+
+.collapsible {
+  display: flex;
+  flex-direction: column;
+}
+
+.collapsible-trigger {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.collapsible-trigger-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.collapsible-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.collapsible-subtitle {
+  font-size: 0.82rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.collapsible-trigger-end {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+
+.collapsible-chevron {
+  font-size: 0.85rem;
+  width: 1rem;
+  text-align: center;
+}
+
+.collapsible-body {
+  margin-top: 0.65rem;
+}
+
+.card.collapsible,
+.collapsible.card {
+  padding: 1rem;
+}
+
+.card.collapsible .collapsible-trigger,
+.collapsible.card .collapsible-trigger {
+  margin: -0.15rem 0 0;
+}
+
+.match-info-panel {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #30363d;
+}
+
+.match-info-panel .collapsible-trigger {
+  padding: 0;
+}
+
+.match-header-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.match-header-summary .tick-progress {
+  flex: 1;
+  min-width: 10rem;
+}
+
 .match-card-action {
   border-color: #f0b42966;
   background: linear-gradient(180deg, #1a1608 0%, #161b22 100%);
@@ -1003,14 +1175,10 @@ select {
 
 .advisor-head {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.5rem;
-}
-
-.advisor-head .panel-title {
-  margin: 0;
 }
 
 .advisor-text {
@@ -1357,7 +1525,7 @@ select {
 }
 
 .llm-status-strip {
-  margin: 0 0 0.75rem;
+  margin: 0.65rem 0 0;
   padding: 0.65rem 0.75rem;
   border-radius: 6px;
   border: 1px solid #30363d;

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { AwaySummaryView } from '../components/AwaySummaryView';
+import { CollapsibleSection } from '../components/CollapsibleSection';
 import { TechTreeView } from '../components/TechTreeView';
 import {
   api,
@@ -158,9 +159,13 @@ export function MatchPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [awayOpen, setAwayOpen] = useState(true);
+  const [awayOpen, setAwayOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const [techTreeOpen, setTechTreeOpen] = useState(false);
+  const [citiesOpen, setCitiesOpen] = useState(false);
+  const [rivalsOpen, setRivalsOpen] = useState(false);
+  const [advisorOpen, setAdvisorOpen] = useState(false);
+  const [matchInfoOpen, setMatchInfoOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [advisor, setAdvisor] = useState<AdvisorBriefing | null>(null);
   const [advisorLoading, setAdvisorLoading] = useState(false);
@@ -340,41 +345,61 @@ export function MatchPage() {
         {myCiv && !inLobby && (
           <div className={`era-band ${tierClass(myCiv.tier)}`}>
             <span className="era-band-label">{tierLabel(myCiv.tier)}</span>
-            <span className="muted">TTS {myCiv.tier} · starting era TTS {summary.startingTier}</span>
+            <span className="muted">TTS {myCiv.tier}</span>
           </div>
         )}
 
-        <LlmStatusStrip status={summary.llmStatus} inLobby={inLobby} />
+        {!inLobby && !ended && (
+          <div className="match-header-summary">
+            <TickProgress tickCount={summary.tickCount} maxTicks={summary.maxTicks} />
+            <div className="tick-countdown">
+              <span className="muted">Next tick</span>
+              <strong className={summary.isTickDue ? 'due-now' : ''}>{nextTickLabel}</strong>
+            </div>
+          </div>
+        )}
 
-        <div className="match-meta">
-          <button
-            type="button"
-            className="join-code-btn"
-            onClick={() => void copyJoinCode(summary.joinCode)}
-            title="Copy join code"
-          >
-            <span className="join-code-label">Code</span>
-            <span className="join-code-value">{summary.joinCode}</span>
-            <span className="muted">{copied ? 'Copied' : 'Copy'}</span>
-          </button>
+        <CollapsibleSection
+          title="Match info"
+          subtitle={`Code ${summary.joinCode}`}
+          open={matchInfoOpen}
+          onToggle={setMatchInfoOpen}
+          className="match-info-panel"
+          badge={
+            summary.llmStatus && !inLobby ? (
+              <span className={`badge badge-llm badge-llm-${llmStatusTone(summary.llmStatus)}`}>
+                {llmStatusLabel(summary.llmStatus)}
+              </span>
+            ) : undefined
+          }
+        >
+          <div className="match-meta">
+            <button
+              type="button"
+              className="join-code-btn"
+              onClick={() => void copyJoinCode(summary.joinCode)}
+              title="Copy join code"
+            >
+              <span className="join-code-label">Code</span>
+              <span className="join-code-value">{summary.joinCode}</span>
+              <span className="muted">{copied ? 'Copied' : 'Copy'}</span>
+            </button>
+          </div>
+
+          {summary.llmStatus && !inLobby && (
+            <LlmStatusStrip status={summary.llmStatus} inLobby={inLobby} />
+          )}
 
           {!inLobby && !ended && (
-            <>
-              <TickProgress tickCount={summary.tickCount} maxTicks={summary.maxTicks} />
-              <div className="tick-countdown">
-                <span className="muted">Next tick</span>
-                <strong className={summary.isTickDue ? 'due-now' : ''}>{nextTickLabel}</strong>
-              </div>
-            </>
+            <p className="victory-banner">
+              Victory: reach <strong>TTS {summary.victoryTier}+</strong> with{' '}
+              <strong>{Math.round(summary.victoryStabilityMin)}+</strong> average stability
+              {summary.startingTier > 1 && (
+                <> · started at TTS {summary.startingTier}</>
+              )}
+            </p>
           )}
-        </div>
-
-        {!inLobby && !ended && (
-          <p className="victory-banner">
-            Victory: reach <strong>TTS {summary.victoryTier}+</strong> with{' '}
-            <strong>{Math.round(summary.victoryStabilityMin)}+</strong> average stability
-          </p>
-        )}
+        </CollapsibleSection>
       </header>
 
       {!session ? (
@@ -397,8 +422,8 @@ export function MatchPage() {
       )}
 
       {showOnboarding && (
-        <p className="onboarding-strip card">
-          The world advances on schedule while you&apos;re away. Resolve decision gates when they appear and adjust policy between visits.
+        <p className="onboarding-strip card muted">
+          The world advances on schedule. Resolve gates when they appear; adjust policy between visits.
         </p>
       )}
 
@@ -505,22 +530,27 @@ export function MatchPage() {
             )}
 
             {!ended && (summary.awaySummaryStructured || summary.awaySummary) && summary.tickCount > 0 && (
-              <section className="card panel-block away-block">
-                <button type="button" className="panel-toggle" onClick={() => setAwayOpen((v) => !v)}>
-                  <span>While you were away</span>
-                  <span className="muted">{awayOpen ? '▾' : '▸'}</span>
-                </button>
-                {awayOpen && (
-                  summary.awaySummaryStructured
-                    ? <AwaySummaryView summary={summary.awaySummaryStructured} />
-                    : <pre className="away-summary">{summary.awaySummary}</pre>
-                )}
-              </section>
+              <CollapsibleSection
+                title="While you were away"
+                subtitle="Recent changes since your last visit"
+                open={awayOpen}
+                onToggle={setAwayOpen}
+                className="card panel-block away-block"
+              >
+                {summary.awaySummaryStructured
+                  ? <AwaySummaryView summary={summary.awaySummaryStructured} />
+                  : <pre className="away-summary">{summary.awaySummary}</pre>}
+              </CollapsibleSection>
             )}
 
             {summary.regions.length > 0 && (
-              <section className="card panel-block">
-                <h3 className="panel-title">Cities</h3>
+              <CollapsibleSection
+                title="Cities"
+                subtitle={`${summary.regions.length} region${summary.regions.length === 1 ? '' : 's'}`}
+                open={citiesOpen}
+                onToggle={setCitiesOpen}
+                className="card panel-block"
+              >
                 <div className="city-grid">
                   {myCities.map((city) => (
                     <CityCard key={city.id} city={city} highlight showModernStats={showModernStats} />
@@ -529,16 +559,21 @@ export function MatchPage() {
                     <CityCard key={city.id} city={city} highlight={false} showModernStats={showModernStats} />
                   ))}
                 </div>
-              </section>
+              </CollapsibleSection>
             )}
 
             {rivals.length > 0 && (
-              <section className="card panel-block">
-                <h3 className="panel-title">Rivals</h3>
+              <CollapsibleSection
+                title="Rivals"
+                subtitle={rivals.map((r) => r.name).join(' · ')}
+                open={rivalsOpen}
+                onToggle={setRivalsOpen}
+                className="card panel-block"
+              >
                 {rivals.map((r) => (
                   <CivVitals key={r.id} civ={r} compact />
                 ))}
-              </section>
+              </CollapsibleSection>
             )}
           </div>
 
@@ -570,9 +605,14 @@ export function MatchPage() {
               </section>
 
               {myCiv && myCiv.tier >= 4 && (
-                <section className="card panel-block advisor-panel">
+                <CollapsibleSection
+                  title={myCiv.tier >= 5 ? 'Strategic advisor' : 'Policy advisor'}
+                  subtitle={advisor?.briefing ? 'Briefing ready' : 'Tap to consult'}
+                  open={advisorOpen}
+                  onToggle={setAdvisorOpen}
+                  className="card panel-block advisor-panel"
+                >
                   <div className="advisor-head">
-                    <h3 className="panel-title">{myCiv.tier >= 5 ? 'Strategic advisor' : 'Policy advisor'}</h3>
                     <button
                       type="button"
                       className="btn"
@@ -601,74 +641,71 @@ export function MatchPage() {
                   {advisor && (
                     <p className="muted advisor-source">via {advisor.source}{myCiv.tier < 5 ? ' · LLM at TTS 5+' : ''}</p>
                   )}
-                </section>
+                </CollapsibleSection>
               )}
 
               {dashboard.crime && showModernStats && (
-                <section className="card panel-block">
-                  <h3 className="panel-title">Socioeconomic pressure</h3>
+                <CollapsibleSection
+                  title="Socioeconomic pressure"
+                  subtitle={`Crime ${dashboard.crime.averageCrimePressure.toFixed(0)}`}
+                  className="card panel-block crime-panel"
+                >
                   <p className="muted">
                     Avg crime pressure <strong>{dashboard.crime.averageCrimePressure.toFixed(0)}</strong>
                     {dashboard.crime.cybersecurityMitigationActive && (
                       <span className="mitigation-tag"> · cybersecurity −40% impact</span>
                     )}
                   </p>
-                </section>
+                </CollapsibleSection>
               )}
             </div>
           )}
 
           {session && dashboard && !inLobby && (
-            <section className="card panel-block tech-tree-panel">
-              <button type="button" className="panel-toggle tech-tree-toggle" onClick={() => setTechTreeOpen((v) => !v)}>
-                <div className="tech-tree-panel-head">
-                  <h3 className="panel-title">Technology tree</h3>
-                  <p className="muted">
-                    {dashboard.researchSlotsPerTurn} researches per tick · {dashboard.researchedTech.length} completed
-                    {dashboard.recommendedTech ? ` · next: ${dashboard.recommendedTech.name}` : ''}
-                  </p>
-                </div>
-                <span className="muted">{techTreeOpen ? '▾' : '▸'}</span>
-              </button>
-              {techTreeOpen && (
-                <TechTreeView
-                  nodes={dashboard.techTree ?? []}
-                  currentTier={myCiv?.tier ?? 1}
-                  recommendedId={dashboard.recommendedTech?.id}
-                  startingTier={summary.startingTier}
-                />
-              )}
-            </section>
+            <CollapsibleSection
+              title="Technology tree"
+              subtitle={`${dashboard.researchedTech.length} researched · ${dashboard.researchSlotsPerTurn}/tick`}
+              open={techTreeOpen}
+              onToggle={setTechTreeOpen}
+              className="card panel-block tech-tree-panel"
+            >
+              <TechTreeView
+                nodes={dashboard.techTree ?? []}
+                currentTier={myCiv?.tier ?? 1}
+                recommendedId={dashboard.recommendedTech?.id}
+                startingTier={summary.startingTier}
+              />
+            </CollapsibleSection>
           )}
         </div>
       )}
 
       {summary.tickLogs.length > 0 && (
-        <section className="card log-block">
-          <button type="button" className="panel-toggle" onClick={() => setLogOpen((v) => !v)}>
-            <span>Match log ({summary.tickLogs.length} ticks)</span>
-            <span className="muted">{logOpen ? '▾' : '▸'}</span>
-          </button>
-          {logOpen && (
-            <div className="log-scroll">
-              {summary.tickLogs.map((entry) => (
-                <div key={entry.tick} className="log-tick">
-                  <p className="log-tick-title">Tick {entry.tick}</p>
-                  <ul className="simple-list compact">
-                    {entry.lines.map((line) => (
-                      <li
-                        key={line}
-                        className={`muted${line.includes('· LLM') ? ' log-line-llm' : line.includes('· classical') ? ' log-line-classical' : ''}`}
-                      >
-                        {line}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+        <CollapsibleSection
+          title={`Match log (${summary.tickLogs.length} ticks)`}
+          subtitle="Tick-by-tick events"
+          open={logOpen}
+          onToggle={setLogOpen}
+          className="card log-block"
+        >
+          <div className="log-scroll">
+            {summary.tickLogs.map((entry) => (
+              <div key={entry.tick} className="log-tick">
+                <p className="log-tick-title">Tick {entry.tick}</p>
+                <ul className="simple-list compact">
+                  {entry.lines.map((line) => (
+                    <li
+                      key={line}
+                      className={`muted${line.includes('· LLM') ? ' log-line-llm' : line.includes('· classical') ? ' log-line-classical' : ''}`}
+                    >
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </CollapsibleSection>
       )}
 
       {error && <p className="error match-error">{error}</p>}
