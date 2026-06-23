@@ -7,6 +7,7 @@ type Props = {
   open?: boolean;
   onToggle?: (open: boolean) => void;
   className?: string;
+  variant?: 'default' | 'subtle';
   children: ReactNode;
   badge?: ReactNode;
 };
@@ -18,6 +19,7 @@ export function CollapsibleSection({
   open: controlledOpen,
   onToggle,
   className = '',
+  variant = 'default',
   children,
   badge,
 }: Props) {
@@ -31,7 +33,7 @@ export function CollapsibleSection({
   };
 
   return (
-    <section className={`collapsible ${className}${open ? ' collapsible-open' : ''}`}>
+    <section className={`collapsible collapsible-${variant} ${className}${open ? ' collapsible-open' : ''}`}>
       <button type="button" className="collapsible-trigger" onClick={toggle} aria-expanded={open}>
         <span className="collapsible-trigger-text">
           <span className="collapsible-title">{title}</span>
