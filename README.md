@@ -1,324 +1,163 @@
-# TTS: TECHNOLOGY TIER SIMULATION
+# From Stone to Ascension
 
-**Implementation:** [implementation-plan.md](implementation-plan.md) — master roadmap (Phases 0–9)  
-**Architecture:** [architecture-overview.md](architecture-overview.md) — **technical + gameplay diagrams** (high overview) · [assets/architecture-technical-overview.md](assets/architecture-technical-overview.md) — **exportable PNG** for posts  
-**Current code:** [current-state.md](current-state.md) — what's built and how to run it today  
-**Player UX:** [player-experience.md](player-experience.md) — async governor check-in design  
-**Match modes:** [match-modes.md](match-modes.md) — 8h / 24h / 36h / 48h async matches  
-**UI:** [ui-design.md](ui-design.md) — governor dashboard client (web MVP)  
-**LLM deploy:** [llm-deployment.md](llm-deployment.md) — Ollama vs cloud for internet MP + cost  
-**Local AI:** [ollama-scenarios.md](ollama-scenarios.md) — Ollama scenarios (TTS.Agents)  
-**TTS 4 data:** [crime-data.md](crime-data.md) — crime/income CSV perspective  
-**Tech sub-trees:** [tech-trees-by-tier.md](tech-trees-by-tier.md) — per-TTS layer trees + diagrams  
-**Separate game:** [company-sim.md](company-sim.md) — async procurement / company sim (Supply Ascent)
+**TTS — Technology Tier Simulation**
 
-### Quick start (web governor UI)
+An async grand-strategy civilization sim where matches advance through **Technology Tier Systems (TTS 1–8+)**. Each era changes the rules — not just the stats. You play as a **governor**: check in between ticks, resolve crises, set policy, and steer your civ toward victory while rivals and the world evolve on a schedule.
+
+> Advancing technology doesn’t just make you stronger — it changes what strength means.
+
+---
+
+## What’s in this repo
+
+| Layer | Project | Role |
+|-------|---------|------|
+| Simulation | `TTS.Core` | Authoritative game loop, systems, save/load |
+| Multiplayer | `TTS.Server` + `TTS.Grains` | Orleans silo — one grain per match |
+| API | `TTS.Api` | REST gateway, lobby, join codes |
+| UI | `TTS.Web` | React governor dashboard |
+| LLM | `TTS.Llm` | Optional Ollama/cloud agents (rivals TTS 5+, gate fables) |
+| CLI | `TTS.Game` | Local demo, status, Orleans client |
+| Scenarios | `TTS.Agents` | Offline Ollama test scenarios |
+
+**Default match start:** TTS 4 (Information Age) with a curated tech spine. Classic stone-age ascent is available as `classic-stone`.
+
+---
+
+## Quick start
+
+**Requirements:** .NET 10, Node.js, npm. Ollama optional (local LLM narratives and rival agents).
 
 ```bash
 ./dev.sh
 ```
 
-Then open **http://localhost:5173** — create or join a match, resolve decision gates when they appear, and check back between ticks. API: `http://localhost:5000`. See [current-state.md](current-state.md) for stack details.
+| Service | URL |
+|---------|-----|
+| Web UI | http://localhost:5173 |
+| API | http://localhost:5000 |
+| Ollama | http://localhost:11434 (if installed) |
+
+1. Open the UI → **Create or join** a match.
+2. Share the join code with other players.
+3. **Ready up** → host starts the match.
+4. Return between ticks → resolve **decision gates**, skim **while you were away**, adjust **policy**.
+
+For manual stack startup or CLI usage, see [current-state.md](current-state.md).
 
 ---
 
-## 1. HIGH CONCEPT
+## How a match works
 
-**Genre:** Grand Strategy / Civilization Simulation / Sci-Fi Evolution Sandbox  
+**Async by design.** Ticks fire on a wall-clock interval (8h–48h depending on mode, or 3 min in dev). The simulation runs automatically while you’re away.
 
-**Core Idea:**  
-Players guide civilizations through escalating Technology Tier Systems (TTS 1 → 8+), where each era changes not just tools—but the rules of reality, society, and strategy itself.
+**Each tick (simplified):**
 
-> “Advancing technology doesn’t just make you stronger—it changes what strength means.”
+1. Expire overdue gates → apply default choice  
+2. Civs research via **policy** (not manual tech picks)  
+3. Diffusion, factions, crime (TTS 4+), events  
+4. New **decision gates** may appear (tier shifts, crime spikes, forbidden tech, crises)  
+5. Turn history saved for the away summary  
 
----
+**Your job as governor:**
 
-## 2. CORE DESIGN PILLARS
+- Resolve gates before the timer runs out  
+- Set research policy (balanced, tech rush, stability-first, …)  
+- Watch rivals and stability — advancement increases power *and* fragility  
 
-### ⚙️ Era-Driven Gameplay
-Each TTS is a distinct gameplay mode with new mechanics and constraints.
-
-### 🧠 Emergent Civilization Behavior
-Factions, economies, and ideologies evolve dynamically.
-
-### ⚖️ Progress vs Stability Conflict
-Advancement increases power but destabilizes society.
-
-### 🌌 Rule Evolution
-Higher tiers literally modify game systems (economy, physics, AI behavior).
+**Victory:** reach the mode’s target tier with enough average stability. Details per mode in [match-modes.md](match-modes.md).
 
 ---
 
-## 3. GAME LOOP
+## Technology tiers (TTS 1–8)
 
-### 🔁 Primary Loop
-- Gather resources / information  
-- Research technologies  
-- Expand infrastructure  
-- Manage societal stability  
-- Trigger TTS advancement (or risk collapse)
+| TTS | Era | Gameplay shift |
+|-----|-----|----------------|
+| 1 | Pre-Industrial | Survival, agriculture, early expansion |
+| 2 | Industrial | Factories, pollution, social unrest |
+| 3 | Early Electronics | Grids, radio, early computing |
+| 4 | **Information Age** | Internet, data, digital warfare, crime perspective |
+| 5 | Early AI | Autonomous systems, LLM rival agents unlock |
+| 6 | Bio / Nano | Genetic engineering, nanotech |
+| 7 | Temporal | Time manipulation, paradox risk |
+| 8+ | Post-Singularity | Superintelligence, reality-level systems |
 
-### ⏳ Secondary Loop
-- Respond to global events  
-- Manage factions  
-- Handle crises (war, AI, ecological, temporal anomalies)  
-
----
-
-## 4. WORLD STRUCTURE
-
-The world is a single evolving planet or galaxy simulation divided into:
-
-- **Regions / cities** — territories with population, economy, and (TTS 4+) socioeconomic data ([economy.md](economy.md))  
-- Civilizations (player or AI-controlled)  
-- Factions (internal political groups)  
-- Knowledge networks (science + tech diffusion)  
+Full sub-tree design: [tech-trees-by-tier.md](tech-trees-by-tier.md).
 
 ---
 
-## 5. TTS PROGRESSION SYSTEM
+## Match modes
+
+| Mode ID | Pace | Players | Start | Victory target |
+|---------|------|---------|-------|----------------|
+| `sprint-8h` | 8h | 2–4 | TTS 4 | TTS 6 |
+| `blitz-24h` | 24h | 2–6 | TTS 4 | TTS 7 |
+| `standard-36h` | 36h | 2–8 | TTS 4 | TTS 7 |
+| `extended-48h` | 48h | 2–8 | TTS 4 | TTS 8 |
+| `classic-stone` | 36h | 2–8 | TTS 1 | TTS 6 |
+| `dev-blitz-3m` | 3 min | 2–4 | TTS 4 | TTS 6 |
 
 ---
 
-### 🪵 TTS 1 – Pre-Industrial
-**Gameplay Focus:** survival, agriculture, early expansion  
+## Architecture (short)
 
-- Manual labor economy  
-- Small-scale governance  
-- Low tech ceiling  
+```
+TTS.Web  →  TTS.Api  →  WorldGrain (Orleans)  →  MatchHost  →  GameLoop  →  systems
+                                                              ↘  TTS.Llm (optional)
+```
 
-**Win trigger:** unified kingdom or industrial breakthrough  
+- **Single source of truth:** `TTS.Core` — clients and LLMs never write state directly.  
+- **Agents** use `GameToolSurface` with validation; rivals at TTS 5+ can use `LlmTurnAgent`.  
+- **Persistence:** match state on disk per grain; turn history powers away summaries.  
 
----
-
-### 🏭 TTS 2 – Industrial Age
-- Factories, logistics chains  
-- Rapid population growth  
-- Pollution system introduced  
-
-**New mechanic:**  
-📊 “Production Efficiency vs Social Unrest”
+Diagrams and deeper breakdown: [architecture-overview.md](architecture-overview.md) · [assets/architecture-technical-overview.png](assets/architecture-technical-overview.png)
 
 ---
 
-### ⚡ TTS 3 – Early Electronics
-- Electricity grids  
-- Radio, aviation  
-- Early computing systems  
+## Development
 
-**New mechanic:**  
-📡 “Communication Network Control”
+```bash
+dotnet test src/TTS.Tests/TTS.Tests.csproj   # unit tests
+dotnet run --project src/TTS.Game              # instant local demo
+dotnet run --project src/TTS.Agents -- list    # Ollama scenarios
+```
 
----
+**Key data:**
 
-### 🌐 TTS 4 – Information Age
-- Internet, satellites  
-- Global markets  
-- Digital warfare begins  
+- `src/data/tech/catalog.json` — 70 technologies across tiers  
+- `state_crime_income_merged.csv` — TTS 4 socioeconomic profiles  
 
-**New mechanic:**  
-💾 “Data dominance = strategic power”
+**LLM env vars** (set by `dev.sh` when Ollama is available): `TTS_LLM_PROVIDER`, `OLLAMA_MODEL`, `TTS_LLM_MAX_TURN_CALLS_PER_TICK`. See [llm-deployment.md](llm-deployment.md).
 
 ---
 
-### 🤖 TTS 5 – Early AI Age
-- Autonomous systems  
-- Semi-sentient AI assistants  
-- Quantum acceleration research  
+## Documentation map
 
-**New mechanic:**  
-🧮 “Automation replaces labor value”
-
----
-
-### 🧬 TTS 6 – Bio/Nano Age
-- Genetic engineering  
-- Nanotech infrastructure  
-- Human enhancement  
-
-**New mechanic:**  
-🧬 “Species modification becomes policy”
+| Doc | Contents |
+|-----|----------|
+| [current-state.md](current-state.md) | What’s implemented today, commands, API surface |
+| [implementation-plan.md](implementation-plan.md) | Roadmap Phases 0–9 |
+| [architecture-overview.md](architecture-overview.md) | Technical + gameplay architecture |
+| [player-experience.md](player-experience.md) | Async governor UX, check-in flow |
+| [match-modes.md](match-modes.md) | Tick intervals, victory rules |
+| [ui-design.md](ui-design.md) | Web dashboard design |
+| [llm-deployment.md](llm-deployment.md) | Ollama vs cloud, costs |
+| [tech-trees-by-tier.md](tech-trees-by-tier.md) | Per-tier tech branches |
+| [crime-data.md](crime-data.md) | TTS 4 crime/income data |
+| [async-multiplayer-gameplay.md](async-multiplayer-gameplay.md) | Async MP concept |
+| [v2/](v2/) | Agent integration notes, next iterations |
 
 ---
 
-### ⏳ TTS 7 – Temporal Age (Restricted)
-- Experimental time manipulation  
-- Timeline branching  
-- Causality instability  
+## Design pillars
 
-**New mechanic:**  
-⚠️ “Paradox Stability Index”
-
----
-
-### 🌌 TTS 8+ – Post-Singularity
-- Superintelligent systems dominate governance  
-- Physics simulation manipulation  
-- Reality-level control systems  
-
-**New mechanic:**  
-🧠 “Reality editing permissions system”
+- **Era-driven gameplay** — each TTS is a distinct mode, not a stat bump  
+- **Progress vs stability** — power and fragility rise together  
+- **Emergent civ behavior** — factions, diffusion, events, rivals  
+- **Async governor loop** — short check-ins, long-running matches  
 
 ---
 
-## 6. SYSTEMS DESIGN
+## License
 
-### ⚙️ 6.1 TECHNOLOGY TREE SYSTEM
-Instead of a single tech tree:
-
-- Each TTS has its own sub-tree  
-- Advancing tiers unlock new categories of science  
-
-**Example:**
-- TTS 3 → electronics tree  
-- TTS 5 → AI cognition tree  
-- TTS 6 → biological rewriting tree  
-
-**Full sub-tree design:** [tech-trees-by-tier.md](tech-trees-by-tier.md) — per-tier branches, mermaid diagrams, node tables
-
----
-
-### ⚖️ 6.2 STABILITY SYSTEM
-
-Every civilization has:
-
-- Political stability  
-- Economic stability  
-- Technological stability  
-
-**Risks:**
-- Revolutions  
-- AI rebellion  
-- Collapse events  
-- Regression to lower TTS  
-
----
-
-### 🏛️ 6.3 FACTION SYSTEM
-
-Factions exist at all levels:
-
-**Types:**
-- Governments  
-- Corporations  
-- Religious groups  
-- AI collectives  
-- Underground resistance networks  
-
-**Behavior:**
-- Compete for control of tech direction  
-- Can merge or split dynamically  
-- May accelerate or suppress TTS progression  
-
----
-
-### 🌍 6.4 GLOBAL EVENT SYSTEM
-
-Random + scripted events:
-
-- Industrial booms  
-- AI alignment crisis  
-- Nanotech outbreaks  
-- Temporal fractures  
-- Resource collapses  
-
-Events scale with TTS level.
-
----
-
-### 🧠 6.5 KNOWLEDGE DIFFUSION SYSTEM
-
-Technology spreads via:
-
-- Trade  
-- Espionage  
-- Open science  
-- AI networks  
-
-But can be:
-
-- Restricted  
-- Classified  
-- Corrupted  
-- Lost  
-
----
-
-### 🔥 6.6 FORBIDDEN TECHNOLOGY SYSTEM
-
-Certain tech can be unlocked early but causes instability:
-
-**Examples:**
-- AI consciousness at TTS 3  
-- Nanotech at TTS 4  
-- Temporal research at TTS 5  
-
-**Cost:** instability, collapse risk, or paradox events  
-
----
-
-## 7. WIN / LOSS CONDITIONS
-
-### 🏆 Victory Paths
-- Reach TTS 6 stable civilization  
-- Achieve global unification  
-- Build aligned superintelligence  
-- Survive post-singularity transition  
-- Escape simulation layer (secret ending)  
-
-### 💀 Failure Conditions
-- Civilization collapse  
-- Permanent regression  
-- AI takeover without alignment  
-- Timeline destruction (TTS 7+ failure)  
-
----
-
-## 8. GAME MODES
-
-### 🎮 Campaign Mode
-Guided progression through TTS eras  
-
-### 🌍 Sandbox Mode
-Free simulation of civilizations  
-
-### ⚔️ Multiplayer Mode (optional)
-Competing civilizations across same world timeline  
-
-See [async-multiplayer-gameplay.md](async-multiplayer-gameplay.md) for the slow-evolving, asynchronous multiplayer design.
-
-### 🧪 Experiment Mode
-Test extreme scenarios (instant TTS jumps, disasters)  
-
----
-
-## 9. ART & UI DIRECTION
-
-### Visual Evolution
-- TTS 1–2: earthy, analog, hand-crafted aesthetic  
-- TTS 3–4: industrial + digital hybrid  
-- TTS 5–6: neon, biotech, synthetic environments  
-- TTS 7–8+: abstract, non-Euclidean / surreal UI  
-
-### UI Principle
-> The interface itself evolves with technology level.
-
----
-
-## 10. UNIQUE SELLING POINT
-
-This system is different from Civilization-style games because:
-
-- It is not just tech progression  
-- It is rule-of-reality progression  
-- Each era fundamentally changes gameplay logic  
-
----
-
-## 11. OPTIONAL EXPANSION SYSTEMS
-
-- Space expansion (post-TTS 5)  
-- Alien civilizations  
-- Multiverse layers (TTS 9+ concept)  
-- Player-as-AI mode  
-- Timeline editing mechanics  
+See repository defaults. Design docs and game content are part of this project workspace.
