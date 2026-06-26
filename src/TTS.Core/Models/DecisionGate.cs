@@ -67,7 +67,7 @@ public sealed class DecisionGate
         Type = type;
         Title = title;
         Description = description;
-        Options = options.ToList();
+        Options = options is DecisionOption[] template ? template : options.ToList();
         DefaultOptionId = defaultOptionId;
         CreatedAt = createdAt;
         ExpiresAt = expiresAt;

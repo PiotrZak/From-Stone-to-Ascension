@@ -253,11 +253,7 @@ public sealed class DecisionGateSystem
             GateType.ForbiddenTech,
             $"Forbidden research: {forbidden.Name}",
             $"{forbidden.Name} is available before your society is ready. Risk level {forbidden.RiskLevel}.",
-            [
-                new DecisionOption("pursue", "Pursue", "Research now — high instability risk.", "Stability −8 · forbidden risk +"),
-                new DecisionOption("ban", "Ban", "Forbid this line of research.", "Stability +2 · tech blocked"),
-                new DecisionOption("delay", "Delay", "Defer the decision.", "Stability +1 · gate returns later")
-            ],
+            GateOptionTemplates.ForbiddenTech,
             defaultOptionId: "ban",
             world.SimulatedNow,
             world.SimulatedNow + decisionWindow,
@@ -291,11 +287,7 @@ public sealed class DecisionGateSystem
             GateType.TierAdvancement,
             $"TTS {(int)civilization.CurrentTier} unlocked",
             $"Your civilization reached {civilization.CurrentTier}. How do you embrace the new era?",
-            [
-                new DecisionOption("embrace", "Embrace", "Push forward — accept disruption.", "Tier locked · stability −3 · tech +"),
-                new DecisionOption("regulate", "Regulate", "Cautious adoption with oversight.", "Stability +2 · slower growth"),
-                new DecisionOption("delay", "Delay", "Slow rollout to preserve stability.", "Stability +4 · tier pace −")
-            ],
+            GateOptionTemplates.TierAdvancement,
             defaultOptionId: "embrace",
             world.SimulatedNow,
             world.SimulatedNow + decisionWindow));
@@ -320,18 +312,8 @@ public sealed class DecisionGateSystem
 
         var gateType = crisis.MinimumTier >= TechTier.EarlyAI ? GateType.AiAlignment : GateType.GlobalCrisis;
         var options = gateType == GateType.AiAlignment
-            ? new[]
-            {
-                new DecisionOption("align", "Align", "Integrate AI governance standards.", "Tech stability +3 · AI branch +"),
-                new DecisionOption("contain", "Contain", "Restrict autonomous systems.", "Stability +2 · AI pace −"),
-                new DecisionOption("merge", "Merge", "Deep integration — high risk.", "Tech +5 · stability −5")
-            }
-            : new[]
-            {
-                new DecisionOption("regulate", "Regulate", "Strengthen oversight.", "Stability +3 · growth −"),
-                new DecisionOption("accelerate", "Accelerate", "Push through the crisis.", "Tech +2 · stability −4"),
-                new DecisionOption("isolate", "Isolate", "Shield your civilization.", "Stability +1 · diffusion −")
-            };
+            ? GateOptionTemplates.AiAlignment
+            : GateOptionTemplates.GlobalCrisis;
 
         var defaultOption = gateType == GateType.AiAlignment ? "contain" : "regulate";
 
@@ -367,11 +349,7 @@ public sealed class DecisionGateSystem
             GateType.FactionCrisis,
             "Faction crisis",
             $"Stability is critically low ({civilization.AverageStability:F0}). Factions demand a response.",
-            [
-                new DecisionOption("appease", "Appease", "Concessions to reduce unrest.", "Stability +4 · factions +2"),
-                new DecisionOption("suppress", "Suppress", "Crack down — short-term control.", "Stability +1 · long-term −3"),
-                new DecisionOption("reform", "Reform", "Structural reforms across pillars.", "Stability +2 · all pillars +1")
-            ],
+            GateOptionTemplates.FactionCrisis,
             defaultOptionId: "appease",
             world.SimulatedNow,
             world.SimulatedNow + decisionWindow));
@@ -404,11 +382,7 @@ public sealed class DecisionGateSystem
             GateType.CrimePressure,
             "Crime pressure spike",
             $"Regional crime pressure is {perspective.AverageCrimePressure:F0}. TTS 4 perspective demands a policy response.",
-            [
-                new DecisionOption("invest", "Invest", "Fund cybersecurity and social programs.", "Stability +4 · crime −8"),
-                new DecisionOption("ignore", "Ignore", "Accept political erosion.", "Stability −3 · crime +"),
-                new DecisionOption("crackdown", "Crackdown", "Law enforcement surge.", "Stability +1 · factions −2")
-            ],
+            GateOptionTemplates.CrimePressure,
             defaultOptionId: "invest",
             world.SimulatedNow,
             world.SimulatedNow + decisionWindow));

@@ -10,47 +10,39 @@ public static class TechTreeViewBuilder
             .Select(t => t.Id)
             .ToHashSet(StringComparer.Ordinal);
 
-        return world.Technologies
-            .OrderBy(t => (int)t.Tier)
-            .ThenBy(t => t.Role switch
-            {
-                TechNodeRole.Core => 0,
-                TechNodeRole.Branch => 1,
-                TechNodeRole.Fusion => 2,
-                TechNodeRole.Forbidden => 3,
-                _ => 4
-            })
-            .ThenBy(t => t.Name, StringComparer.Ordinal)
-            .Select(t =>
-            {
-                var branch = TechBranchMapping.Describe(t);
-                var status = ResolveStatus(civilization, t, available);
-                return new TechTreeNodeView(
-                    t.Id,
-                    t.Name,
-                    (int)t.Tier,
-                    branch.Branch,
-                    t.Role.ToString().ToLowerInvariant(),
-                    t.Prerequisites.ToList(),
-                    t.RiskLevel,
-                    t.IsForbidden,
-                    status);
-            })
-            .ToList();
+        var structure = TechTreeStructureCache.GetStructure(world);
+        var nodes = new TechTreeNodeView[structure.Count];
+
+        for (var i = 0; i < structure.Count; i++)
+        {
+            var proto = structure[i];
+            nodes[i] = new TechTreeNodeView(
+                proto.Id,
+                proto.Name,
+                proto.Tier,
+                proto.Branch,
+                proto.Role,
+                proto.Prerequisites,
+                proto.RiskLevel,
+                proto.IsForbidden,
+                ResolveStatus(civilization, proto, available));
+        }
+
+        return nodes;
     }
 
-    private static string ResolveStatus(Civilization civilization, Technology technology, HashSet<string> available)
+    private static string ResolveStatus(Civilization civilization, TechTreeNodePrototype proto, HashSet<string> available)
     {
-        if (civilization.ResearchedTechnologyIds.Contains(technology.Id))
+        if (civilization.ResearchedTechnologyIds.Contains(proto.Id))
             return "researched";
 
-        if (civilization.BannedTechnologyIds.Contains(technology.Id))
+        if (civilization.BannedTechnologyIds.Contains(proto.Id))
             return "blocked";
 
-        if ((int)technology.Tier > (int)civilization.CurrentTier + 1)
+        if (proto.Tier > (int)civilization.CurrentTier + 1)
             return "blocked";
 
-        if (available.Contains(technology.Id))
+        if (available.Contains(proto.Id))
             return "available";
 
         return "locked";

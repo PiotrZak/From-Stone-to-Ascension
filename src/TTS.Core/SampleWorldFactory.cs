@@ -13,44 +13,12 @@ public static class SampleWorldFactory
     public static WorldState Create(MatchConfig config, bool withDemoGate = false)
     {
         var world = new WorldState();
+        var (player, _) = WorldBlueprint.ApplyStandardArena(world);
 
-        var player = new Civilization("civ-player", "Aurora Collective", isPlayerControlled: true)
-        {
-            Policy = CivilizationPolicy.Balanced()
-        };
-        var rival = new Civilization("civ-rival", "Iron Dominion", isPlayerControlled: false)
-        {
-            Policy = CivilizationPolicy.TechRush()
-        };
-
-        player.Factions.Add(new Faction("fac-gov", "Central Council", player.Id, FactionType.Government, FactionStance.Neutral));
-        player.Factions.Add(new Faction("fac-corp", "Helix Industries", player.Id, FactionType.Corporation, FactionStance.Accelerationist));
-        rival.Factions.Add(new Faction("fac-ai", "Silent Lattice", rival.Id, FactionType.AiCollective, FactionStance.Accelerationist));
-
-        var regionA = new Region("reg-a", "Meridian Bay") { ControllingCivilizationId = player.Id };
-        var regionB = new Region("reg-b", "Redstone Harbor") { ControllingCivilizationId = rival.Id };
-
-        AttachCityProfile(regionA, "California", 2015);
-        AttachCityProfile(regionB, "Louisiana", 2015);
-
-        player.ControlledRegionIds.Add(regionA.Id);
-        rival.ControlledRegionIds.Add(regionB.Id);
-
-        world.Civilizations.Add(player);
-        world.Civilizations.Add(rival);
-        world.Regions.Add(regionA);
-        world.Regions.Add(regionB);
-
-        world.Technologies.AddRange(LoadTechnologies());
-
-        var match = new MatchState($"match-{Guid.NewGuid():N}"[..12], config, DateTimeOffset.UtcNow);
-        world.Match = match;
+        world.Match = new MatchState($"match-{Guid.NewGuid():N}"[..12], config, DateTimeOffset.UtcNow);
 
         if (withDemoGate)
             AttachDemoGate(world, player, config);
-
-        world.KnowledgeNetworks.Add(new KnowledgeNetwork(player.Id, rival.Id, DiffusionChannel.Trade));
-        world.KnowledgeNetworks.Add(new KnowledgeNetwork(rival.Id, player.Id, DiffusionChannel.Espionage));
 
         if (config.StartingTier >= TechTier.InformationAge)
         {
@@ -63,17 +31,8 @@ public static class SampleWorldFactory
 
     internal static IEnumerable<Technology> CreateFallbackTechnologiesOnly() => CreateFallbackTechnologies();
 
-    private static IEnumerable<Technology> LoadTechnologies()
-    {
-        var catalog = TechTreeCatalog.Default;
-        if (catalog.IsLoaded && catalog.Technologies.Count > 0)
-            return catalog.Technologies;
-
-        return CreateFallbackTechnologies();
-    }
-
     /// <summary>Minimal spine when catalog.json is missing (tests in isolation).</summary>
-    private static IEnumerable<Technology> CreateFallbackTechnologies()
+    internal static IEnumerable<Technology> CreateFallbackTechnologies()
     {
         yield return new Technology("tech-agriculture", "Agriculture Systems", TechTier.PreIndustrial, TechCategory.Agriculture);
         yield return new Technology("tech-governance", "Basic Governance", TechTier.PreIndustrial, TechCategory.Agriculture, ["tech-agriculture"]);
@@ -125,11 +84,7 @@ public static class SampleWorldFactory
                 GateType.CrimePressure,
                 "Data sovereignty dispute",
                 "Platform regulators and civic groups clash over cross-border data flows in Meridian Bay.",
-                [
-                    new DecisionOption("invest", "Invest", "Fund cybersecurity and digital literacy programs.", "Stability +4 · crime −8"),
-                    new DecisionOption("ignore", "Ignore", "Defer regulation — accept erosion.", "Stability −3 · short-term calm"),
-                    new DecisionOption("crackdown", "Crackdown", "Restrict networks and enforce compliance.", "Stability +1 · factions −2")
-                ],
+                GateOptionTemplates.DemoCrimePressure,
                 defaultOptionId: "invest",
                 world.SimulatedNow,
                 world.SimulatedNow + window));
@@ -142,32 +97,9 @@ public static class SampleWorldFactory
             GateType.FactionCrisis,
             "Granary dispute in Meridian Bay",
             "Merchants and farmers quarrel over grain storage and road tolls as the young settlement grows.",
-            [
-                new DecisionOption("appease", "Appease", "Offer concessions to ease tensions.", "Stability +3 · factions +2"),
-                new DecisionOption("suppress", "Suppress", "Send militia to restore order.", "Stability +1 · risk +2"),
-                new DecisionOption("reform", "Reform", "Revise tolls and storage rules.", "Stability +2 · long-term balance")
-            ],
+            GateOptionTemplates.DemoFactionStone,
             defaultOptionId: "appease",
             world.SimulatedNow,
             world.SimulatedNow + window));
-    }
-
-    private static void AttachCityProfile(Region region, string stateName, int year)
-    {
-        var repo = CrimeDataRepository.Default;
-        if (!repo.IsLoaded)
-            return;
-
-        var record = repo.GetRecord(stateName, year);
-        var profile = repo.ToProfile(stateName, year);
-        if (profile is null)
-            return;
-
-        region.CrimeProfile = profile;
-        if (record is not null)
-            region.Population = record.Population;
-
-        region.Infrastructure = Math.Clamp(profile.GdpPerCapita / 900.0, 20, 90);
-        region.Resources = Math.Clamp(100 - profile.PovertyRate * 2.5, 25, 90);
     }
 }
