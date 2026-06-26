@@ -39,6 +39,7 @@ public sealed class CreateMatchRequestDto
 {
     public string ModeId { get; init; } = "sprint-8h";
     public bool WithDemoGate { get; init; }
+    public int? Seed { get; init; }
 }
 
 public sealed class CreateMatchResponseDto
@@ -202,6 +203,7 @@ public sealed class MatchRegistryEntry
     public required string ModeId { get; init; }
     public required string ModeDisplayName { get; init; }
     public DateTimeOffset CreatedAt { get; init; }
+    public int WorldSeed { get; set; }
     public string? HostPlayerId { get; set; }
     public List<MatchPlayerEntry> Players { get; set; } = [];
 }
@@ -252,11 +254,35 @@ public sealed class CivDashboardDto
     public int ResearchSlotsPerTurn { get; init; }
 }
 
+public sealed class AdvisorOptionGuidanceDto
+{
+    public required string OptionId { get; init; }
+    public required string Label { get; init; }
+    public required string Stance { get; init; }
+    public required string Note { get; init; }
+}
+
+public sealed class AdvisorGateFocusDto
+{
+    public required string GateId { get; init; }
+    public required string Title { get; init; }
+    public required string GateType { get; init; }
+    public required string Rationale { get; init; }
+    public required string RecommendedOptionId { get; init; }
+    public required string RecommendedOptionLabel { get; init; }
+    public required IReadOnlyList<AdvisorOptionGuidanceDto> Options { get; init; }
+}
+
 public sealed class AdvisorBriefingDto
 {
     public bool Available { get; init; }
     public required string Briefing { get; init; }
     public required string Source { get; init; }
+    public required string Headline { get; init; }
+    public required IReadOnlyList<string> Highlights { get; init; }
+    public string? RecommendedTechId { get; init; }
+    public string? RecommendedTechName { get; init; }
+    public AdvisorGateFocusDto? GateFocus { get; init; }
 }
 
 public sealed class TechTreeNodeDto
@@ -303,4 +329,37 @@ public sealed class RegionCrimeDto
     public required string RegionName { get; init; }
     public required string SourceState { get; init; }
     public double CrimePressure { get; init; }
+}
+
+public sealed class HexTileDto
+{
+    public int Q { get; init; }
+    public int R { get; init; }
+    public required string Biome { get; init; }
+    public double ResourceYield { get; init; }
+    public string? ControllingCivilizationId { get; init; }
+    public bool IsCapital { get; init; }
+}
+
+public sealed class HexMapDto
+{
+    public int Width { get; init; }
+    public int Height { get; init; }
+    public int Seed { get; init; }
+    public required IReadOnlyList<HexTileDto> Tiles { get; init; }
+    public required IReadOnlyDictionary<string, string> CapitalHexByCivilizationId { get; init; }
+}
+
+public sealed class ClaimTerritoryRequestDto
+{
+    public required string CivilizationId { get; init; }
+    public int Q { get; init; }
+    public int R { get; init; }
+}
+
+public sealed class ClaimTerritoryResponseDto
+{
+    public bool Success { get; init; }
+    public required string Message { get; init; }
+    public string? HexKey { get; init; }
 }

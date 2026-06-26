@@ -3,6 +3,7 @@ using TTS.Api.Models;
 using TTS.Api.Services;
 using TTS.Contracts;
 using TTS.Core.Models;
+using TTS.Core.Simulation;
 using TTS.Llm;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,10 +21,13 @@ builder.Host.UseOrleansClient(client =>
 builder.Services.AddSingleton<MatchRegistry>();
 builder.Services.AddSingleton<OrleansMatchService>();
 builder.Services.AddHostedService<MatchTickBackgroundService>();
+builder.Services.AddHostedService<MatchRecoveryHostedService>();
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
-        policy.WithOrigins("http://localhost:5173", "http://127.0.0.1:5173")
+        policy.WithOrigins(
+                "http://localhost:5173",
+                "http://127.0.0.1:5173")
             .AllowAnyHeader()
             .AllowAnyMethod());
 });
@@ -67,16 +71,24 @@ app.MapGet("/api/matches", async (MatchRegistry registry, OrleansMatchService or
     var items = new List<MatchListItemDto>();
     foreach (var entry in registry.List())
     {
-        GrainMatchStatus? status = null;
-        GrainLlmLayerStatus? llmStatus = null;
-        try
-        {
-            status = await orleans.GetGrain(entry.MatchId).GetStatusAsync();
-            llmStatus = await orleans.GetGrain(entry.MatchId).GetLlmLayerStatusAsync();
-        }
-        catch { /* grain not initialized yet */ }
-
         var config = MatchPresets.Resolve(entry.ModeId);
+        GrainMatchStatus? status = null;
+
+        if (MatchSavePaths.SaveExists(entry.MatchId))
+        {
+            try
+            {
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+                status = await orleans.GetGrain(entry.MatchId)
+                    .GetStatusAsync()
+                    .WaitAsync(timeout.Token);
+            }
+            catch
+            {
+                // Grain busy, timed out, or not initialized — show registry defaults.
+            }
+        }
+
         var nextGateExpires = status?.PendingGates
             .Select(g => g.ExpiresAt)
             .OrderBy(d => d)
@@ -96,7 +108,7 @@ app.MapGet("/api/matches", async (MatchRegistry registry, OrleansMatchService or
             PendingGateCount = status?.PendingGates.Count ?? 0,
             NextGateExpiresAt = status?.PendingGates.Count > 0 ? nextGateExpires : null,
             StartingTier = (int)config.StartingTier,
-            LlmStatus = llmStatus is null ? null : LlmStatusMapping.ToDto(llmStatus)
+            LlmStatus = null
         });
     }
 
@@ -106,8 +118,8 @@ app.MapGet("/api/matches", async (MatchRegistry registry, OrleansMatchService or
 app.MapPost("/api/matches", async (CreateMatchRequestDto request, MatchRegistry registry, OrleansMatchService orleans) =>
 {
     var config = MatchPresets.Resolve(request.ModeId);
-    var entry = registry.Create(config.ModeId, config.DisplayName);
-    await orleans.InitializeMatchAsync(entry.MatchId, config.ModeId, request.WithDemoGate);
+    var entry = registry.Create(config.ModeId, config.DisplayName, request.Seed);
+    await orleans.InitializeMatchAsync(entry.MatchId, config.ModeId, request.WithDemoGate, entry.WorldSeed);
 
     return Results.Ok(new CreateMatchResponseDto
     {
@@ -337,7 +349,27 @@ app.MapGet("/api/matches/{matchId}/civs/{civilizationId}/advisor", async (
     {
         Available = briefing.Available,
         Briefing = briefing.Briefing,
-        Source = briefing.Source
+        Source = briefing.Source,
+        Headline = briefing.Headline,
+        Highlights = briefing.Highlights ?? [],
+        RecommendedTechId = briefing.RecommendedTechId,
+        RecommendedTechName = briefing.RecommendedTechName,
+        GateFocus = briefing.GateFocus is null ? null : new AdvisorGateFocusDto
+        {
+            GateId = briefing.GateFocus.GateId,
+            Title = briefing.GateFocus.Title,
+            GateType = briefing.GateFocus.GateType,
+            Rationale = briefing.GateFocus.Rationale,
+            RecommendedOptionId = briefing.GateFocus.RecommendedOptionId,
+            RecommendedOptionLabel = briefing.GateFocus.RecommendedOptionLabel,
+            Options = briefing.GateFocus.Options.Select(o => new AdvisorOptionGuidanceDto
+            {
+                OptionId = o.OptionId,
+                Label = o.Label,
+                Stance = o.Stance,
+                Note = o.Note,
+            }).ToList(),
+        },
     });
 });
 
@@ -373,6 +405,28 @@ app.MapPost("/api/matches/{matchId}/tick", async (string matchId, OrleansMatchSe
 {
     var result = await orleans.GetGrain(matchId).AdvanceTickIfDueAsync();
     return Results.Ok(result);
+});
+
+app.MapGet("/api/matches/{matchId}/map", async (string matchId, OrleansMatchService orleans) =>
+{
+    var map = await orleans.GetGrain(matchId).GetHexMapAsync();
+    return map is null ? Results.NotFound() : Results.Ok(HexMapMapping.ToDto(map));
+});
+
+app.MapPost("/api/matches/{matchId}/territory/claim", async (
+    string matchId,
+    ClaimTerritoryRequestDto request,
+    OrleansMatchService orleans) =>
+{
+    var result = await orleans.GetGrain(matchId).ClaimTerritoryAsync(
+        request.CivilizationId, request.Q, request.R);
+
+    return Results.Ok(new ClaimTerritoryResponseDto
+    {
+        Success = result.Success,
+        Message = result.Message,
+        HexKey = result.HexKey
+    });
 });
 
 app.Run();

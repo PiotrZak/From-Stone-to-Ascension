@@ -163,6 +163,40 @@ Feedback and contributors welcome.
 
 ---
 
+## Version D — AI narrative focus (recommended for current ship)
+
+What if your civilization sim didn't just *simulate* the Information Age — it *narrated* it?
+
+I've been shipping new AI layers into **From Stone to Ascension (TTS)** — an async grand-strategy game where each technology era rewrites the rules, not just the stats.
+
+Here's what's new on the narrative side:
+
+📜 **LLM-enriched decision gates**
+When a crime spike hits a city or a faction turns on you, the crisis card isn't generic filler. Ollama (or cloud LLM) rewrites the briefing in-world — era-aware tone at TTS 4, near-future sci-fi at TTS 5+. Tier shifts, forbidden tech, AI alignment crises each get their own narrative voice.
+
+🧭 **"While you were away" digest**
+Matches run on real time (8h–48h). Log back in and get a structured headline + bullet digest: who researched what, tier changes, events you missed, gates that expired with defaults applied. Built for 2–5 minute governor check-ins.
+
+🤖 **LLM rival civilizations (TTS 5+)**
+Your opponent isn't a script picking the next tech — it's an agent proposing research and diplomacy through validated game tools. If the model fails, classical AI takes over. The sim never trusts free-form LLM output.
+
+🧠 **Strategic advisor**
+At Information Age you get classical analysis. At Early AI, ask the advisor for a live LLM briefing on policy, risk, and research — same tool boundary, player-triggered, rate-limited.
+
+Under the hood the rule is simple: **the simulation owns truth; AI adds flavor and intent.** No hallucinated game state.
+
+Also landed recently: procedural seeded worlds, a governor dashboard rework (decision-first layout, territory map), and the full async loop from lobby → ticks → gates → victory.
+
+Open source — run locally with `./dev.sh` (Ollama optional for narratives and rivals):
+
+https://github.com/PiotrZak/From-Stone-to-Ascension
+
+If you're building games + LLMs and care about *where* the model sits in the stack — I'd love your feedback.
+
+#GameDev #AI #LLM #IndieDev #GrandStrategy #DotNet #OpenSource #GameDesign
+
+---
+
 ## Version C — story-led
 
 What if Civilization, but every era is a different game?

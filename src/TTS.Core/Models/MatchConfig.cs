@@ -1,5 +1,7 @@
 namespace TTS.Core.Models;
 
+using TTS.Core.Simulation;
+
 /// <summary>Match preset — wall-clock schedule and victory rules (Phase 4).</summary>
 public sealed class MatchConfig
 {
@@ -33,8 +35,9 @@ public sealed class MatchState
     public DateTimeOffset LastTickAt { get; set; }
     public DateTimeOffset NextTickAt { get; set; }
     public DateTimeOffset? EndedAt { get; set; }
+    public int WorldSeed { get; set; }
 
-    public MatchState(string matchId, MatchConfig config, DateTimeOffset startedAt)
+    public MatchState(string matchId, MatchConfig config, DateTimeOffset startedAt, int? worldSeed = null)
     {
         MatchId = matchId;
         Config = config;
@@ -42,6 +45,7 @@ public sealed class MatchState
         StartedAt = startedAt;
         LastTickAt = startedAt;
         NextTickAt = startedAt + config.TickInterval;
+        WorldSeed = worldSeed ?? MatchSeeds.FromMatchId(matchId);
     }
 }
 

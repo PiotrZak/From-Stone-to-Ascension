@@ -24,7 +24,7 @@ public class EconomyTests
     public void EconomySystem_AppliesGenericBonusFromInfrastructure()
     {
         var services = new SimulationServices();
-        var world = SampleWorldFactory.Create();
+        var world = SampleWorldFactory.Create(MatchPresets.Sprint8h, useStandardArena: true);
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
         player.CurrentTier = TechTier.PreIndustrial;
         var before = player.EconomicStability;
@@ -38,7 +38,7 @@ public class EconomyTests
     public void CityPerspective_ListsNamedCitiesWithGdp()
     {
         var services = new SimulationServices();
-        var world = SampleWorldFactory.Create();
+        var world = SampleWorldFactory.Create(MatchPresets.Sprint8h, useStandardArena: true);
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
         var repo = CrimeDataRepository.Default;
         if (!repo.IsLoaded)

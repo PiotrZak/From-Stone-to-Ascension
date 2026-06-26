@@ -24,6 +24,12 @@ public class Region
     /// <summary>TTS 4+ socioeconomic crime data mapped from state_crime_income_merged.csv.</summary>
     public RegionalCrimeProfile? CrimeProfile { get; set; }
 
+    /// <summary>Capital tile key (q,r) when a hex map is attached.</summary>
+    public string? CapitalHexKey { get; set; }
+
+    /// <summary>Hex keys (q,r) owned by this region.</summary>
+    public List<string> HexKeys { get; } = [];
+
     public Region(string id, string name)
     {
         Id = id;

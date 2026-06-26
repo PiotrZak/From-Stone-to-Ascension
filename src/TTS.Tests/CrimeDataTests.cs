@@ -27,7 +27,7 @@ public class CrimeDataTests
     [Fact]
     public void SampleWorld_AttachesCrimeProfilesToRegions()
     {
-        var world = SampleWorldFactory.Create();
+        var world = SampleWorldFactory.Create(MatchPresets.Sprint8h, useStandardArena: true);
         var repo = CrimeDataRepository.Default;
         if (!repo.IsLoaded)
             return;
@@ -48,7 +48,7 @@ public class CrimeDataTests
     public void CrimeSystem_AppliesPressureAtTts4()
     {
         var services = new SimulationServices();
-        var world = SampleWorldFactory.Create();
+        var world = SampleWorldFactory.Create(MatchPresets.Sprint8h, useStandardArena: true);
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
         player.CurrentTier = TechTier.InformationAge;
         var stabilityBefore = player.PoliticalStability;
@@ -63,7 +63,7 @@ public class CrimeDataTests
     public void CrimePerspective_UnavailableBelowTts4()
     {
         var services = new SimulationServices();
-        var world = SampleWorldFactory.Create();
+        var world = SampleWorldFactory.Create(MatchPresets.Sprint8h, useStandardArena: true);
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
         player.CurrentTier = TechTier.EarlyElectronics;
 
@@ -76,7 +76,7 @@ public class CrimeDataTests
     public void GameToolSurface_ExposesCrimePerspective()
     {
         var services = new SimulationServices();
-        var world = SampleWorldFactory.Create();
+        var world = SampleWorldFactory.Create(MatchPresets.Sprint8h, useStandardArena: true);
         var player = world.Civilizations.First(c => c.IsPlayerControlled);
         player.CurrentTier = TechTier.InformationAge;
         var tools = services.CreateToolSurface(world);
@@ -106,7 +106,7 @@ public class CrimeDataTests
     public void GameLoop_RecordsResearchDecisions()
     {
         var services = new SimulationServices();
-        var world = SampleWorldFactory.Create();
+        var world = SampleWorldFactory.Create(MatchPresets.Sprint8h, useStandardArena: true);
         var result = services.CreateGameLoop(world).RunTurn();
 
         Assert.NotEmpty(result.ResearchDecisions);

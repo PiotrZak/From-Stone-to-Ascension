@@ -7,7 +7,9 @@ using TTS.Core.Models;
 /// </summary>
 public class GlobalEventSystem
 {
-    private readonly Random _random = new();
+    private Random _random = new();
+
+    public void UseSeed(int seed) => _random = new Random(seed);
 
     public GlobalEvent? MaybeGenerateEvent(WorldState world)
     {

@@ -30,4 +30,11 @@ public static class WorldAdvancer
 
     public static void SetTier(Civilization civilization, TechTier tier) =>
         civilization.CurrentTier = tier;
+
+    /// <summary>Marks technologies as already researched without re-running research side effects (bootstrap only).</summary>
+    public static void GrantResearchHistory(Civilization civilization, IEnumerable<string> technologyIds)
+    {
+        foreach (var technologyId in technologyIds)
+            civilization.ResearchedTechnologyIds.Add(technologyId);
+    }
 }

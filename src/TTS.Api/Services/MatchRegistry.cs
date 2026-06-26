@@ -3,6 +3,7 @@ namespace TTS.Api.Services;
 using System.Text.Json;
 using TTS.Api.Models;
 using TTS.Core.Models;
+using TTS.Core.Simulation;
 
 public sealed class MatchRegistry
 {
@@ -11,11 +12,7 @@ public sealed class MatchRegistry
     private readonly object _lock = new();
     private MatchRegistryDocument _document;
 
-    private static readonly (string CivId, string CivName)[] Slots =
-    [
-        ("civ-player", "Aurora Collective"),
-        ("civ-rival", "Iron Dominion")
-    ];
+    private static readonly string[] SlotIds = ["civ-player", "civ-rival"];
 
     public MatchRegistry()
     {
@@ -33,7 +30,7 @@ public sealed class MatchRegistry
         _document.Matches.FirstOrDefault(m =>
             m.JoinCode.Equals(joinCode, StringComparison.OrdinalIgnoreCase));
 
-    public MatchRegistryEntry Create(string modeId, string modeDisplayName)
+    public MatchRegistryEntry Create(string modeId, string modeDisplayName, int? worldSeed = null)
     {
         lock (_lock)
         {
@@ -45,7 +42,8 @@ public sealed class MatchRegistry
                 JoinCode = joinCode,
                 ModeId = modeId,
                 ModeDisplayName = modeDisplayName,
-                CreatedAt = DateTimeOffset.UtcNow
+                CreatedAt = DateTimeOffset.UtcNow,
+                WorldSeed = worldSeed ?? MatchSeeds.FromMatchId(matchId)
             };
             _document.Matches.Add(entry);
             Save();
@@ -65,16 +63,20 @@ public sealed class MatchRegistry
                 throw new InvalidOperationException("Match is full.");
 
             var taken = match.Players.Select(p => p.CivilizationId).ToHashSet();
-            var slot = Slots.FirstOrDefault(s => !taken.Contains(s.CivId));
-            if (slot == default)
+            var slotIndex = Array.FindIndex(SlotIds, id => !taken.Contains(id));
+            if (slotIndex < 0)
                 throw new InvalidOperationException("Match is full.");
+
+            var civId = SlotIds[slotIndex];
+            var seed = match.WorldSeed;
+            var civName = WorldNameGenerator.CivilizationName(seed, slotIndex);
 
             var player = new MatchPlayerEntry
             {
                 PlayerId = Guid.NewGuid().ToString("N")[..8],
                 PlayerName = string.IsNullOrWhiteSpace(playerName) ? "Governor" : playerName.Trim(),
-                CivilizationId = slot.CivId,
-                CivilizationName = slot.CivName,
+                CivilizationId = civId,
+                CivilizationName = civName,
                 JoinedAt = DateTimeOffset.UtcNow,
                 IsReady = false
             };
@@ -122,6 +124,55 @@ public sealed class MatchRegistry
         }
     }
 
+    /// <summary>Re-add registry entries for match saves found on disk after restart.</summary>
+    public void ReconcileWithSavedMatches()
+    {
+        lock (_lock)
+        {
+            var directory = MatchSavePaths.ResolveDirectory();
+            if (!Directory.Exists(directory))
+                return;
+
+            var changed = false;
+            foreach (var file in Directory.EnumerateFiles(directory, "*.json"))
+            {
+                var matchId = Path.GetFileNameWithoutExtension(file);
+                if (string.IsNullOrWhiteSpace(matchId) || GetById(matchId) is not null)
+                    continue;
+
+                var modeId = "dev-blitz-3m";
+                var worldSeed = MatchSeeds.FromMatchId(matchId);
+                try
+                {
+                    var doc = new MatchPersistence().Load(file);
+                    if (!string.IsNullOrWhiteSpace(doc.Match?.ModeId))
+                        modeId = doc.Match.ModeId;
+                    if (doc.Match?.WorldSeed > 0)
+                        worldSeed = doc.Match.WorldSeed;
+                }
+                catch
+                {
+                    // Keep defaults for corrupted saves; grain activation may still fail gracefully.
+                }
+
+                var config = MatchPresets.Resolve(modeId);
+                _document.Matches.Add(new MatchRegistryEntry
+                {
+                    MatchId = matchId,
+                    JoinCode = matchId.Length >= 6 ? matchId[^6..].ToUpperInvariant() : matchId.ToUpperInvariant(),
+                    ModeId = modeId,
+                    ModeDisplayName = config.DisplayName,
+                    CreatedAt = File.GetCreationTimeUtc(file),
+                    WorldSeed = worldSeed
+                });
+                changed = true;
+            }
+
+            if (changed)
+                Save();
+        }
+    }
+
     private MatchRegistryDocument Load()
     {
         if (!File.Exists(_path))
@@ -138,6 +189,8 @@ public sealed class MatchRegistry
     private void Save()
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-        File.WriteAllText(_path, JsonSerializer.Serialize(_document, JsonOptions));
+        var tempPath = _path + ".tmp";
+        File.WriteAllText(tempPath, JsonSerializer.Serialize(_document, JsonOptions));
+        File.Move(tempPath, _path, overwrite: true);
     }
 }

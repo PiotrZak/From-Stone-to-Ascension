@@ -33,7 +33,11 @@ public sealed class MatchPersistence
         path ??= DefaultSavePath;
         var doc = ToDocument(world, turnHistory);
         var json = JsonSerializer.Serialize(doc, JsonOptions);
-        File.WriteAllText(path, json);
+        var directory = Path.GetDirectoryName(path)!;
+        Directory.CreateDirectory(directory);
+        var tempPath = path + ".tmp";
+        File.WriteAllText(tempPath, json);
+        File.Move(tempPath, path, overwrite: true);
     }
 
     public WorldState RestoreWorld(SavedMatchDocument doc)
@@ -47,7 +51,7 @@ public sealed class MatchPersistence
         if (doc.Match is not null)
         {
             var config = MatchPresets.Resolve(doc.Match.ModeId);
-            world.Match = new MatchState(doc.Match.MatchId, config, doc.Match.StartedAt)
+            world.Match = new MatchState(doc.Match.MatchId, config, doc.Match.StartedAt, doc.Match.WorldSeed)
             {
                 Status = doc.Match.Status,
                 TickCount = doc.Match.TickCount,
@@ -125,9 +129,30 @@ public sealed class MatchPersistence
                 Resources = saved.Resources,
                 Infrastructure = saved.Infrastructure,
                 ControllingCivilizationId = saved.ControllingCivilizationId,
-                CrimeProfile = saved.CrimeProfile
+                CrimeProfile = saved.CrimeProfile,
+                CapitalHexKey = saved.CapitalHexKey
             };
+            region.HexKeys.AddRange(saved.HexKeys);
             world.Regions.Add(region);
+        }
+
+        if (doc.Map is not null)
+        {
+            world.Map = new HexMap
+            {
+                Width = doc.Map.Width,
+                Height = doc.Map.Height,
+                Seed = doc.Map.Seed,
+                Tiles = doc.Map.Tiles.Select(t => new HexTile(t.Q, t.R)
+                {
+                    Biome = t.Biome,
+                    Elevation = t.Elevation,
+                    ResourceYield = t.ResourceYield,
+                    ControllingCivilizationId = t.ControllingCivilizationId,
+                    RegionId = t.RegionId
+                }).ToList()
+            };
+            world.Map.RebuildIndex();
         }
 
         foreach (var saved in doc.KnowledgeNetworks)
@@ -156,7 +181,7 @@ public sealed class MatchPersistence
     private static SavedMatchDocument ToDocument(WorldState world, IReadOnlyList<TurnSnapshot> turnHistory) =>
         new()
         {
-            Version = 1,
+            Version = 2,
             Turn = world.Turn,
             SimulatedNow = world.SimulatedNow,
             Match = world.Match is null ? null : new SavedMatchState
@@ -168,7 +193,24 @@ public sealed class MatchPersistence
                 StartedAt = world.Match.StartedAt,
                 LastTickAt = world.Match.LastTickAt,
                 NextTickAt = world.Match.NextTickAt,
-                EndedAt = world.Match.EndedAt
+                EndedAt = world.Match.EndedAt,
+                WorldSeed = world.Match.WorldSeed
+            },
+            Map = world.Map is null ? null : new SavedHexMap
+            {
+                Width = world.Map.Width,
+                Height = world.Map.Height,
+                Seed = world.Map.Seed,
+                Tiles = world.Map.Tiles.Select(t => new SavedHexTile
+                {
+                    Q = t.Q,
+                    R = t.R,
+                    Biome = t.Biome,
+                    Elevation = t.Elevation,
+                    ResourceYield = t.ResourceYield,
+                    ControllingCivilizationId = t.ControllingCivilizationId,
+                    RegionId = t.RegionId
+                }).ToList()
             },
             Civilizations = world.Civilizations.Select(ToSavedCivilization).ToList(),
             Regions = world.Regions.Select(ToSavedRegion).ToList(),
@@ -211,7 +253,9 @@ public sealed class MatchPersistence
         Resources = region.Resources,
         Infrastructure = region.Infrastructure,
         ControllingCivilizationId = region.ControllingCivilizationId,
-        CrimeProfile = region.CrimeProfile
+        CrimeProfile = region.CrimeProfile,
+        CapitalHexKey = region.CapitalHexKey,
+        HexKeys = region.HexKeys.ToList()
     };
 
     private static SavedKnowledgeNetwork ToSavedKnowledgeNetwork(KnowledgeNetwork link) => new()
@@ -330,10 +374,11 @@ public sealed class MatchPersistence
 
     public sealed class SavedMatchDocument
     {
-        public int Version { get; set; } = 1;
+        public int Version { get; set; } = 2;
         public int Turn { get; set; }
         public DateTimeOffset SimulatedNow { get; set; }
         public SavedMatchState? Match { get; set; }
+        public SavedHexMap? Map { get; set; }
         public List<SavedCivilization> Civilizations { get; set; } = [];
         public List<SavedRegion> Regions { get; set; } = [];
         public List<SavedKnowledgeNetwork> KnowledgeNetworks { get; set; } = [];
@@ -351,6 +396,26 @@ public sealed class MatchPersistence
         public DateTimeOffset LastTickAt { get; set; }
         public DateTimeOffset NextTickAt { get; set; }
         public DateTimeOffset? EndedAt { get; set; }
+        public int WorldSeed { get; set; }
+    }
+
+    public sealed class SavedHexMap
+    {
+        public int Width { get; set; }
+        public int Height { get; set; }
+        public int Seed { get; set; }
+        public List<SavedHexTile> Tiles { get; set; } = [];
+    }
+
+    public sealed class SavedHexTile
+    {
+        public int Q { get; set; }
+        public int R { get; set; }
+        public Biome Biome { get; set; }
+        public double Elevation { get; set; }
+        public double ResourceYield { get; set; }
+        public string? ControllingCivilizationId { get; set; }
+        public string? RegionId { get; set; }
     }
 
     public sealed class SavedCivilization
@@ -390,6 +455,8 @@ public sealed class MatchPersistence
         public double Infrastructure { get; set; }
         public string? ControllingCivilizationId { get; set; }
         public RegionalCrimeProfile? CrimeProfile { get; set; }
+        public string? CapitalHexKey { get; set; }
+        public List<string> HexKeys { get; set; } = [];
     }
 
     public sealed class SavedKnowledgeNetwork

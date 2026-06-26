@@ -93,7 +93,7 @@ public sealed class AgentToolWorkflow : IAgentWorkflow, IDisposable
             var bridge = new AgentGameToolBridge(registry);
             var agent = CreateAgent(AdvisorSystemPrompt, bridge, limits);
             var response = await agent.RunAsync(
-                $"Brief the governor of civilization {civilizationId}. Call get_civilization_state, get_faction_tensions, get_policy_research_analysis, and get_pending_decisions first.",
+                $"Brief the governor of civilization {civilizationId}. Inspect current threats, policy fit, and the best research path.",
                 cancellationToken: cancellationToken);
             return string.IsNullOrWhiteSpace(response.Text) ? null : response.Text;
         }
@@ -143,7 +143,22 @@ public sealed class AgentToolWorkflow : IAgentWorkflow, IDisposable
 
     private static string AdvisorSystemPrompt => """
         You are an in-world strategic advisor for a civilization tech simulation (TTS 5+).
-        Use read-only tools to inspect state before advising. Be concise: 3-5 sentences plus one concrete recommendation.
+        Use read-only tools first, especially get_pending_decisions.
+
+        If a decision gate is pending, the briefing MUST center on that gate:
+        - Name the gate crisis in your headline.
+        - Compare each gate option against current stability and policy.
+        - Recommend exactly one gate option by id in a line: "Gate choice: <option_id>".
+        - Explain why other options are weaker for this civ right now.
+
+        If no gate is pending, focus on policy, research, and stability.
+
+        Format:
+        Line 1: headline (gate title if pending).
+        Lines 2-4: bullet highlights starting with "• ".
+        Final paragraph: narrative rationale.
+        Last line: "Gate choice: <option_id>" OR "Recommend: <research action>" when no gate.
+
         Do not call write tools.
         """;
 

@@ -80,7 +80,7 @@ public static class WorldBlueprint
         return SampleWorldFactory.CreateFallbackTechnologiesOnly();
     }
 
-    private static void AttachCityProfile(Region region, string stateName, int year)
+    internal static void AttachCityProfile(Region region, string stateName, int year)
     {
         var repo = CrimeDataRepository.Default;
         if (!repo.IsLoaded)

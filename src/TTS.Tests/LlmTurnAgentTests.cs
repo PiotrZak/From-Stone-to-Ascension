@@ -15,7 +15,7 @@ public class LlmTurnAgentTests
 
         Assert.Single(rivals);
         Assert.DoesNotContain(rivals, r => r.Id == player.Id);
-        Assert.Contains(rivals, r => r.Name == "Iron Dominion");
+        Assert.Contains(rivals, r => r.Id == "civ-rival");
     }
 
     [Fact]

@@ -30,10 +30,13 @@ public sealed class MatchHost
         string savePath,
         bool withDemoGate = false,
         DateTimeOffset? startedAt = null,
-        ILlmTurnAgent? llmTurnAgent = null)
+        ILlmTurnAgent? llmTurnAgent = null,
+        string? matchId = null,
+        int? worldSeed = null)
     {
-        var world = SampleWorldFactory.Create(config, withDemoGate);
-        var services = new SimulationServices { LlmTurnAgent = llmTurnAgent };
+        matchId ??= Path.GetFileNameWithoutExtension(savePath);
+        var world = SampleWorldFactory.Create(config, withDemoGate, matchId, worldSeed: worldSeed);
+        var services = new SimulationServices(world.Match?.WorldSeed) { LlmTurnAgent = llmTurnAgent };
         RestoreTurnHistory(services, []);
         return new MatchHost(world, services, savePath);
     }
@@ -43,7 +46,7 @@ public sealed class MatchHost
         var persistence = new MatchPersistence();
         var doc = persistence.Load(savePath);
         var world = persistence.RestoreWorld(doc);
-        var services = new SimulationServices { LlmTurnAgent = llmTurnAgent };
+        var services = new SimulationServices(world.Match?.WorldSeed) { LlmTurnAgent = llmTurnAgent };
         RestoreTurnHistory(services, persistence.RestoreTurnHistory(doc));
         return new MatchHost(world, services, savePath);
     }
@@ -197,6 +200,15 @@ public sealed class MatchHost
 
         civ.Policy = PolicyPresets.Resolve(presetId);
         Save();
+    }
+
+    public TerritoryClaimResult ClaimTerritory(string civilizationId, int q, int r)
+    {
+        var result = Services.Territory.TryClaim(World, civilizationId, q, r);
+        if (result.Success)
+            Save();
+
+        return result;
     }
 
     public void StartMatch(DateTimeOffset now)

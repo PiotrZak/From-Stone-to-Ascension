@@ -141,10 +141,105 @@ export interface TickLogEntry {
   lines: string[];
 }
 
+export interface HexTile {
+  q: number;
+  r: number;
+  biome: string;
+  resourceYield: number;
+  controllingCivilizationId: string | null;
+  isCapital: boolean;
+}
+
+export interface HexMap {
+  width: number;
+  height: number;
+  seed: number;
+  tiles: HexTile[];
+  capitalHexByCivilizationId: Record<string, string>;
+}
+
+export interface ClaimTerritoryResponse {
+  success: boolean;
+  message: string;
+  hexKey: string | null;
+}
+
+export interface AdvisorOptionGuidance {
+  optionId: string;
+  label: string;
+  stance: 'recommended' | 'caution' | 'neutral' | string;
+  note: string;
+}
+
+export interface AdvisorGateFocus {
+  gateId: string;
+  title: string;
+  gateType: string;
+  rationale: string;
+  recommendedOptionId: string;
+  recommendedOptionLabel: string;
+  options: AdvisorOptionGuidance[];
+}
+
 export interface AdvisorBriefing {
   available: boolean;
   briefing: string;
   source: string;
+  headline: string;
+  highlights: string[];
+  recommendedTechId: string | null;
+  recommendedTechName: string | null;
+  gateFocus: AdvisorGateFocus | null;
+}
+
+function normalizeGateFocus(raw: unknown): AdvisorGateFocus | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const g = raw as Record<string, unknown>;
+  const optionsRaw = g.options ?? g.Options;
+  const options = Array.isArray(optionsRaw)
+    ? optionsRaw.map((item) => {
+        const o = item as Record<string, unknown>;
+        return {
+          optionId: String(o.optionId ?? o.OptionId ?? ''),
+          label: String(o.label ?? o.Label ?? ''),
+          stance: String(o.stance ?? o.Stance ?? 'neutral'),
+          note: String(o.note ?? o.Note ?? ''),
+        };
+      })
+    : [];
+
+  const gateId = String(g.gateId ?? g.GateId ?? '');
+  if (!gateId) return null;
+
+  return {
+    gateId,
+    title: String(g.title ?? g.Title ?? ''),
+    gateType: String(g.gateType ?? g.GateType ?? ''),
+    rationale: String(g.rationale ?? g.Rationale ?? ''),
+    recommendedOptionId: String(g.recommendedOptionId ?? g.RecommendedOptionId ?? ''),
+    recommendedOptionLabel: String(g.recommendedOptionLabel ?? g.RecommendedOptionLabel ?? ''),
+    options,
+  };
+}
+
+function normalizeAdvisorBriefing(raw: Partial<AdvisorBriefing> & Record<string, unknown>): AdvisorBriefing {
+  const briefing = String(raw.briefing ?? raw.Briefing ?? '');
+  const headline = String(raw.headline ?? raw.Headline ?? '').trim();
+  const rawHighlights = raw.highlights ?? raw.Highlights;
+  const highlights = Array.isArray(rawHighlights)
+    ? rawHighlights.map((line) => String(line))
+    : [];
+
+  return {
+    available: Boolean(raw.available ?? raw.Available),
+    briefing,
+    source: String(raw.source ?? raw.Source ?? 'system'),
+    headline: headline || briefing.split(/[.!?]/)[0]?.trim() || 'Strategic assessment',
+    highlights,
+    recommendedTechId: (raw.recommendedTechId ?? raw.RecommendedTechId ?? null) as string | null,
+    recommendedTechName: (raw.recommendedTechName ?? raw.RecommendedTechName ?? null) as string | null,
+    gateFocus: normalizeGateFocus(raw.gateFocus ?? raw.GateFocus),
+  };
 }
 
 export interface TechTreeNode {
@@ -280,8 +375,12 @@ export const api = {
   getCivDashboard: (matchId: string, civilizationId: string) =>
     request<CivDashboard>(`/api/matches/${encodeURIComponent(matchId)}/civs/${encodeURIComponent(civilizationId)}`),
 
-  getAdvisorBriefing: (matchId: string, civilizationId: string) =>
-    request<AdvisorBriefing>(`/api/matches/${encodeURIComponent(matchId)}/civs/${encodeURIComponent(civilizationId)}/advisor`),
+  getAdvisorBriefing: async (matchId: string, civilizationId: string) =>
+    normalizeAdvisorBriefing(
+      await request<Partial<AdvisorBriefing> & Record<string, unknown>>(
+        `/api/matches/${encodeURIComponent(matchId)}/civs/${encodeURIComponent(civilizationId)}/advisor`,
+      ),
+    ),
 
   updatePolicy: (matchId: string, civilizationId: string, presetId: string) =>
     request<CivDashboard>(`/api/matches/${encodeURIComponent(matchId)}/civs/${encodeURIComponent(civilizationId)}/policy`, {
@@ -299,5 +398,14 @@ export const api = {
     request<{ started: boolean }>(`/api/matches/${encodeURIComponent(matchId)}/start`, {
       method: 'POST',
       body: JSON.stringify({ playerId }),
+    }),
+
+  getHexMap: (matchId: string) =>
+    request<HexMap>(`/api/matches/${encodeURIComponent(matchId)}/map`),
+
+  claimTerritory: (matchId: string, civilizationId: string, q: number, r: number) =>
+    request<ClaimTerritoryResponse>(`/api/matches/${encodeURIComponent(matchId)}/territory/claim`, {
+      method: 'POST',
+      body: JSON.stringify({ civilizationId, q, r }),
     }),
 };

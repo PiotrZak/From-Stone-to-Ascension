@@ -11,6 +11,7 @@ public class WorldState
     public List<GlobalEvent> ActiveEvents { get; } = [];
     public DateTimeOffset SimulatedNow { get; set; } = DateTimeOffset.UtcNow;
     public MatchState? Match { get; set; }
+    public HexMap? Map { get; set; }
 }
 
 /// <summary>Global event affecting one or more civilizations or regions.</summary>

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { AccordionSection } from '../components/AccordionSection';
 import { AwaySummaryView } from '../components/AwaySummaryView';
-import { CollapsibleSection } from '../components/CollapsibleSection';
+import { defaultTerritoryHint, HexMapView } from '../components/HexMapView';
+import { formatGateCountdown, TickClock } from '../components/TickClock';
+import { StrategicAdvisorPanel } from '../components/StrategicAdvisorPanel';
 import { TechTreeView } from '../components/TechTreeView';
 import {
   api,
@@ -10,20 +13,12 @@ import {
   saveSession,
   type AdvisorBriefing,
   type CivDashboard,
-  type Civilization,
+  type HexMap,
   type MatchSummary,
   type PlayerSession,
   type Region,
 } from '../api';
-import { tierClass, tierLabel } from '../tierLabels';
-import type { LlmLayerStatus } from '../api';
-
-function formatCountdown(targetIso: string): string {
-  const sec = Math.max(0, Math.floor((new Date(targetIso).getTime() - Date.now()) / 1000));
-  if (sec === 0) return 'now';
-  if (sec < 3600) return `${Math.floor(sec / 60)}m`;
-  return `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`;
-}
+import { tierLabel } from '../tierLabels';
 
 function formatPopulation(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -31,81 +26,40 @@ function formatPopulation(n: number): string {
   return String(n);
 }
 
-function stabilityTone(value: number): string {
-  if (value >= 70) return 'good';
-  if (value >= 40) return 'mid';
-  return 'low';
+function cityStatus(city: Region, modern: boolean): { label: string; tone: 'stable' | 'tension' | 'crisis' } {
+  if (modern && city.crimePressure >= 60) return { label: 'Crisis', tone: 'crisis' };
+  if (modern && city.crimePressure >= 35) return { label: 'Tension', tone: 'tension' };
+  return { label: 'Stable', tone: 'stable' };
 }
 
-function CityLine({ city, mine, modern }: { city: Region; mine: boolean; modern: boolean }) {
-  const extra = modern && city.gdpPerCapita > 0
-    ? ` · crime ${Math.round(city.crimePressure)}`
-    : '';
-  return (
-    <p className={`city-line${mine ? ' city-line-mine' : ''}`}>
-      <strong>{city.name}</strong>
-      <span className="muted">
-        {city.controllingCivilizationName ? `${city.controllingCivilizationName} · ` : ''}
-        pop {formatPopulation(city.population)}{extra}
-      </span>
-    </p>
-  );
+function gateOptionClass(index: number, label: string): string {
+  const lower = label.toLowerCase();
+  if (lower.includes('ban') || lower.includes('reject') || lower.includes('deny')) return 'gate-opt-danger';
+  if (index === 0) return 'gate-opt-primary';
+  return 'gate-opt-neutral';
 }
 
-function CivStatus({ civ }: { civ: Civilization }) {
-  const avg = Math.round(civ.averageStability);
-  return (
-    <div className="civ-status">
-      <div className="civ-status-head">
-        <div>
-          <strong>{civ.name}</strong>
-          <span className="muted civ-status-era">{tierLabel(civ.tier)} · TTS {civ.tier}</span>
-        </div>
-        <div className={`civ-status-avg stability-${stabilityTone(avg)}`}>{avg}</div>
-      </div>
-      <div className="civ-status-bars" aria-label="Stability pillars">
-        {[
-          ['Political', civ.politicalStability],
-          ['Economic', civ.economicStability],
-          ['Tech', civ.technologicalStability],
-        ].map(([label, value]) => {
-          const pct = Math.round(Math.max(0, Math.min(100, value as number)));
-          return (
-            <div key={label as string} className="civ-status-bar" title={`${label}: ${pct}`}>
-              <div className={`stability-fill stability-${stabilityTone(pct)}`} style={{ width: `${pct}%` }} />
-            </div>
-          );
-        })}
-      </div>
-      {civ.lastAction && <p className="muted civ-last-action">{civ.lastAction}</p>}
-    </div>
-  );
-}
-
-function RivalLine({ civ }: { civ: Civilization }) {
-  return (
-    <p className="rival-line">
-      <strong>{civ.name}</strong>
-      <span className="muted">TTS {civ.tier} · stability {Math.round(civ.averageStability)}</span>
-    </p>
-  );
+function pillarFillClass(value: number): string {
+  if (value >= 70) return 'pillar-fill-green';
+  if (value >= 40) return 'pillar-fill-amber';
+  return 'pillar-fill-blue';
 }
 
 export function MatchPage() {
   const { matchId = '' } = useParams();
   const [summary, setSummary] = useState<MatchSummary | null>(null);
   const [dashboard, setDashboard] = useState<CivDashboard | null>(null);
+  const [hexMap, setHexMap] = useState<HexMap | null>(null);
   const [session, setSession] = useState<PlayerSession | null>(() => loadSession(matchId));
   const [playerName, setPlayerName] = useState('Governor');
   const [policyPreset, setPolicyPreset] = useState('balanced');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
-  const [awayOpen, setAwayOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [advisor, setAdvisor] = useState<AdvisorBriefing | null>(null);
   const [advisorLoading, setAdvisorLoading] = useState(false);
+  const [territoryMeta, setTerritoryMeta] = useState(defaultTerritoryHint());
   const [, setClock] = useState(0);
 
   const civId = session?.civilizationId ?? 'civ-player';
@@ -138,6 +92,11 @@ export function MatchPage() {
         const dash = await api.getCivDashboard(matchId, civId);
         setDashboard(dash);
         setPolicyPreset(dash.presetId === 'custom' ? 'balanced' : dash.presetId);
+      }
+      try {
+        setHexMap(await api.getHexMap(matchId));
+      } catch {
+        setHexMap(null);
       }
       setError(null);
     } catch (e) {
@@ -197,6 +156,20 @@ export function MatchPage() {
     }
   };
 
+  const handleClaimHex = async (q: number, r: number) => {
+    if (!session) return;
+    setBusy(true);
+    try {
+      const result = await api.claimTerritory(matchId, session.civilizationId, q, r);
+      if (!result.success) setError(result.message);
+      else await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to claim territory');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handlePolicySave = async () => {
     if (!session) return;
     setBusy(true);
@@ -237,7 +210,7 @@ export function MatchPage() {
     }
   };
 
-  if (loading && !summary) return <p className="muted page-loading">Loading…</p>;
+  if (loading && !summary) return <p className="muted page-loading">Loading match…</p>;
   if (!summary) {
     return (
       <div className="card">
@@ -257,264 +230,367 @@ export function MatchPage() {
   const myCities = summary.regions.filter((r) => r.controllingCivilizationId === civId);
   const otherCities = summary.regions.filter((r) => r.controllingCivilizationId !== civId);
   const showModernStats = (summary.startingTier >= 4) || (myCiv?.tier ?? 1) >= 4;
-  const nextTickLabel = summary.isTickDue ? 'due now' : formatCountdown(summary.nextTickAt);
   const hasAway = !ended && (summary.awaySummaryStructured || summary.awaySummary) && summary.tickCount > 0;
-  const moreSubtitle = [
-    summary.regions.length > 0 ? `${summary.regions.length} cities` : null,
-    rivals.length > 0 ? `${rivals.length} rival${rivals.length === 1 ? '' : 's'}` : null,
-    dashboard?.researchedTech.length ? `${dashboard.researchedTech.length} techs` : null,
-  ].filter(Boolean).join(' · ') || 'World, tech, log';
-
   return (
     <div className="match-page">
-      <header className="match-top card">
-        <div className="match-top-row">
-          <Link to="/" className="back-link">←</Link>
-          <div className="match-top-text">
-            <h1 className="match-top-title">{summary.modeDisplayName}</h1>
-            <p className="muted match-top-sub">
+      <header className="match-hud">
+        <div className="match-hud-left">
+          <Link to="/" className="match-hud-back" aria-label="Home">
+            <span className="material-symbols-outlined">arrow_back</span>
+          </Link>
+          <div className="match-hud-identity">
+            <h1 className="match-hud-title">{summary.modeDisplayName}</h1>
+            <p className="match-hud-sub">
               {session
                 ? `${session.civilizationName}${isHost ? ' · host' : ''}`
                 : 'Spectating'}
-              {!inLobby && !ended && (
-                <> · tick {summary.tickCount}/{summary.maxTicks} · next {nextTickLabel}</>
-              )}
+              {ended && ' · match ended'}
             </p>
           </div>
+        </div>
+
+        <div className="match-hud-center">
+          {inLobby && (
+            <div className="match-hud-pill">
+              Lobby · {summary.readyCount}/{summary.minPlayers} ready
+            </div>
+          )}
+          {!inLobby && !ended && (
+            <TickClock
+              modeId={summary.modeId}
+              nextTickAt={summary.nextTickAt}
+              isTickDue={summary.isTickDue}
+              tickCount={summary.tickCount}
+              maxTicks={summary.maxTicks}
+            />
+          )}
+          {ended && (
+            <div className="match-hud-pill">
+              Finished · tick {summary.tickCount}/{summary.maxTicks}
+            </div>
+          )}
+        </div>
+
+        <div className="match-hud-right">
+          {!inLobby && (
+            <button
+              type="button"
+              className="match-hud-code"
+              onClick={() => void copyJoinCode(summary.joinCode)}
+              title="Copy join code"
+            >
+              {copied ? 'copied' : summary.joinCode}
+            </button>
+          )}
           {myCiv && !inLobby && (
-            <span className={`badge badge-tier ${tierClass(myCiv.tier)}`}>TTS {myCiv.tier}</span>
+            <span className="badge-tier-hud">{tierLabel(myCiv.tier)}</span>
           )}
         </div>
       </header>
 
-      {!session && (
-        <div className="card join-banner">
-          <div className="row join-row">
-            <input value={playerName} onChange={(e) => setPlayerName(e.target.value)} placeholder="Your name" />
-            <button className="btn btn-primary" disabled={busy} onClick={() => void handleJoin()}>
-              Join
-            </button>
-          </div>
-        </div>
-      )}
-
-      {myGates.map((gate) => (
-        <section key={gate.gateId} className="card gate-card">
-          <p className="gate-kicker">
-            Decision · {formatCountdown(gate.expiresAt)} left
-            <span className="muted"> · default {gate.defaultOptionId}</span>
-          </p>
-          <h2 className="gate-title">{gate.title}</h2>
-          <p className="gate-desc">{gate.description}</p>
-          <div className="gate-options-simple">
-            {gate.options.map((opt) => (
-              <button
-                key={opt.id}
-                className={`btn gate-opt${opt.id === gate.defaultOptionId ? ' gate-opt-default' : ''}`}
-                disabled={busy || !session}
-                onClick={() => void handleResolve(gate.gateId, opt.id)}
-              >
-                <span className="gate-opt-label">{opt.label}</span>
-                {opt.impactHint && <span className="gate-opt-impact">{opt.impactHint}</span>}
-              </button>
-            ))}
-          </div>
-        </section>
-      ))}
-
-      {ended && summary.results.length > 0 && (
-        <section className="card results-block">
-          <h2 className="section-label">Results</h2>
-          <ol className="results-list">
-            {summary.results.map((r) => (
-              <li key={r.civilizationId} className={r.civilizationId === civId ? 'results-you' : ''}>
-                <span className="results-rank">{r.rank}</span>
-                <div className="results-body">
-                  <strong>{r.civilizationName}</strong>
-                  <span className="muted">TTS {r.tier} · {Math.round(r.stability)} stability · {r.outcome}</span>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </section>
-      )}
-
-      {inLobby && (
-        <section className="card">
-          <p className="muted lobby-line">
-            {summary.readyCount}/{summary.minPlayers} ready · {summary.players.length} players · code{' '}
-            <button type="button" className="inline-code" onClick={() => void copyJoinCode(summary.joinCode)}>
-              {copied ? 'copied' : summary.joinCode}
-            </button>
-          </p>
-          <ul className="lobby-list-compact">
-            {summary.players.map((p) => (
-              <li key={p.playerId}>
-                {p.playerName}
-                <span className="muted">{p.civilizationName}</span>
-                {p.isReady && <span className="badge badge-ready">ready</span>}
-              </li>
-            ))}
-          </ul>
-          {session && (
-            <div className="row lobby-actions">
-              {(() => {
-                const me = summary.players.find((p) => p.playerId === session.playerId);
-                const ready = me?.isReady ?? false;
-                return (
-                  <button className="btn" disabled={busy} onClick={() => void handleReady(!ready)}>
-                    {ready ? 'Not ready' : 'Ready'}
-                  </button>
-                );
-              })()}
-              {canStart && (
-                <button className="btn btn-primary" disabled={busy} onClick={() => void handleStart()}>
-                  Start
-                </button>
-              )}
+      <div className="match-layout">
+        {hexMap && (
+          <aside className="match-map-panel">
+            <div className="territory-panel-head">
+              <span className="label-caps">Territory</span>
+              <span className="territory-panel-meta">{territoryMeta}</span>
             </div>
-          )}
-        </section>
-      )}
+            <div className="territory-map-body">
+              <HexMapView
+                map={hexMap}
+                myCivilizationId={session?.civilizationId ?? null}
+                disabled={busy || ended}
+                onClaim={session && !ended && !inLobby ? handleClaimHex : undefined}
+                onSelectionChange={(_, meta) => setTerritoryMeta(meta ?? defaultTerritoryHint())}
+              />
+            </div>
+          </aside>
+        )}
 
-      {!inLobby && (
-        <>
-          {hasAway && (
-            <CollapsibleSection
-              title="While you were away"
-              open={awayOpen}
-              onToggle={setAwayOpen}
-              className="card"
-            >
-              {summary.awaySummaryStructured
-                ? <AwaySummaryView summary={summary.awaySummaryStructured} />
-                : <pre className="away-summary">{summary.awaySummary}</pre>}
-            </CollapsibleSection>
-          )}
-
-          {myCiv && (
-            <section className="card">
-              <CivStatus civ={myCiv} />
-            </section>
-          )}
-
-          {session && dashboard && !ended && (
-            <section className="card policy-bar">
-              <div className="row join-row policy-row">
-                <select value={policyPreset} onChange={(e) => setPolicyPreset(e.target.value)} aria-label="Policy">
-                  {POLICY_PRESETS.map((p) => (
-                    <option key={p.id} value={p.id}>{p.label}</option>
-                  ))}
-                </select>
-                <button className="btn btn-primary" disabled={busy} onClick={() => void handlePolicySave()}>
-                  Save
+        <div className="match-main">
+          {!session && (
+            <div className="join-banner">
+              <p className="label-caps">Join match</p>
+              <div className="row join-row">
+                <input value={playerName} onChange={(e) => setPlayerName(e.target.value)} placeholder="Governor name" />
+                <button className="btn btn-primary" disabled={busy} onClick={() => void handleJoin()}>
+                  Join
                 </button>
               </div>
-              {dashboard.recommendedTech && (
-                <p className="muted policy-next">
-                  Next research: <strong>{dashboard.recommendedTech.name}</strong>
-                </p>
+            </div>
+          )}
+
+          {myGates.map((gate) => (
+            <section key={gate.gateId} className="gate-hero">
+              <div className="gate-hero-head">
+                <div className="gate-hero-head-left">
+                  <div className="gate-hero-icon">
+                    <span className="material-symbols-outlined">gavel</span>
+                  </div>
+                  <span className="gate-hero-label">Decision · {formatGateCountdown(gate.expiresAt)}</span>
+                </div>
+                <div className="gate-pulse-dots" aria-hidden>
+                  <span className="gate-pulse-dot gate-pulse-dot-live" />
+                  <span className="gate-pulse-dot gate-pulse-dot-dim" />
+                </div>
+              </div>
+              <h2 className="gate-title">{gate.title}</h2>
+              <p className="gate-desc">{gate.description}</p>
+              <div className="gate-options-grid">
+                {gate.options.map((opt, i) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    className={gateOptionClass(i, opt.label)}
+                    disabled={busy || !session}
+                    onClick={() => void handleResolve(gate.gateId, opt.id)}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </section>
+          ))}
+
+          {ended && summary.results.length > 0 && (
+            <section className="results-block">
+              <h2 className="label-caps">Final standings</h2>
+              <ol className="results-list">
+                {summary.results.map((r) => (
+                  <li key={r.civilizationId} className={r.civilizationId === civId ? 'results-you' : ''}>
+                    <span className="results-rank">{r.rank}</span>
+                    <div className="results-body">
+                      <strong>{r.civilizationName}</strong>
+                      <span className="muted">TTS {r.tier} · {Math.round(r.stability)} stability · {r.outcome}</span>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
+          {inLobby && (
+            <section className="lobby-card">
+              <div className="lobby-card-head">
+                <h2 className="label-caps">Lobby</h2>
+                <button type="button" className="inline-code" onClick={() => void copyJoinCode(summary.joinCode)}>
+                  {copied ? 'copied' : summary.joinCode}
+                </button>
+              </div>
+              <ul className="lobby-list-compact">
+                {summary.players.map((p) => (
+                  <li key={p.playerId}>
+                    {p.playerName}
+                    <span className="muted">{p.civilizationName}</span>
+                    {p.isReady && <span className="badge badge-ready">ready</span>}
+                  </li>
+                ))}
+              </ul>
+              {session && (
+                <div className="row lobby-actions">
+                  {(() => {
+                    const me = summary.players.find((p) => p.playerId === session.playerId);
+                    const ready = me?.isReady ?? false;
+                    return (
+                      <button className="btn" disabled={busy} onClick={() => void handleReady(!ready)}>
+                        {ready ? 'Not ready' : 'Ready up'}
+                      </button>
+                    );
+                  })()}
+                  {canStart && (
+                    <button className="btn btn-primary" disabled={busy} onClick={() => void handleStart()}>
+                      Start match
+                    </button>
+                  )}
+                </div>
               )}
             </section>
           )}
 
-          <CollapsibleSection
-            title="More"
-            subtitle={moreSubtitle}
-            open={moreOpen}
-            onToggle={setMoreOpen}
-            className="card more-panel"
-          >
-            <div className="more-sections">
-              {!inLobby && !ended && (
-                <p className="muted more-line">
-                  Victory TTS {summary.victoryTier}+ · {Math.round(summary.victoryStabilityMin)}+ stability · code{' '}
-                  <button type="button" className="inline-code" onClick={() => void copyJoinCode(summary.joinCode)}>
-                    {copied ? 'copied' : summary.joinCode}
-                  </button>
-                </p>
-              )}
-
-              {summary.llmStatus && !inLobby && (
-                <LlmLine status={summary.llmStatus} />
-              )}
-
-              {summary.regions.length > 0 && (
-                <div className="more-block">
-                  <h3 className="more-label">Cities</h3>
-                  {myCities.map((c) => <CityLine key={c.id} city={c} mine modern={showModernStats} />)}
-                  {otherCities.map((c) => <CityLine key={c.id} city={c} mine={false} modern={showModernStats} />)}
-                </div>
-              )}
-
-              {rivals.length > 0 && (
-                <div className="more-block">
-                  <h3 className="more-label">Rivals</h3>
-                  {rivals.map((r) => <RivalLine key={r.id} civ={r} />)}
-                </div>
-              )}
-
-              {dashboard?.crime && showModernStats && (
-                <div className="more-block">
-                  <h3 className="more-label">Crime pressure</h3>
-                  <p className="muted">
-                    Average {dashboard.crime.averageCrimePressure.toFixed(0)}
-                    {dashboard.crime.cybersecurityMitigationActive && ' · cybersecurity active'}
-                  </p>
-                </div>
-              )}
-
-              {myCiv && myCiv.tier >= 4 && session && (
-                <div className="more-block advisor-block">
-                  <div className="row spread">
-                    <h3 className="more-label">Advisor</h3>
-                    <button type="button" className="btn btn-sm" disabled={advisorLoading} onClick={() => void refreshAdvisor()}>
-                      {advisorLoading ? '…' : 'Ask'}
-                    </button>
-                  </div>
-                  <p className="advisor-text">{advisor?.briefing ?? 'Tap Ask for guidance.'}</p>
-                </div>
-              )}
-
-              {dashboard && session && (
-                <div className="more-block">
-                  <h3 className="more-label">Technology tree</h3>
-                  <TechTreeView
-                    nodes={dashboard.techTree ?? []}
-                    currentTier={myCiv?.tier ?? 1}
-                    recommendedId={dashboard.recommendedTech?.id}
-                    startingTier={summary.startingTier}
-                  />
-                </div>
-              )}
-
-              {summary.tickLogs.length > 0 && (
-                <div className="more-block">
-                  <h3 className="more-label">Match log</h3>
-                  <div className="log-scroll">
-                    {summary.tickLogs.map((entry) => (
-                      <div key={entry.tick} className="log-tick">
-                        <p className="log-tick-title">Tick {entry.tick}</p>
-                        <ul className="simple-list compact">
-                          {entry.lines.map((line) => (
-                            <li key={line} className="muted">{line}</li>
-                          ))}
-                        </ul>
+          {!inLobby && (
+            <>
+              {(myCiv || (session && dashboard && !ended)) && (
+                <section className="match-command">
+                  {myCiv && (
+                    <div className="command-strip-top">
+                      <div className="command-strip-vitals">
+                        <h3 className="command-strip-name">{myCiv.name}</h3>
+                        <p className="command-strip-kicker">Faction overview · {tierLabel(myCiv.tier)}</p>
+                        <div className="pillar-grid">
+                          {[
+                            ['Social', myCiv.politicalStability, 'green'],
+                            ['Econ', myCiv.economicStability, 'amber'],
+                            ['Order', myCiv.technologicalStability, 'blue'],
+                          ].map(([label, value]) => {
+                            const pct = Math.round(Math.max(0, Math.min(100, value as number)));
+                            return (
+                              <div key={label as string}>
+                                <div className="pillar-row-label">
+                                  <span>{label as string}</span>
+                                  <span>{pct}%</span>
+                                </div>
+                                <div className="pillar-bar">
+                                  <div className={pillarFillClass(pct)} style={{ width: `${pct}%` }} />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {myCiv.lastAction && <p className="muted policy-next">{myCiv.lastAction}</p>}
                       </div>
-                    ))}
-                  </div>
-                </div>
+                      <div className="command-strip-score">
+                        <span className="command-strip-score-value">{Math.round(myCiv.averageStability)}</span>
+                        <span className="command-strip-score-label">Stability index</span>
+                      </div>
+                    </div>
+                  )}
+                  {session && dashboard && !ended && (
+                    <div className="match-command-policy">
+                      <div className="policy-select-wrap">
+                        <select
+                          id="policy-select"
+                          value={policyPreset}
+                          onChange={(e) => setPolicyPreset(e.target.value)}
+                          aria-label="Governance policy"
+                        >
+                          {POLICY_PRESETS.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.id === policyPreset ? `Current policy: ${p.label}` : p.label}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="material-symbols-outlined policy-select-chevron">expand_more</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-save-policy"
+                        disabled={busy}
+                        onClick={() => void handlePolicySave()}
+                      >
+                        Save policy
+                      </button>
+                    </div>
+                  )}
+                  {dashboard?.recommendedTech && !ended && (
+                    <p className="policy-next">
+                      Researching next: <strong>{dashboard.recommendedTech.name}</strong>
+                    </p>
+                  )}
+                </section>
               )}
-            </div>
-          </CollapsibleSection>
-        </>
-      )}
 
-      {error && <p className="error match-error">{error}</p>}
+              {myCiv && session && !ended && (
+                <StrategicAdvisorPanel
+                  tier={myCiv.tier}
+                  advisor={advisor}
+                  loading={advisorLoading}
+                  canRefresh={!!session}
+                  canApply={!!session && !busy}
+                  llmStatus={summary.llmStatus}
+                  activeGate={myGates[0] ?? null}
+                  onRefresh={() => void refreshAdvisor()}
+                  onApplyRecommendation={(gateId, optionId) => void handleResolve(gateId, optionId)}
+                />
+              )}
+
+              <div className="match-accordions">
+                {hasAway && (
+                  <AccordionSection icon="history" title="While you were away" defaultOpen>
+                    {summary.awaySummaryStructured
+                      ? <AwaySummaryView summary={summary.awaySummaryStructured} />
+                      : <pre className="away-summary">{summary.awaySummary}</pre>}
+                  </AccordionSection>
+                )}
+
+                {summary.regions.length > 0 && (
+                  <AccordionSection icon="location_city" title="Metropolitan hubs" defaultOpen={myCities.length > 0}>
+                    <div className="city-grid">
+                      {[...myCities, ...otherCities].map((city) => {
+                        const mine = city.controllingCivilizationId === civId;
+                        const status = cityStatus(city, showModernStats);
+                        return (
+                          <div key={city.id} className={`city-card${mine ? ' city-card-mine' : ''}`}>
+                            <div>
+                              <span className="city-card-name">{city.name}</span>
+                              <p className="muted" style={{ margin: '0.15rem 0 0', fontSize: '12px' }}>
+                                {city.controllingCivilizationName ?? 'Unclaimed'} · pop {formatPopulation(city.population)}
+                                {showModernStats && city.gdpPerCapita > 0 ? ` · crime ${Math.round(city.crimePressure)}` : ''}
+                              </p>
+                            </div>
+                            <span className={`label-caps city-status-${status.tone}`}>{status.label}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </AccordionSection>
+                )}
+
+                <AccordionSection icon="groups" title="Global competitors" defaultOpen={rivals.length > 0 && rivals.length <= 3}>
+                  {rivals.length === 0 ? (
+                    <p className="accordion-empty">Scanning for regional rivals…</p>
+                  ) : (
+                    <div className="rival-grid">
+                      {rivals.map((civ) => (
+                        <div key={civ.id} className="rival-card">
+                          <strong>{civ.name}</strong>
+                          <span>TTS {civ.tier} · {Math.round(civ.averageStability)} stability</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </AccordionSection>
+
+                {dashboard?.crime && showModernStats && (
+                  <AccordionSection icon="shield" title="Crime pressure">
+                    <p className="accordion-empty" style={{ fontStyle: 'normal' }}>
+                      Average {dashboard.crime.averageCrimePressure.toFixed(0)}
+                      {dashboard.crime.cybersecurityMitigationActive && ' · cybersecurity active'}
+                    </p>
+                  </AccordionSection>
+                )}
+
+                {dashboard && session && (
+                  <AccordionSection icon="account_tree" title="Technological tree">
+                    <TechTreeView
+                      nodes={dashboard.techTree ?? []}
+                      currentTier={myCiv?.tier ?? 1}
+                      recommendedId={dashboard.recommendedTech?.id}
+                      startingTier={summary.startingTier}
+                    />
+                  </AccordionSection>
+                )}
+
+                <AccordionSection icon="article" title="Match log">
+                  {!ended && (
+                    <p className="muted" style={{ margin: '0 0 0.75rem', fontSize: '12px' }}>
+                      Victory TTS {summary.victoryTier}+ · {Math.round(summary.victoryStabilityMin)}+ stability
+                      {summary.llmStatus && ` · ${summary.llmStatus.statusMessage}`}
+                    </p>
+                  )}
+                  {summary.tickLogs.length === 0 ? (
+                    <p className="accordion-empty">No events logged yet.</p>
+                  ) : (
+                    <div className="log-scroll">
+                      {summary.tickLogs.map((entry) => (
+                        <div key={entry.tick} className="log-tick">
+                          <p className="log-tick-title">Tick {entry.tick}</p>
+                          <ul className="simple-list compact">
+                            {entry.lines.map((line) => (
+                              <li key={line} className="muted">{line}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </AccordionSection>
+              </div>
+            </>
+          )}
+
+          {error && <p className="error match-error">{error}</p>}
+        </div>
+      </div>
     </div>
   );
-}
-
-function LlmLine({ status }: { status: LlmLayerStatus }) {
-  return <p className="muted more-line">{status.statusMessage}</p>;
 }

@@ -10,12 +10,19 @@ public static class SampleWorldFactory
     public static WorldState Create(bool withDemoGate = false) =>
         Create(MatchPresets.Sprint8h, withDemoGate);
 
-    public static WorldState Create(MatchConfig config, bool withDemoGate = false)
+    public static WorldState Create(MatchConfig config, bool withDemoGate = false, string? matchId = null, bool useStandardArena = false, int? worldSeed = null)
     {
         var world = new WorldState();
-        var (player, _) = WorldBlueprint.ApplyStandardArena(world);
+        matchId ??= $"match-{Guid.NewGuid():N}"[..12];
+        var generation = useStandardArena
+            ? WorldGenerationOptions.Standard(matchId)
+            : WorldGenerationOptions.FromMatch(config, matchId, worldSeed);
 
-        world.Match = new MatchState($"match-{Guid.NewGuid():N}"[..12], config, DateTimeOffset.UtcNow);
+        var generator = WorldGenerators.Resolve(generation);
+        var (player, _) = generator.Generate(world, generation);
+
+        world.Match = new MatchState(matchId, config, DateTimeOffset.UtcNow, generation.Seed);
+        HexMapBootstrap.Attach(world);
 
         if (withDemoGate)
             AttachDemoGate(world, player, config);
@@ -83,7 +90,7 @@ public static class SampleWorldFactory
                 player.Id,
                 GateType.CrimePressure,
                 "Data sovereignty dispute",
-                "Platform regulators and civic groups clash over cross-border data flows in Meridian Bay.",
+                $"Platform regulators and civic groups clash over cross-border data flows in {CapitalName(world, player)}.",
                 GateOptionTemplates.DemoCrimePressure,
                 defaultOptionId: "invest",
                 world.SimulatedNow,
@@ -95,11 +102,14 @@ public static class SampleWorldFactory
             "gate-demo-start",
             player.Id,
             GateType.FactionCrisis,
-            "Granary dispute in Meridian Bay",
-            "Merchants and farmers quarrel over grain storage and road tolls as the young settlement grows.",
+            $"Granary dispute in {CapitalName(world, player)}",
+            $"Merchants and farmers quarrel over grain storage and road tolls as {CapitalName(world, player)} grows.",
             GateOptionTemplates.DemoFactionStone,
             defaultOptionId: "appease",
             world.SimulatedNow,
             world.SimulatedNow + window));
     }
+
+    private static string CapitalName(WorldState world, Civilization civ) =>
+        world.Regions.FirstOrDefault(r => r.ControllingCivilizationId == civ.Id)?.Name ?? "the capital";
 }

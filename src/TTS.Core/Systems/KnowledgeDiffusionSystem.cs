@@ -7,6 +7,10 @@ using TTS.Core.Models;
 /// </summary>
 public class KnowledgeDiffusionSystem
 {
+    private Random _random = new();
+
+    public void UseSeed(int seed) => _random = new Random(seed);
+
     public void Diffuse(WorldState world)
     {
         foreach (var link in world.KnowledgeNetworks)
@@ -32,6 +36,4 @@ public class KnowledgeDiffusionSystem
     {
         return new KnowledgeNetwork(sourceId, targetId, channel);
     }
-
-    private readonly Random _random = new();
 }

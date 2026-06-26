@@ -41,7 +41,7 @@ public sealed class WorldGrain : Grain, IWorldGrain
     public override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
         EnsureAgents();
-        var savePath = ResolveSavePath(this.GetPrimaryKeyString());
+        var savePath = MatchSavePaths.ResolveSavePath(this.GetPrimaryKeyString());
         if (File.Exists(savePath))
             _host = MatchHost.Load(savePath, EnsureAgents().TurnAgent);
 
@@ -51,27 +51,32 @@ public sealed class WorldGrain : Grain, IWorldGrain
         await base.OnActivateAsync(cancellationToken);
     }
 
-    public Task InitializeMatchAsync(string modeId, bool withDemoGate = false)
+    public Task InitializeMatchAsync(string modeId, bool withDemoGate = false, int? worldSeed = null)
     {
-        var savePath = ResolveSavePath(this.GetPrimaryKeyString());
-        Directory.CreateDirectory(Path.GetDirectoryName(savePath)!);
+        var matchId = this.GetPrimaryKeyString();
+        var savePath = MatchSavePaths.ResolveSavePath(matchId);
+        Directory.CreateDirectory(MatchSavePaths.ResolveDirectory());
 
-        _host = MatchHost.CreateNew(MatchPresets.Resolve(modeId), savePath, withDemoGate, llmTurnAgent: EnsureAgents().TurnAgent);
+        _host = MatchHost.CreateNew(
+            MatchPresets.Resolve(modeId),
+            savePath,
+            withDemoGate,
+            llmTurnAgent: EnsureAgents().TurnAgent,
+            matchId: matchId,
+            worldSeed: worldSeed);
         _host.Save();
         return Task.CompletedTask;
     }
 
-    public async Task<GrainMatchStatus> GetStatusAsync()
+    public Task<GrainMatchStatus> GetStatusAsync()
     {
-        await EnrichGateFablesAsync();
-        return GrainMapping.ToGrain(RequireHost().GetStatus(DateTimeOffset.UtcNow));
+        return Task.FromResult(GrainMapping.ToGrain(RequireHost().GetStatus(DateTimeOffset.UtcNow)));
     }
 
     public async Task<GrainTickResult> AdvanceTickIfDueAsync()
     {
         var host = RequireHost();
         var result = host.TryRunDueTick(DateTimeOffset.UtcNow);
-        await EnrichGateFablesAsync();
 
         if (host.World.Match?.Status != MatchStatus.Running)
             StopTickTimer();
@@ -243,45 +248,27 @@ public sealed class WorldGrain : Grain, IWorldGrain
         var host = RequireHost();
         var civ = host.World.Civilizations.FirstOrDefault(c => c.Id == civilizationId);
         if (civ is null)
-        {
-            return new GrainAdvisorBriefing(
-                false,
-                "Civilization not found.",
-                "system");
-        }
+            return ToGrain(StrategicAdvisorBuilder.Unavailable("Civilization not found.", "system"), available: false);
 
         if ((int)civ.CurrentTier < (int)TechTier.InformationAge)
         {
-            return new GrainAdvisorBriefing(
-                false,
-                "Strategic advisor unlocks at TTS 4 (Information Age).",
-                "system");
+            return ToGrain(
+                StrategicAdvisorBuilder.Unavailable(
+                    "Strategic advisor unlocks at TTS 4 (Information Age).",
+                    "locked"),
+                available: false);
         }
 
         var tools = host.CreateToolSurface();
-        var analysis = tools.GetPolicyResearchAnalysis(civilizationId);
-        var rec = analysis.Recommended?.Name ?? "none";
-        var branchSummary = string.Join(", ",
-            analysis.BranchWeights.OrderByDescending(kvp => kvp.Value).Take(3).Select(kvp => $"{kvp.Key} {kvp.Value:P0}"));
+        var classical = StrategicAdvisorBuilder.BuildClassical(civ, tools);
 
         if ((int)civ.CurrentTier < (int)TechTier.EarlyAI)
-        {
-            return new GrainAdvisorBriefing(
-                true,
-                $"Policy advisor: stance {analysis.ResearchStance}, risk {analysis.RiskTolerance}. " +
-                $"Top branches: {branchSummary}. Recommended research: {rec}.",
-                "classical");
-        }
+            return ToGrain(classical);
 
         var settings = AgentProviderSettings.FromEnvironment();
         var workflow = EnsureAgents().Workflow;
         if (!settings.AgentsEnabled || workflow is null)
-        {
-            return new GrainAdvisorBriefing(
-                true,
-                $"Classical advisor: policy {analysis.ResearchStance}, risk {analysis.RiskTolerance}. Recommended research: {rec}.",
-                "classical");
-        }
+            return ToGrain(classical with { Source = "classical" });
 
         var match = host.World.Match;
         var tick = match?.TickCount ?? 0;
@@ -292,26 +279,58 @@ public sealed class WorldGrain : Grain, IWorldGrain
                 SharedLimits.MaxAdvisorCallsPerMatchTick,
                 AgentRateLimitScopes.Advisor))
         {
-            return new GrainAdvisorBriefing(
-                true,
-                "Advisor rate limit reached for this tick — try again next tick.",
-                "rate-limit");
+            return ToGrain(classical with
+            {
+                Headline = "AI advisor rate limit reached for this tick",
+                Highlights = PrependHighlight(classical.Highlights, "Showing classical analysis until the next tick"),
+                Source = "rate-limit",
+            });
         }
 
         using var cts = new CancellationTokenSource(SharedLimits.AdvisorTimeout);
-        var briefing = await workflow.RunAdvisorBriefingAsync(
+        var analysis = tools.GetPolicyResearchAnalysis(civilizationId);
+        var llmText = await workflow.RunAdvisorBriefingAsync(
             civilizationId,
-            host.CreateToolSurface(),
+            tools,
             SharedLimits,
             cts.Token);
 
-        return briefing is not null
-            ? new GrainAdvisorBriefing(true, briefing, "llm-tools")
-            : new GrainAdvisorBriefing(
-                true,
-                "Advisor unavailable — use policy panel and tech tree. Set TTS_LLM_PROVIDER=none to skip LLM.",
-                "fallback");
+        if (llmText is not null)
+            return ToGrain(StrategicAdvisorBuilder.FromLlmText(llmText, civ, tools, analysis));
+
+        return ToGrain(classical with
+        {
+            Headline = "AI advisor unavailable — classical briefing",
+            Highlights = PrependHighlight(classical.Highlights, "LLM provider offline or timed out"),
+            Source = "fallback",
+        });
     }
+
+    private static IReadOnlyList<string> PrependHighlight(IReadOnlyList<string> highlights, string line) =>
+        new[] { line }.Concat(highlights).Take(4).ToList();
+
+    private static GrainAdvisorBriefing ToGrain(StrategicAdvisorBriefing briefing, bool? available = null) =>
+        new(
+            available ?? briefing.Source is not ("system" or "locked"),
+            briefing.Briefing,
+            briefing.Source,
+            briefing.Headline,
+            briefing.Highlights.ToList(),
+            briefing.RecommendedTechId,
+            briefing.RecommendedTechName,
+            MapGateFocus(briefing.GateFocus));
+
+    private static GrainAdvisorGateFocus? MapGateFocus(AdvisorGateFocus? focus) =>
+        focus is null
+            ? null
+            : new GrainAdvisorGateFocus(
+                focus.GateId,
+                focus.Title,
+                focus.Type.ToString(),
+                focus.Rationale,
+                focus.RecommendedOptionId,
+                focus.RecommendedOptionLabel,
+                focus.Options.Select(o => new GrainAdvisorOptionGuidance(o.OptionId, o.Label, o.Stance, o.Note)).ToList());
 
     public Task<GrainLlmLayerStatus> GetLlmLayerStatusAsync()
     {
@@ -367,6 +386,34 @@ public sealed class WorldGrain : Grain, IWorldGrain
             .ToList();
 
         return Task.FromResult<IReadOnlyList<GrainRegionDetail>>(regions);
+    }
+
+    public Task<GrainHexMap?> GetHexMapAsync()
+    {
+        var host = _host;
+        if (host?.World.Map is not { } map)
+            return Task.FromResult<GrainHexMap?>(null);
+
+        var capitals = host.World.Regions
+            .Where(r => !string.IsNullOrEmpty(r.CapitalHexKey) && r.ControllingCivilizationId is not null)
+            .ToDictionary(r => r.ControllingCivilizationId!, r => r.CapitalHexKey!, StringComparer.Ordinal);
+
+        var capitalKeys = capitals.Values.ToHashSet(StringComparer.Ordinal);
+        var tiles = map.Tiles.Select(t => new GrainHexTile(
+            t.Q,
+            t.R,
+            t.Biome.ToString(),
+            t.ResourceYield,
+            t.ControllingCivilizationId,
+            capitalKeys.Contains(t.Key))).ToList();
+
+        return Task.FromResult<GrainHexMap?>(new GrainHexMap(map.Width, map.Height, map.Seed, tiles, capitals));
+    }
+
+    public Task<GrainTerritoryClaimResult> ClaimTerritoryAsync(string civilizationId, int q, int r)
+    {
+        var result = RequireHost().ClaimTerritory(civilizationId, q, r);
+        return Task.FromResult(new GrainTerritoryClaimResult(result.Success, result.Message, result.HexKey));
     }
 
     private void RegisterTickTimer()
@@ -465,7 +512,4 @@ public sealed class WorldGrain : Grain, IWorldGrain
 
     private MatchHost RequireHost() =>
         _host ?? throw new InvalidOperationException("World grain is not initialized. Call InitializeMatchAsync first.");
-
-    private static string ResolveSavePath(string matchId) =>
-        Path.Combine(AppContext.BaseDirectory, "matches", $"{matchId}.json");
 }

@@ -6,7 +6,7 @@ namespace TTS.Contracts;
 
 public interface IWorldGrain : IGrainWithStringKey
 {
-    Task InitializeMatchAsync(string modeId, bool withDemoGate = false);
+    Task InitializeMatchAsync(string modeId, bool withDemoGate = false, int? worldSeed = null);
     Task<GrainMatchStatus> GetStatusAsync();
     Task<GrainTickResult> AdvanceTickIfDueAsync();
     Task<GrainDecisionResult> ResolveDecisionAsync(string civilizationId, string gateId, string optionId);
@@ -21,6 +21,8 @@ public interface IWorldGrain : IGrainWithStringKey
     Task UpdatePolicyAsync(string civilizationId, string presetId);
     Task StartMatchAsync();
     Task<IReadOnlyList<GrainRegionDetail>> GetRegionsAsync();
+    Task<GrainHexMap?> GetHexMapAsync();
+    Task<GrainTerritoryClaimResult> ClaimTerritoryAsync(string civilizationId, int q, int r);
     Task<GrainLlmLayerStatus> GetLlmLayerStatusAsync();
 }
 

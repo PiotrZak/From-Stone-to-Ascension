@@ -27,6 +27,25 @@ public static class InformationAgeTechSpine
         "tech-satellite"
     ];
 
+    public static IEnumerable<string> ResolvePriorEraFoundation(WorldState world, TechTier startingTier) =>
+        world.Technologies
+            .Where(t => t.Tier < startingTier && !t.IsForbidden)
+            .OrderBy(t => (int)t.Tier)
+            .ThenBy(t => t.Id)
+            .Select(t => t.Id);
+
+    public static IEnumerable<string> ResolveBootstrapTechIds(WorldState world, TechTier startingTier, bool extended = true)
+    {
+        if (startingTier < TechTier.InformationAge)
+            return [];
+
+        var spine = extended ? ExtendedTechIds : BaselineTechIds;
+        var available = world.Technologies.Select(t => t.Id).ToHashSet();
+        return ResolvePriorEraFoundation(world, startingTier)
+            .Concat(spine.Where(available.Contains))
+            .Distinct();
+    }
+
     public static IEnumerable<string> ResolveFor(WorldState world, bool extended = true)
     {
         var ids = extended ? ExtendedTechIds : BaselineTechIds;
@@ -39,9 +58,11 @@ public static class InformationAgeTechSpine
         if (startingTier < TechTier.InformationAge)
             return;
 
+        var bootstrapIds = ResolveBootstrapTechIds(world, startingTier).ToList();
+
         foreach (var civ in world.Civilizations)
         {
-            WorldAdvancer.ResearchTechnologies(world, civ, ResolveFor(world), services);
+            WorldAdvancer.GrantResearchHistory(civ, bootstrapIds);
             WorldAdvancer.SetTier(civ, TechTier.InformationAge);
             civ.PoliticalStability = civ.IsPlayerControlled ? 60 : 58;
             civ.EconomicStability = civ.IsPlayerControlled ? 58 : 56;

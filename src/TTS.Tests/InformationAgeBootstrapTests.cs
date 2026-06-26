@@ -16,6 +16,30 @@ public class InformationAgeBootstrapTests
             Assert.Equal(TechTier.InformationAge, civ.CurrentTier);
             Assert.Contains("tech-computing", civ.ResearchedTechnologyIds);
             Assert.Contains("tech-cybersecurity", civ.ResearchedTechnologyIds);
+
+            var priorEra = world.Technologies
+                .Where(t => t.Tier < TechTier.InformationAge && !t.IsForbidden);
+            foreach (var tech in priorEra)
+                Assert.Contains(tech.Id, civ.ResearchedTechnologyIds);
+        }
+    }
+
+    [Fact]
+    public void SprintMatch_DoesNotPreResearchForbiddenPriorEraTech()
+    {
+        var world = SampleWorldFactory.Create(MatchPresets.Sprint8h);
+        var forbiddenPrior = world.Technologies
+            .Where(t => t.Tier < TechTier.InformationAge && t.IsForbidden)
+            .Select(t => t.Id)
+            .ToList();
+
+        if (forbiddenPrior.Count == 0)
+            return;
+
+        foreach (var civ in world.Civilizations)
+        {
+            foreach (var id in forbiddenPrior)
+                Assert.DoesNotContain(id, civ.ResearchedTechnologyIds);
         }
     }
 

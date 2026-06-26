@@ -17,6 +17,7 @@ public sealed class SimulationServices
     public EconomySystem Economy { get; } = new();
     public WinLossSystem WinLoss { get; } = new();
     public DecisionGateSystem DecisionGates { get; } = new();
+    public TerritorySystem Territory { get; } = new();
     public AwaySummaryBuilder AwaySummary { get; } = new();
     public TickScheduler Scheduler { get; } = new();
     public AutoPolicySystem AutoPolicy { get; }
@@ -27,11 +28,17 @@ public sealed class SimulationServices
     public TurnSnapshot? CurrentTurnSnapshot { get; private set; }
     public List<TurnSnapshot> TurnHistory { get; } = [];
 
-    public SimulationServices()
+    public SimulationServices(int? worldSeed = null)
     {
         AutoPolicy = new AutoPolicySystem(TechTree);
         Research = new ResearchExecutor(TechTree, ForbiddenTech);
         ClassicalAi = new ClassicalAiSystem(this);
+
+        if (worldSeed.HasValue)
+        {
+            GlobalEvents.UseSeed(worldSeed.Value);
+            KnowledgeDiffusion.UseSeed(worldSeed.Value + 31);
+        }
     }
 
     public void BeginTurn(WorldState world)

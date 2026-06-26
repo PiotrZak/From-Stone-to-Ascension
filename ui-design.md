@@ -5,6 +5,7 @@
 **Status:** MVP in progress — `TTS.Web` (React) + `TTS.Api` (REST) wired to Orleans
 
 **Related:**
+- [assets/match-ui-stitch.md](assets/match-ui-stitch.md) — Stitch / AI UI design brief for match dashboard
 - [match-modes.md](match-modes.md) — match lengths, lifecycle diagrams
 - [async-multiplayer-gameplay.md](async-multiplayer-gameplay.md) — governor gameplay, away summary
 - [implementation-plan.md](implementation-plan.md) — Phase 6 API, Phase 9 polish

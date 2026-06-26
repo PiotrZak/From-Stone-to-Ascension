@@ -6,9 +6,9 @@ public sealed class OrleansMatchService(IClusterClient client)
 {
     public IWorldGrain GetGrain(string matchId) => client.GetGrain<IWorldGrain>(matchId);
 
-    public async Task InitializeMatchAsync(string matchId, string modeId, bool withDemoGate)
+    public async Task InitializeMatchAsync(string matchId, string modeId, bool withDemoGate, int? worldSeed = null)
     {
         var grain = GetGrain(matchId);
-        await grain.InitializeMatchAsync(modeId, withDemoGate);
+        await grain.InitializeMatchAsync(modeId, withDemoGate, worldSeed);
     }
 }

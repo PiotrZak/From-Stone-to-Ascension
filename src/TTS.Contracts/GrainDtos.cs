@@ -127,10 +127,32 @@ public sealed record GrainCivDashboard(
     [property: Id(10)] int ResearchSlotsPerTurn);
 
 [GenerateSerializer]
+public sealed record GrainAdvisorOptionGuidance(
+    [property: Id(0)] string OptionId,
+    [property: Id(1)] string Label,
+    [property: Id(2)] string Stance,
+    [property: Id(3)] string Note);
+
+[GenerateSerializer]
+public sealed record GrainAdvisorGateFocus(
+    [property: Id(0)] string GateId,
+    [property: Id(1)] string Title,
+    [property: Id(2)] string GateType,
+    [property: Id(3)] string Rationale,
+    [property: Id(4)] string RecommendedOptionId,
+    [property: Id(5)] string RecommendedOptionLabel,
+    [property: Id(6)] List<GrainAdvisorOptionGuidance> Options);
+
+[GenerateSerializer]
 public sealed record GrainAdvisorBriefing(
     [property: Id(0)] bool Available,
     [property: Id(1)] string Briefing,
-    [property: Id(2)] string Source);
+    [property: Id(2)] string Source,
+    [property: Id(3)] string Headline = "",
+    [property: Id(4)] List<string>? Highlights = null,
+    [property: Id(5)] string? RecommendedTechId = null,
+    [property: Id(6)] string? RecommendedTechName = null,
+    [property: Id(7)] GrainAdvisorGateFocus? GateFocus = null);
 
 [GenerateSerializer]
 public sealed record GrainRecommendedTech(
@@ -207,3 +229,26 @@ public sealed record GrainCivDetail(
     [property: Id(7)] string PolicyLabel,
     [property: Id(8)] int TechCount,
     [property: Id(9)] string? LastAction);
+
+[GenerateSerializer]
+public sealed record GrainHexTile(
+    [property: Id(0)] int Q,
+    [property: Id(1)] int R,
+    [property: Id(2)] string Biome,
+    [property: Id(3)] double ResourceYield,
+    [property: Id(4)] string? ControllingCivilizationId,
+    [property: Id(5)] bool IsCapital);
+
+[GenerateSerializer]
+public sealed record GrainHexMap(
+    [property: Id(0)] int Width,
+    [property: Id(1)] int Height,
+    [property: Id(2)] int Seed,
+    [property: Id(3)] List<GrainHexTile> Tiles,
+    [property: Id(4)] Dictionary<string, string> CapitalHexByCivilizationId);
+
+[GenerateSerializer]
+public sealed record GrainTerritoryClaimResult(
+    [property: Id(0)] bool Success,
+    [property: Id(1)] string Message,
+    [property: Id(2)] string? HexKey);
