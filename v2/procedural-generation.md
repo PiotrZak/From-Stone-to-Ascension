@@ -1,18 +1,73 @@
 # Procedural Generation — Design & Integration
 
 **Project:** TTS — Technology Tier Simulation  
-**Status:** Exploration / v2 planning  
-**Related:** [hex-map.md](hex-map.md) · [economy.md](../economy.md) · [tech-tree.md](../tech-tree.md) · [implementation-plan.md](../implementation-plan.md)
+**Status:** **Partial — M3 world bootstrap shipped** · Phase 7 content pipelines still planned  
+**Related:** [hex-map.md](hex-map.md) · [README.md](README.md) · [economy.md](../economy.md) · [tech-tree.md](../tech-tree.md) · [implementation-plan.md](../implementation-plan.md)
 
 ---
 
 ## Executive summary
 
-The codebase is well-structured for procedural **content** (worlds, tech, events, narrative), but not for procedural **terrain**. Worlds are abstract graphs of **civilizations → regions (cities/territories) → scalar stats**, plus a shared **technology catalog**. All initial world state flows through a single hardcoded factory (`SampleWorldFactory`). Procedural/random behavior exists only in **runtime systems** (global events, knowledge diffusion) and **LLM narrative** (gate fables, offline tech-lore scenarios). There is **no seed parameter** anywhere in the C# codebase. Planned procedural work (Phase 7) targets **tech-tree expansion** and **MAF content pipelines**, not hex maps or noise-based terrain.
+**Shipped (M3):** Matches can bootstrap from a **seeded procedural world** — civ names, city names, factions, and crime CSV anchors are generated via `ProceduralWorldGenerator`. `MatchState.WorldSeed` drives reproducible `GlobalEventSystem` and `KnowledgeDiffusionSystem` rolls. Optional `seed` on `POST /api/matches` overrides the hash derived from `matchId`. A **fixed arena** path (`StandardWorldGenerator` / `useStandardArena: true`) preserves Aurora / Iron Dominion for tests.
+
+**Still abstract:** Regions remain socioeconomic cards (not tiles). **Terrain** is handled separately in [hex-map.md](hex-map.md) (`HexMapGenerator`, value noise). **Not yet built:** procedural tech-tree fusion (Phase 7), procedural gate copy, procedural events beyond fixed templates.
 
 ---
 
-## 1. Current world creation flow
+## 0. Shipped (M3 / current)
+
+| Capability | Location | Notes |
+|------------|----------|-------|
+| `WorldGenerationOptions` + `MatchSeeds` | `Simulation/WorldGenerationOptions.cs` | Seed from `matchId` or API override |
+| `IWorldGenerator` | `ProceduralWorldGenerator`, `StandardWorldGenerator` | Selected by `UseStandardArena` |
+| Seeded civ/city names | `WorldNameGenerator.cs` | Deterministic from world seed |
+| Crime CSV anchors | `ProceduralWorldGenerator` | Picks state rows from seed; not fixed CA/LA only |
+| `WorldState.Match.WorldSeed` | `MatchState` | Persisted; feeds hex map + runtime RNG |
+| Seeded global events | `GlobalEventSystem.UseSeed` | Wired in `SimulationServices` |
+| Seeded diffusion | `KnowledgeDiffusionSystem` | Same seed plumbing |
+| API `seed` param | `POST /api/matches` | Optional on create |
+| Hex geography | `HexMapBootstrap` | See [hex-map.md](hex-map.md) — not region replacement |
+
+### Current bootstrap flow
+
+```mermaid
+flowchart TD
+    API["POST /api/matches\n(optional seed)"] --> REG[MatchRegistry]
+    REG --> WG[WorldGrain.InitializeMatchAsync]
+    WG --> MH[MatchHost.CreateNew]
+    MH --> SWF[SampleWorldFactory.Create]
+    SWF --> GEN[IWorldGenerator\nProcedural or Standard]
+    GEN --> WS[WorldState + MatchState.WorldSeed]
+    SWF --> SPINE[InformationAgeTechSpine\nif TTS 4+ start]
+    SWF --> HEX[HexMapBootstrap.Attach]
+    MH --> SAVE[MatchPersistence.Save]
+```
+
+### Key files (M3)
+
+| File | Role |
+|------|------|
+| `SampleWorldFactory.cs` | Orchestrates generator, TTS 4 spine, hex attach, demo gate |
+| `ProceduralWorldGenerator.cs` | Seeded civs, regions, factions, knowledge links |
+| `StandardWorldGenerator.cs` | Fixed Aurora / Iron Dominion arena |
+| `WorldNameGenerator.cs` | Procedural names |
+| `WorldBlueprint.cs` | Shared IDs (`civ-player`, region slots) |
+| `MatchRegistry.cs` | Applies seeded civ names on join |
+
+### Standard vs procedural
+
+| Mode | When | Civ/city names |
+|------|------|----------------|
+| **Procedural** (default) | New matches via API / `SampleWorldFactory` | Seeded unique names |
+| **Standard arena** | Tests (`useStandardArena: true`) | Aurora Collective, Iron Dominion, fixed regions |
+
+---
+
+## 1. Historical baseline (pre-M3)
+
+The sections below describe the **original** hardcoded factory and the **full v2 vision**. Where they conflict with §0, prefer §0 and [README.md](README.md).
+
+### Original world creation flow
 
 ```mermaid
 flowchart TD
@@ -110,14 +165,17 @@ Regions have scalar stats and optional CSV-backed crime profiles. **No coordinat
 
 | Element | Where | Values |
 |---------|-------|--------|
-| Civilizations | `SampleWorldFactory` | 2 civs: Aurora Collective, Iron Dominion |
-| Regions | `SampleWorldFactory` | 2 regions: Meridian Bay, Redstone Harbor |
-| CSV anchors | `AttachCityProfile` | California 2015, Louisiana 2015 |
+| Civilizations | `StandardWorldGenerator` / tests | Fixed: Aurora Collective, Iron Dominion |
+| Civilizations | `ProceduralWorldGenerator` (default) | Seeded names via `WorldNameGenerator` |
+| Regions | `StandardWorldGenerator` | Fixed: Meridian Bay, Redstone Harbor |
+| Regions | `ProceduralWorldGenerator` | One capital region per civ, seeded names |
+| CSV anchors | `ProceduralWorldGenerator` | Random state rows from seed (not fixed CA/LA only) |
+| CSV anchors | `StandardWorldGenerator` | California 2015, Louisiana 2015 |
 | Factions | `SampleWorldFactory` | 3 fixed factions with fixed types/stances |
 | Knowledge networks | `SampleWorldFactory` | Player↔rival trade + espionage links |
 | Demo decision gate | `AttachDemoGate` | Granary dispute (optional via `withDemoGate`) |
 | Civ lobby slots | `MatchRegistry.Slots` | `civ-player` / `civ-rival` names |
-| Match ID | `MatchRegistry.Create` | `Guid`-based, not seeded |
+| Match ID | `MatchRegistry.Create` | `Guid`-based; **seed** = hash(`matchId`) or API override |
 | Global event templates | `GlobalEventSystem` | 4 tier-based event types with fixed text |
 | Turn growth | `RegionGrowthPhase` | Fixed +0.5 resources, +0.2 infrastructure per tick |
 
@@ -139,13 +197,13 @@ Fallback: if `catalog.json` is missing, `SampleWorldFactory.CreateFallbackTechno
 ### Runtime simulation (in-match)
 
 **`GlobalEventSystem`** (`src/TTS.Core/Systems/GlobalEventSystem.cs`):
-- Uses unseeded `Random()`
+- **Seeded** when `MatchState.WorldSeed` is set (M3); otherwise unseeded fallback in tests
 - Per-turn chance scales with max civ tier: `0.1 + tier * 0.02`
 - Picks from a small fixed set: Resource Shortage, Industrial Boom, AI Alignment Crisis, Temporal Fracture
 - Invoked in `GlobalEventGenerationPhase` during each tick
 
 **`KnowledgeDiffusionSystem`** (`src/TTS.Core/Systems/KnowledgeDiffusionSystem.cs`):
-- Unseeded `Random()` for probabilistic tech spread along knowledge links
+- **Seeded** from world seed when match state present; probabilistic tech spread along knowledge links
 
 **`DecisionGateSystem`** (`src/TTS.Core/Systems/DecisionGateSystem.cs`):
 - Rule-driven gate creation after each turn (forbidden tech, tier advancement, global crisis, faction crisis, crime pressure)
@@ -166,12 +224,22 @@ Fallback: if `catalog.json` is missing, `SampleWorldFactory.CreateFallbackTechno
 - **`economy.md`**: "Procedural city generation (Phase 7+)" — explicitly deferred
 - **`implementation-plan.md` Phase 7**: MAF workflow `generate → validate → lore → export JSON`
 
-### What does NOT exist
+### Existing procedural / random generation
 
-- No `seed`, `Seed`, or `Random(seed)` in C# source
-- No noise functions, heightmaps, biomes, or tile grids
-- No `IWorldGenerator`, `WorldGenerator`, or terrain factory
-- No procedural civ/region naming
+**Seeded (M3):** `GlobalEventSystem` and `KnowledgeDiffusionSystem` use `SimulationServices` world seed when `MatchState` is present.
+
+**Rule-driven:** `DecisionGateSystem` — reactive, not RNG.
+
+**LLM / offline:** gate fables, tech-lore scenarios, MAF agents (see [agent-integration.md](agent-integration.md)).
+
+### Still not implemented (Phase 7+)
+
+- Procedural **tech-tree fusion** nodes (`tech-tree.md` expansion rules)
+- Procedural **gate titles** and crisis variants (see [decision-gates.md](decision-gates.md))
+- Procedural **city placement** beyond 1 capital region per civ (multi-city worlds)
+- MAF **content export pipeline** (generate → validate → lore → JSON)
+
+*(Terrain noise and hex biomes live in `HexMapGenerator` — documented in [hex-map.md](hex-map.md), not here.)*
 
 ---
 
@@ -206,16 +274,18 @@ Systems are composed in `SimulationServices` — a clean place to inject new gen
 
 ## 6. Entry points where generation could hook in
 
+**M3 done:** `SampleWorldFactory` → `IWorldGenerator`, `WorldGenerationOptions` + API `seed`, `HexMapBootstrap`, seeded `GlobalEventSystem` / `KnowledgeDiffusionSystem`. Rows below show original plan vs remaining gaps.
+
 ### Primary (world bootstrap)
 
 | Entry | Method | Current params | Suggested extension |
 |-------|--------|----------------|---------------------|
-| `SampleWorldFactory.Create` | Static factory | `MatchConfig`, `withDemoGate` | Add `WorldGenerationOptions` with seed, civ count, region count |
-| `MatchHost.CreateNew` | Factory wrapper | Same + `savePath`, `llmTurnAgent` | Pass generation options through |
-| `WorldGrain.InitializeMatchAsync` | Grain init | `modeId`, `withDemoGate` | Add `seed`, `worldTemplateId`, or `GenerationProfile` |
-| `IWorldGrain` | Contract | — | Extend interface + DTOs |
-| `POST /api/matches` | HTTP | `ModeId`, `WithDemoGate` | Add `Seed`, `WorldProfile` to `CreateMatchRequestDto` |
-| `MatchRegistry.Join` | Player join | Hardcoded civ slots | Generate civs dynamically up to `MaxPlayers` |
+| `SampleWorldFactory.Create` | Static factory | `MatchConfig`, `withDemoGate`, `useStandardArena` | ✓ `WorldGenerationOptions`; multi-city regions |
+| `MatchHost.CreateNew` | Factory wrapper | Same + `savePath`, `llmTurnAgent` | ✓ options passed through |
+| `WorldGrain.InitializeMatchAsync` | Grain init | `modeId`, `withDemoGate`, optional seed | `worldTemplateId`, `GenerationProfile` |
+| `IWorldGrain` | Contract | — | Extend for templates |
+| `POST /api/matches` | HTTP | `ModeId`, `WithDemoGate`, optional `Seed` | `WorldProfile` |
+| `MatchRegistry.Join` | Player join | Seeded civ names on procedural matches | Dynamic civ count up to `MaxPlayers` |
 
 ### Secondary (runtime / per-tick generation)
 
@@ -240,7 +310,7 @@ Systems are composed in `SimulationServices` — a clean place to inject new gen
 
 ## 7. What to procedurally generate (prioritized)
 
-Given the **region-based, non-spatial** design, procedural generation should focus on **content variety and replayability**, not Civilization-style maps (see [hex-map.md](hex-map.md) for spatial layer).
+Given the **region-based simulation** with an optional **hex geography layer** ([hex-map.md](hex-map.md) §0), procedural generation should focus on **content variety and replayability** — not replacing the dashboard loop.
 
 ### A. Regions / cities (highest impact)
 

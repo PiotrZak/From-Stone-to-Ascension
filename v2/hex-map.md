@@ -1,22 +1,74 @@
 # Hex Map — Design & Integration
 
 **Project:** TTS — Technology Tier Simulation  
-**Status:** Exploration / v2 planning  
-**Related:** [procedural-generation.md](procedural-generation.md) · [ui-design.md](../ui-design.md) · [economy.md](../economy.md) · [orleans-integration.md](../orleans-integration.md)
+**Status:** **Partial — M3 foundation shipped (v2b/v2c lite)** · economy/victory hooks still planned  
+**Related:** [procedural-generation.md](procedural-generation.md) · [README.md](README.md) · [ui-design.md](../ui-design.md) · [economy.md](../economy.md) · [orleans-integration.md](../orleans-integration.md)
 
 ---
 
 ## Executive summary
 
-TTS today has **no spatial layer**. Regions are abstract city cards with scalar stats — not tiles on a planet. The UI is explicitly a **governor dashboard**, not an RTS map (`ui-design.md`: *"Avoid building a 3D galaxy or hex map until gameplay needs territorial clicks"*).
+**Shipped (M3):** Every new match gets a **seeded hex planet** (`HexMapGenerator` + value noise biomes). Civs spawn with **4-hex capital clusters** linked to existing `Region` records (`CapitalHexKey`, `HexKeys`). The match UI shows an interactive **`HexMapView`** in the left territory panel; players can **claim adjacent neutral land** via `TerritorySystem` and `POST /api/matches/{id}/territory/claim`. Map state persists in match saves.
 
-A hex map is a **v2 feature**: it would add territorial tactics, expansion, borders, and visual geography without replacing the dashboard-first async loop. This document explores **when** a hex map earns its complexity, **how** it fits the existing `Region` / `WorldState` model, **how** to generate it procedurally, and **what** systems and UI would need to change.
+**Still light:** Tile `ResourceYield` nudges region `Resources` at bootstrap only — it does **not** drive per-tick economy or victory. No units, fog, border gates, or territorial win conditions. Regions remain the **simulation unit** for crime, growth, and gates; the map is geography + expansion clicks.
+
+**Historical note:** Pre-M3, TTS had no spatial layer (city cards only). §1 below describes that baseline and why a map was deferred.
 
 ---
 
-## 1. Current state — no map exists
+## 0. Shipped (M3 / current)
 
-### Domain model
+| Capability | Location | Notes |
+|------------|----------|-------|
+| `HexMap`, `HexTile`, `Biome`, axial coords | `Models/HexMap.cs` | `Q,R` keys; 9 biomes |
+| Value-noise terrain | `Systems/HexMapGenerator.cs` | Elevation + moisture → biome + yield |
+| Map size | `HexMapGenerationOptions.ForMatch` | 18×14 (dev blitz), 24×18 (≤4 players), 30×22 (larger) |
+| Bootstrap | `Simulation/HexMapBootstrap.cs` | Called from `SampleWorldFactory`; uses `MatchState.WorldSeed` |
+| Region linkage | `Region.CapitalHexKey`, `Region.HexKeys` | Capital cluster avg yield → initial `Resources` |
+| `WorldState.Map` | `WorldState` | Serialized in match persistence |
+| Territory claims | `TerritorySystem` | Adjacent to owned land; land only; updates tile + region hex list |
+| API | `GET /api/matches/{id}/map`, `POST .../territory/claim` | DTOs in `MatchDtos.cs` |
+| UI | `HexMapView.tsx`, `MatchPage.tsx` territory panel | Select hex, claim, biome legend, capital markers |
+
+### Current data flow
+
+```mermaid
+flowchart LR
+    SEED[MatchState.WorldSeed] --> GEN[HexMapGenerator]
+    GEN --> MAP[WorldState.Map]
+    BOOT[HexMapBootstrap] --> MAP
+    BOOT --> REG[Region.HexKeys / CapitalHexKey]
+    CLAIM[TerritorySystem.TryClaim] --> MAP
+    API[GET map / POST claim] --> UI[HexMapView]
+    SAVE[MatchPersistence] --> MAP
+```
+
+### Gameplay scope today
+
+| Works | Not yet |
+|-------|---------|
+| View owned vs neutral hexes | Yield → per-tick economy |
+| Claim one hex at a time (adjacency rule) | Border conflict / military |
+| Biome + yield in tile tooltip | Decision gates for disputes |
+| Persist claims across reload | Territorial victory |
+| Dashboard + map side-by-side | Replace region cards with map-only UX |
+
+### Key files
+
+| File | Role |
+|------|------|
+| `HexMapGenerator.cs` | Procedural planet from seed |
+| `HexMapBootstrap.cs` | Spawn clusters per civ, wire regions |
+| `TerritorySystem.cs` | Claim validation + ownership |
+| `MatchHost.ClaimTerritory` | Host entry; saves after claim |
+| `WorldGrain.GetHexMapAsync` / `ClaimTerritoryAsync` | Orleans surface |
+| `HexMapTests.cs`, `MatchFlowTests.ClaimTerritory_PersistsAcrossReload` | Adjacency + persistence |
+
+---
+
+## 1. Pre-M3 baseline (historical)
+
+### Domain model (before hex layer)
 
 `Region` (`src/TTS.Core/Models/Region.cs`) has:
 
@@ -27,13 +79,13 @@ A hex map is a **v2 feature**: it would add territorial tactics, expansion, bord
 | `ControllingCivilizationId` | Owner |
 | `CrimeProfile` | TTS 4+ CSV-backed socioeconomic data |
 
-**Missing for spatial play:** coordinates, hex index, neighbors, biome, elevation, movement cost, visibility/fog, unit positions.
+**Missing before M3 (now partially addressed — see §0):** coordinates were absent; today tiles have `Q,R`, neighbors via `HexCoordKey`, biome, elevation, yield, owner.
 
-### UI today
+### UI before M3
 
-`TTS.Web` renders regions as **city cards** on the match dashboard (`MatchPage.tsx` → `CityCard`). There is no canvas, SVG map, or tile renderer.
+`TTS.Web` rendered regions as **city cards** only. **M3 adds** the territory panel + `HexMapView`; city cards remain on the dashboard.
 
-### Design intent
+### Design intent (unchanged)
 
 | Doc | Position |
 |-----|----------|
@@ -74,14 +126,15 @@ Introduce a hex layer only when gameplay **requires territorial decisions** the 
 
 ### Recommended tier gate
 
-| Phase | Spatial layer |
-|-------|---------------|
-| **MVP (now)** | None — city cards |
-| **v2a — Abstract graph** | `Region.NeighborIds` only; no rendering; border events |
-| **v2b — Read-only hex map** | Generated planet, colored by owner; no unit movement |
-| **v2c — Territorial play** | Claim, expand, border conflict; integrates with gates and economy |
+| Phase | Spatial layer | Status |
+|-------|---------------|--------|
+| **MVP** | None — city cards | Superseded for new matches |
+| **v2a — Abstract graph** | `Region.NeighborIds` only | Not built |
+| **v2b — Read-only hex map** | Generated planet, colored by owner | **Shipped (M3)** — `HexMapView` |
+| **v2c — Territorial play** | Claim, expand, border conflict | **Partial (M3)** — claim API; no conflict gates |
+| **v2d — Map drives sim** | Yield → economy, border events, victory | Planned |
 
-Align **v2b** with UI Phase 9 ("2D region map") and **v2c** with a new match mode or TTS 2+ expansion mechanic.
+Align **v2d** with economy integration and optional territorial win modes.
 
 ---
 
@@ -109,46 +162,37 @@ flowchart TB
 
 **Principle:** Hex tiles hold **geography** (biome, yield, owner, improvements). Regions hold **governance** (population, crime, infrastructure). A region may span multiple hexes; a hex may be unclaimed wilderness.
 
-### 3.2 New types (conceptual)
+### 3.2 Types — **implemented** (see `Models/HexMap.cs`)
 
 ```csharp
-// TTS.Core/Models/HexMap.cs — v2
-
 public sealed class HexMap
 {
-    public int Width { get; }
-    public int Height { get; }
-    public int Seed { get; }
-    public IReadOnlyList<HexTile> Tiles { get; }
+    public int Width { get; init; }
+    public int Height { get; init; }
+    public int Seed { get; init; }
+    public List<HexTile> Tiles { get; init; }
 }
 
 public sealed class HexTile
 {
-    public int Q { get; }  // axial coordinate
+    public int Q { get; }
     public int R { get; }
     public Biome Biome { get; set; }
-    public double Elevation { get; set; }      // 0–1, from noise
-    public double ResourceYield { get; set; }  // 0–100, derived from biome + elevation
+    public double Elevation { get; set; }
+    public double ResourceYield { get; set; }
     public string? ControllingCivilizationId { get; set; }
-    public string? RegionId { get; set; }      // null = wilderness
-    public IReadOnlyList<HexCoord> Neighbors { get; }
+    public string? RegionId { get; set; }
 }
 
 public readonly record struct HexCoord(int Q, int R);
-
-public enum Biome
-{
-    Ocean, Coast, Plains, Forest, Hills, Mountains,
-    Desert, Tundra, Wetlands, Volcanic
-}
+// Neighbors via HexCoordKey.Neighbors(q, r)
 ```
 
-### 3.3 Extend `Region` minimally
+### 3.3 Extend `Region` — **shipped**
 
 ```csharp
-// Add to Region — backward compatible
-public string? CapitalHexId { get; set; }           // "q,r" key
-public IReadOnlyList<string> HexIds { get; set; }   // controlled hexes in this region
+public string? CapitalHexKey { get; set; }   // "q,r"
+public List<string> HexKeys { get; }         // controlled hexes in this region
 ```
 
 Existing saves without hex data: `HexMap` is null; game runs as today.
@@ -353,14 +397,14 @@ Add to `MatchConfig`: `VictoryMode` enum (`Science`, `Territory`, `Hybrid`).
 | Border dispute | Surfaces as decision gate, not live combat |
 | Away summary | "Iron Dominion claimed 3 hexes near Redstone Harbor" |
 
-### 7.4 API additions
+### 7.4 API — **shipped (M3)**
 
 ```
-GET  /api/matches/{matchId}/map          → HexMapDto (tiles, owners, regions)
-POST /api/matches/{matchId}/territory/claim  → { q, r } (v2c)
+GET  /api/matches/{matchId}/map          → HexMapDto (tiles, owners, regions)  ✓
+POST /api/matches/{matchId}/territory/claim  → { q, r }  ✓
 ```
 
-Extend `MatchSummaryDto` with optional `mapSeed`, `mapWidth`, `mapHeight` for client cache.
+**Still optional:** extend `MatchSummaryDto` with `mapSeed`, `mapWidth`, `mapHeight` for client cache without a full map fetch.
 
 ---
 

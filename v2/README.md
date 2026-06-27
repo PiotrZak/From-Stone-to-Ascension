@@ -72,8 +72,8 @@ flowchart LR
 1. **[decision-gates.md](decision-gates.md)** — primary agency loop and what to build next  
 2. **[agent-integration.md](agent-integration.md)** — how LLM sits outside the sim  
 3. **[tts4-start.md](tts4-start.md)** — why matches begin in the Information Age  
-4. **[procedural-generation.md](procedural-generation.md)** — seeded worlds (update: much of §1 is now superseded by `ProceduralWorldGenerator`)  
-5. **[hex-map.md](hex-map.md)** — spatial layer (update: §1 “no map” is outdated — see M3)  
+4. **[procedural-generation.md](procedural-generation.md)** — seeded worlds; §0 = shipped, §1+ = vision/history  
+5. **[hex-map.md](hex-map.md)** — spatial layer; §0 = M3 shipped, §1 = pre-M3 baseline  
 
 ---
 
@@ -90,5 +90,5 @@ dotnet test src/TTS.Tests/TTS.Tests.csproj --filter "FullyQualifiedName~Gate"
 ## Notes for doc maintainers
 
 - When a v2 doc’s **Status** header disagrees with this README, prefer **code** and update the doc header.  
-- `procedural-generation.md` and `hex-map.md` still describe pre-M3 reality in places — cross-link here for current status until those files are refreshed.  
+- **§0 sections** in `procedural-generation.md` and `hex-map.md` are the shipped snapshot; later sections mix design proposals with historical context.  
 - Gate gameplay details live in **[decision-gates.md](decision-gates.md)** — keep that file authoritative for gates.
