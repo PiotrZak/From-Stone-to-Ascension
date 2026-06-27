@@ -85,6 +85,7 @@ public static class SampleWorldFactory
 
         if (config.StartingTier >= TechTier.InformationAge)
         {
+            var capital = world.Regions.FirstOrDefault(r => r.ControllingCivilizationId == player.Id);
             player.PendingDecisions.Add(new DecisionGate(
                 "gate-demo-start",
                 player.Id,
@@ -94,10 +95,13 @@ public static class SampleWorldFactory
                 GateOptionTemplates.DemoCrimePressure,
                 defaultOptionId: "invest",
                 world.SimulatedNow,
-                world.SimulatedNow + window));
+                world.SimulatedNow + window,
+                contextRegionId: capital?.Id));
             return;
         }
 
+        var stoneCapital = world.Regions.FirstOrDefault(r => r.ControllingCivilizationId == player.Id);
+        var leadingFaction = player.Factions.OrderByDescending(f => f.Influence).FirstOrDefault();
         player.PendingDecisions.Add(new DecisionGate(
             "gate-demo-start",
             player.Id,
@@ -107,7 +111,9 @@ public static class SampleWorldFactory
             GateOptionTemplates.DemoFactionStone,
             defaultOptionId: "appease",
             world.SimulatedNow,
-            world.SimulatedNow + window));
+            world.SimulatedNow + window,
+            contextRegionId: stoneCapital?.Id,
+            contextFactionId: leadingFaction?.Id));
     }
 
     private static string CapitalName(WorldState world, Civilization civ) =>

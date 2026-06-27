@@ -283,6 +283,11 @@ app.MapGet("/api/matches/{matchId}", async (string matchId, MatchRegistry regist
             Type = g.Type,
             DefaultOptionId = g.DefaultOptionId,
             ExpiresAt = g.ExpiresAt,
+            ContextRegionId = g.ContextRegionId,
+            ContextRegionName = g.ContextRegionName,
+            ContextFactionName = g.ContextFactionName,
+            QueueIndex = g.QueueIndex,
+            QueueTotal = g.QueueTotal,
             Options = g.Options.Select(o => new DecisionOptionDto
             {
                 Id = o.Id,

@@ -112,15 +112,23 @@ LLM **never** applies gate outcomes — only `DecisionGateSystem.Resolve`.
 
 ## 4. Gameplay effects (current)
 
-Effects are **direct stability adjustments** (and forbidden-tech pursue/ban). They do not yet modify region crime scalars, hex ownership, or faction stance enums in all paths — see v2 gaps below.
+Effects are **stability adjustments plus targeted world changes** where context exists (region crime offset, faction influence, infrastructure). They do not yet modify hex ownership or open gate chains — see remaining gaps below.
 
-**Example — CrimePressure:**
+**Example — CrimePressure (region-scoped when `ContextRegionId` is set):**
 
-| Option | Effect (today) |
-|--------|----------------|
-| Invest | Econ −2, Tech +3 |
-| Ignore | Pol −3 |
-| Crackdown | Pol +2, Econ −2 |
+| Option | Effect |
+|--------|--------|
+| Invest | Econ −2, Tech +3, Pol +2 · crime offset −12 · infra +3 in target city |
+| Ignore | Pol −3 · crime offset +8 in target city |
+| Crackdown | Pol +2, Econ −2 · crime offset −5 in target city |
+
+**Example — FactionCrisis (leading faction named in title):**
+
+| Option | Effect |
+|--------|--------|
+| Appease | Pol +5 · target faction influence +10 |
+| Suppress | Pol +3, Econ −3 · target faction influence −8 |
+| Reform | All pillars +2 · all factions influence +3 |
 
 **Example — ForbiddenTech pursue:** runs full `ResearchExecutor` on the gated technology (may trigger forbidden instability).
 
@@ -132,11 +140,14 @@ Effects are **direct stability adjustments** (and forbidden-tech pursue/ban). Th
 
 | Initiative | Gameplay impact | Status |
 |------------|-----------------|--------|
-| **Region-scoped crime gates** | Title names the city; Invest reduces *that* region's crime pressure | Planned — gate opens with region context; `ApplyCrimePressure` still civ-wide |
-| **Fable in UI** | Show LLM `gate.Fable` in hero card when present | Partial — model field exists; UI often shows `description` only |
+| **Region-scoped crime gates** | Title names the city; Invest reduces *that* region's crime pressure offset | **Shipped** — `ContextRegionId`, `CrimePressureOffset` |
+| **Faction-scoped crisis** | Gate names the leading faction; options shift influence | **Shipped** — `ContextFactionId` |
+| **Fable in UI** | Show LLM `gate.Fable` in hero card when present | **Shipped** — API sends `DisplayText` as description |
+| **Rich option cards** | Description + impact hints + advisor recommended badge | **Shipped** — `MatchPage` gate hero |
+| **Gate queue UX** | “Decision 1 of N” + tabs when backlog exists | **Shipped** — up to 3 pending gates per civ |
 | **Gate history log** | Match log lines per resolution with option + auto-resolve flag | Partial — `GateResolutionRecord` recorded; UI log could surface more |
-| **Multiple gate queue UX** | Clear “1 of N pending” when backlog exists | Planned — system allows list; scan opens one per tick |
 | **Rival gate visibility** | Spectator / intel panel: “Iron Dominion faces alignment crisis” | Planned |
+| **Forbidden delay returns** | Defer re-opens the forbidden-tech gate later | **Shipped** — clears `OfferedGateKeys` on delay |
 
 ### 5.2 Medium term (procedural + narrative)
 
@@ -152,6 +163,7 @@ Effects are **direct stability adjustments** (and forbidden-tech pursue/ban). Th
 | Initiative | Gameplay impact | Depends on |
 |------------|-----------------|------------|
 | **Hex-adjacent claim gates** | “Border incident — escalate or cede?” | [hex-map.md](hex-map.md) territorial weight |
+| **Strike hot regions** | Paris-style map; district heat, propagation, strike gates | [paris-map-strikes.md](paris-map-strikes.md) |
 | **Multiplayer gate timing** | Per-player decision windows; notify via push/email (product) | Orleans + registry |
 | **Diplomatic gates** | Joint decisions between civs (trade, non-aggression) | Agent tools + new `GateType` |
 
@@ -226,11 +238,13 @@ flowchart TB
 
 ## 8. Suggested implementation order
 
-1. **Surface fables in hero card** — use `DisplayText` / fable field when enriched  
-2. **Wire crime gates to region crime scalar** — context already in gate title for TTS 4+  
-3. **Gate queue indicator** — `pendingGates.length` in HUD + advisor  
+1. ~~**Surface fables in hero card**~~ — done via `DisplayText` in API  
+2. ~~**Wire crime gates to region crime scalar**~~ — done via `CrimePressureOffset`  
+3. ~~**Gate queue indicator**~~ — done in hero + advisor focus gate  
 4. **Procedural gate copy** — seed-driven titles from `WorldGenerationOptions`  
 5. **Hex border gates** — only after territorial mechanics affect stability/economy  
+6. **Gate history in match log UI** — surface `GateResolutionRecord`  
+7. **Rival gate intel** — away summary / spectator panel  
 
 ---
 

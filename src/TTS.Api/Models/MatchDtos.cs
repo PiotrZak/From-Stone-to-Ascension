@@ -172,6 +172,11 @@ public sealed class DecisionGateDto
     public required string DefaultOptionId { get; init; }
     public DateTimeOffset ExpiresAt { get; init; }
     public required IReadOnlyList<DecisionOptionDto> Options { get; init; }
+    public string? ContextRegionId { get; init; }
+    public string? ContextRegionName { get; init; }
+    public string? ContextFactionName { get; init; }
+    public int QueueIndex { get; init; } = 1;
+    public int QueueTotal { get; init; } = 1;
 }
 
 public sealed class DecisionOptionDto

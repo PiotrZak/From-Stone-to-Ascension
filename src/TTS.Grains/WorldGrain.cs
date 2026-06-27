@@ -110,22 +110,45 @@ public sealed class WorldGrain : Grain, IWorldGrain
     {
         await EnrichGateFablesAsync();
         var host = RequireHost();
-        var gates = host.World.Civilizations
-            .SelectMany(c => c.PendingDecisions.Where(g => !g.IsResolved).Select(g => (c, g)))
-            .Where(x => civilizationId is null || x.c.Id == civilizationId)
-            .Select(x => new GrainDecisionGateDetail(
-                x.g.Id,
-                x.c.Id,
-                x.c.Name,
-                x.g.Title,
-                x.g.DisplayText,
-                x.g.Type.ToString(),
-                x.g.DefaultOptionId,
-                x.g.ExpiresAt,
-                x.g.Options.Select(o => new GrainDecisionOptionDetail(o.Id, o.Label, o.Description, o.ImpactHint)).ToList()))
+        var world = host.World;
+        var grouped = world.Civilizations
+            .Where(c => civilizationId is null || c.Id == civilizationId)
+            .SelectMany(c => c.PendingDecisions
+                .Where(g => !g.IsResolved)
+                .OrderBy(g => g.CreatedAt)
+                .Select((g, index) => (c, g, index)))
             .ToList();
 
-        return gates;
+        return grouped
+            .Select(x =>
+            {
+                var civGates = grouped.Where(y => y.c.Id == x.c.Id).ToList();
+                var queueTotal = civGates.Count;
+                var queueIndex = x.index + 1;
+                var regionName = x.g.ContextRegionId is null
+                    ? null
+                    : world.Regions.FirstOrDefault(r => r.Id == x.g.ContextRegionId)?.Name;
+                var factionName = x.g.ContextFactionId is null
+                    ? null
+                    : x.c.Factions.FirstOrDefault(f => f.Id == x.g.ContextFactionId)?.Name;
+
+                return new GrainDecisionGateDetail(
+                    x.g.Id,
+                    x.c.Id,
+                    x.c.Name,
+                    x.g.Title,
+                    x.g.DisplayText,
+                    x.g.Type.ToString(),
+                    x.g.DefaultOptionId,
+                    x.g.ExpiresAt,
+                    x.g.Options.Select(o => new GrainDecisionOptionDetail(o.Id, o.Label, o.Description, o.ImpactHint)).ToList(),
+                    x.g.ContextRegionId,
+                    regionName,
+                    factionName,
+                    queueIndex,
+                    queueTotal);
+            })
+            .ToList();
     }
 
     public Task<IReadOnlyList<GrainCivDetail>> GetCivilizationsAsync()

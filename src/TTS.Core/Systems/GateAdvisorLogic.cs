@@ -160,7 +160,9 @@ public static class GateAdvisorLogic
         var context = gate.Type switch
         {
             GateType.CrimePressure when crime.Available =>
-                $"Crime pressure is {crime.AverageCrimePressure:F0} and average stability is {civ.AverageStability:F0}.",
+                gate.ContextRegionId is not null
+                    ? $"A city-level crime crisis needs a targeted response while average stability is {civ.AverageStability:F0}."
+                    : $"Crime pressure is {crime.AverageCrimePressure:F0} and average stability is {civ.AverageStability:F0}.",
             GateType.FactionCrisis =>
                 $"Political stability is {civ.PoliticalStability:F0} during internal faction pressure.",
             GateType.ForbiddenTech =>

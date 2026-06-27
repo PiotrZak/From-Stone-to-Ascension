@@ -40,6 +40,8 @@ public sealed class DecisionGate
     public DateTimeOffset ExpiresAt { get; }
     public string? ContextTechnologyId { get; }
     public string? ContextEventId { get; }
+    public string? ContextRegionId { get; }
+    public string? ContextFactionId { get; }
     public bool IsResolved { get; set; }
     public string? ResolvedOptionId { get; set; }
     public bool WasAutoResolved { get; set; }
@@ -60,7 +62,9 @@ public sealed class DecisionGate
         DateTimeOffset createdAt,
         DateTimeOffset expiresAt,
         string? contextTechnologyId = null,
-        string? contextEventId = null)
+        string? contextEventId = null,
+        string? contextRegionId = null,
+        string? contextFactionId = null)
     {
         Id = id;
         CivilizationId = civilizationId;
@@ -73,5 +77,7 @@ public sealed class DecisionGate
         ExpiresAt = expiresAt;
         ContextTechnologyId = contextTechnologyId;
         ContextEventId = contextEventId;
+        ContextRegionId = contextRegionId;
+        ContextFactionId = contextFactionId;
     }
 }

@@ -70,7 +70,12 @@ public sealed record GrainDecisionGateDetail(
     [property: Id(5)] string Type,
     [property: Id(6)] string DefaultOptionId,
     [property: Id(7)] DateTimeOffset ExpiresAt,
-    [property: Id(8)] List<GrainDecisionOptionDetail> Options);
+    [property: Id(8)] List<GrainDecisionOptionDetail> Options,
+    [property: Id(9)] string? ContextRegionId = null,
+    [property: Id(10)] string? ContextRegionName = null,
+    [property: Id(11)] string? ContextFactionName = null,
+    [property: Id(12)] int QueueIndex = 1,
+    [property: Id(13)] int QueueTotal = 1);
 
 [GenerateSerializer]
 public sealed record GrainDecisionResult(

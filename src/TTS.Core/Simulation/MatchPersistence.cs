@@ -109,7 +109,9 @@ public sealed class MatchPersistence
                     gate.CreatedAt,
                     gate.ExpiresAt,
                     gate.ContextTechnologyId,
-                    gate.ContextEventId)
+                    gate.ContextEventId,
+                    gate.ContextRegionId,
+                    gate.ContextFactionId)
                 {
                     IsResolved = gate.IsResolved,
                     ResolvedOptionId = gate.ResolvedOptionId,
@@ -296,6 +298,8 @@ public sealed class MatchPersistence
         ExpiresAt = gate.ExpiresAt,
         ContextTechnologyId = gate.ContextTechnologyId,
         ContextEventId = gate.ContextEventId,
+        ContextRegionId = gate.ContextRegionId,
+        ContextFactionId = gate.ContextFactionId,
         IsResolved = gate.IsResolved,
         ResolvedOptionId = gate.ResolvedOptionId,
         WasAutoResolved = gate.WasAutoResolved,
@@ -491,6 +495,8 @@ public sealed class MatchPersistence
         public DateTimeOffset ExpiresAt { get; set; }
         public string? ContextTechnologyId { get; set; }
         public string? ContextEventId { get; set; }
+        public string? ContextRegionId { get; set; }
+        public string? ContextFactionId { get; set; }
         public bool IsResolved { get; set; }
         public string? ResolvedOptionId { get; set; }
         public bool WasAutoResolved { get; set; }

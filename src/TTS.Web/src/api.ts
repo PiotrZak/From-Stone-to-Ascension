@@ -57,6 +57,11 @@ export interface DecisionGate {
   defaultOptionId: string;
   expiresAt: string;
   options: DecisionOption[];
+  contextRegionId?: string | null;
+  contextRegionName?: string | null;
+  contextFactionName?: string | null;
+  queueIndex?: number;
+  queueTotal?: number;
 }
 
 export interface Civilization {

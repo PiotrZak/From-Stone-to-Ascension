@@ -442,13 +442,123 @@
 }
 
 .gate-desc {
-  margin: 0 0 1.25rem;
+  margin: 0 0 0.75rem;
   width: 100%;
   max-width: none;
   font-size: 0.875rem;
   line-height: 1.55;
   color: var(--on-surface-variant);
   opacity: 0.9;
+}
+
+.gate-impact-note {
+  margin: 0 0 1rem;
+  font-size: 0.75rem;
+}
+
+.gate-queue-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.gate-queue-tab {
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--outline-variant);
+  background: transparent;
+  color: var(--on-surface-variant);
+  font-size: 0.75rem;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.gate-queue-tab-active {
+  border-color: var(--accent-amber);
+  color: var(--accent-amber);
+  background: rgba(255, 183, 77, 0.08);
+}
+
+.gate-context-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.gate-context-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--outline-variant);
+  font-size: 0.75rem;
+  color: var(--on-surface-variant);
+}
+
+.gate-context-chip .material-symbols-outlined {
+  font-size: 0.95rem;
+}
+
+.gate-option-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding: 0.85rem 0.95rem;
+  text-align: left;
+  border-radius: 0.65rem;
+  transition: filter 0.15s, transform 0.1s, box-shadow 0.15s;
+}
+
+.gate-option-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.gate-option-card-desc {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  opacity: 0.92;
+}
+
+.gate-option-card-impact {
+  font-size: 0.6875rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.gate-option-recommended {
+  box-shadow: 0 0 0 1px rgba(100, 181, 246, 0.45);
+}
+
+.gate-option-caution {
+  box-shadow: 0 0 0 1px rgba(239, 83, 80, 0.35);
+}
+
+.gate-option-badge {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(100, 181, 246, 0.18);
+  color: #90caf9;
+}
+
+.gate-option-badge-warn {
+  background: rgba(239, 83, 80, 0.15);
+  color: #ef9a9a;
 }
 
 .gate-options-grid {
@@ -515,7 +625,8 @@
 
 .gate-opt-primary:disabled,
 .gate-opt-neutral:disabled,
-.gate-opt-danger:disabled {
+.gate-opt-danger:disabled,
+.gate-option-card:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

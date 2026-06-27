@@ -59,6 +59,7 @@ export function MatchPage() {
   const [copied, setCopied] = useState(false);
   const [advisor, setAdvisor] = useState<AdvisorBriefing | null>(null);
   const [advisorLoading, setAdvisorLoading] = useState(false);
+  const [focusedGateId, setFocusedGateId] = useState<string | null>(null);
   const [territoryMeta, setTerritoryMeta] = useState(defaultTerritoryHint());
   const [, setClock] = useState(0);
 
@@ -107,6 +108,18 @@ export function MatchPage() {
   }, [matchId, civId, session]);
 
   useEffect(() => { void refreshAdvisor(); }, [refreshAdvisor, summary?.tickCount]);
+
+  useEffect(() => {
+    if (!summary) return;
+    const gates = summary.pendingGates.filter((g) => g.civilizationId === civId);
+    if (gates.length === 0) {
+      setFocusedGateId(null);
+      return;
+    }
+    if (!focusedGateId || !gates.some((g) => g.gateId === focusedGateId)) {
+      setFocusedGateId(gates[0].gateId);
+    }
+  }, [summary, civId, focusedGateId]);
 
   useEffect(() => {
     void refresh();
@@ -227,6 +240,11 @@ export function MatchPage() {
   const myCiv = summary.civilizations.find((c) => c.id === civId);
   const rivals = summary.civilizations.filter((c) => c.id !== civId);
   const myGates = summary.pendingGates.filter((g) => g.civilizationId === civId);
+  const focusedGate = myGates.find((g) => g.gateId === focusedGateId) ?? myGates[0] ?? null;
+  const gateFocusForHero =
+    advisor?.gateFocus && focusedGate && advisor.gateFocus.gateId === focusedGate.gateId
+      ? advisor.gateFocus
+      : null;
   const myCities = summary.regions.filter((r) => r.controllingCivilizationId === civId);
   const otherCities = summary.regions.filter((r) => r.controllingCivilizationId !== civId);
   const showModernStats = (summary.startingTier >= 4) || (myCiv?.tier ?? 1) >= 4;
@@ -320,37 +338,94 @@ export function MatchPage() {
             </div>
           )}
 
-          {myGates.map((gate) => (
-            <section key={gate.gateId} className="gate-hero">
+          {focusedGate && (
+            <section key={focusedGate.gateId} className="gate-hero">
               <div className="gate-hero-head">
                 <div className="gate-hero-head-left">
                   <div className="gate-hero-icon">
                     <span className="material-symbols-outlined">gavel</span>
                   </div>
-                  <span className="gate-hero-label">Decision · {formatGateCountdown(gate.expiresAt)}</span>
+                  <span className="gate-hero-label">
+                    Decision {focusedGate.queueIndex ?? 1} of {focusedGate.queueTotal ?? myGates.length}
+                    {' · '}
+                    {formatGateCountdown(focusedGate.expiresAt)}
+                  </span>
                 </div>
                 <div className="gate-pulse-dots" aria-hidden>
                   <span className="gate-pulse-dot gate-pulse-dot-live" />
                   <span className="gate-pulse-dot gate-pulse-dot-dim" />
                 </div>
               </div>
-              <h2 className="gate-title">{gate.title}</h2>
-              <p className="gate-desc">{gate.description}</p>
+
+              {myGates.length > 1 && (
+                <div className="gate-queue-nav" role="tablist" aria-label="Pending decisions">
+                  {myGates.map((gate) => (
+                    <button
+                      key={gate.gateId}
+                      type="button"
+                      role="tab"
+                      aria-selected={gate.gateId === focusedGate.gateId}
+                      className={`gate-queue-tab${gate.gateId === focusedGate.gateId ? ' gate-queue-tab-active' : ''}`}
+                      onClick={() => setFocusedGateId(gate.gateId)}
+                    >
+                      {gate.title}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {(focusedGate.contextRegionName || focusedGate.contextFactionName) && (
+                <div className="gate-context-row">
+                  {focusedGate.contextRegionName && (
+                    <span className="gate-context-chip">
+                      <span className="material-symbols-outlined">location_city</span>
+                      {focusedGate.contextRegionName}
+                    </span>
+                  )}
+                  {focusedGate.contextFactionName && (
+                    <span className="gate-context-chip">
+                      <span className="material-symbols-outlined">groups</span>
+                      {focusedGate.contextFactionName}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              <h2 className="gate-title">{focusedGate.title}</h2>
+              <p className="gate-desc">{focusedGate.description}</p>
+              <p className="gate-impact-note muted">
+                Your choice applies immediately and blocks auto-research until all pending gates are resolved.
+              </p>
               <div className="gate-options-grid">
-                {gate.options.map((opt, i) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    className={gateOptionClass(i, opt.label)}
-                    disabled={busy || !session}
-                    onClick={() => void handleResolve(gate.gateId, opt.id)}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
+                {focusedGate.options.map((opt, i) => {
+                  const guidance = gateFocusForHero?.options.find((o) => o.optionId === opt.id);
+                  const isRecommended = guidance?.stance === 'recommended';
+                  const isCaution = guidance?.stance === 'caution';
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      className={`gate-option-card ${gateOptionClass(i, opt.label)}${
+                        isRecommended ? ' gate-option-recommended' : ''
+                      }${isCaution ? ' gate-option-caution' : ''}`}
+                      disabled={busy || !session}
+                      onClick={() => void handleResolve(focusedGate.gateId, opt.id)}
+                    >
+                      <span className="gate-option-card-top">
+                        <strong>{opt.label}</strong>
+                        {isRecommended && <span className="gate-option-badge">Recommended</span>}
+                        {isCaution && <span className="gate-option-badge gate-option-badge-warn">Risky</span>}
+                      </span>
+                      <span className="gate-option-card-desc">{opt.description}</span>
+                      {opt.impactHint && (
+                        <span className="gate-option-card-impact">{opt.impactHint}</span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </section>
-          ))}
+          )}
 
           {ended && summary.results.length > 0 && (
             <section className="results-block">
@@ -487,7 +562,7 @@ export function MatchPage() {
                   canRefresh={!!session}
                   canApply={!!session && !busy}
                   llmStatus={summary.llmStatus}
-                  activeGate={myGates[0] ?? null}
+                  activeGate={focusedGate}
                   onRefresh={() => void refreshAdvisor()}
                   onApplyRecommendation={(gateId, optionId) => void handleResolve(gateId, optionId)}
                 />

@@ -23,6 +23,9 @@ public class RegionalCrimeProfile
     public double UnemploymentRate { get; set; }
     public double CorruptionConvictionsPerMillion { get; set; }
 
+    /// <summary>Gate and policy adjustments layered on CSV baseline.</summary>
+    public double CrimePressureOffset { get; set; }
+
     /// <summary>Composite 0–100 pressure index used by CrimeSystem.</summary>
     public double CrimePressureIndex =>
         Math.Clamp(
@@ -31,7 +34,8 @@ public class RegionalCrimeProfile
             PovertyRate * 0.6 +
             GiniCoefficient * 15 +
             UnemploymentRate * 0.4 +
-            CorruptionConvictionsPerMillion * 0.3,
+            CorruptionConvictionsPerMillion * 0.3 +
+            CrimePressureOffset,
             0, 100);
 
     /// <summary>Composite 0–100 prosperity index from GDP, employment, and poverty.</summary>
