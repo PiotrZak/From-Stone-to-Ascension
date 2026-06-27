@@ -13,6 +13,8 @@ Planning documents for the next evolution of *From Stone to Ascension*: procedur
 | [decision-gates.md](decision-gates.md) | **Gate gameplay, advisor counsel, LLM fables, v2 roadmap** | **Partial — core shipped, enhancements planned** |
 | [agent-integration.md](agent-integration.md) | MAF agents in ticks, advisor API, tools | **Shipped** (TTS 5+ rivals + advisor) |
 | [tts4-start.md](tts4-start.md) | Default matches at TTS 4 (Information Age) | **Mostly shipped** — see gaps below |
+| [tts5-exploring.md](tts5-exploring.md) | TTS 4→5 Early AI, 2026 AI backdrop, MAF unlock | **Partial — agents shipped** |
+| [tts6-exploring.md](tts6-exploring.md) | TTS 5→6 Bio/Nano transition | **Exploration** |
 | [procedural-generation.md](procedural-generation.md) | Seeded worlds, names, regions | **Partial — generator + seed live** |
 | [hex-map.md](hex-map.md) | Hex grid, territory, procedural terrain | **Partial — M3 foundation, light gameplay** |
 | [paris-map-strikes.md](paris-map-strikes.md) | **Paris scenario, strike hot regions, map heat overlay** | **Design proposal** |
@@ -73,9 +75,11 @@ flowchart LR
 1. **[decision-gates.md](decision-gates.md)** — primary agency loop and what to build next  
 2. **[agent-integration.md](agent-integration.md)** — how LLM sits outside the sim  
 3. **[tts4-start.md](tts4-start.md)** — why matches begin in the Information Age  
-4. **[procedural-generation.md](procedural-generation.md)** — seeded worlds; §0 = shipped, §1+ = vision/history  
-5. **[hex-map.md](hex-map.md)** — spatial layer; §0 = M3 shipped, §1 = pre-M3 baseline  
-6. **[paris-map-strikes.md](paris-map-strikes.md)** — Paris map + strikes as hot regions (scenario design)  
+4. **[tts5-exploring.md](tts5-exploring.md)** — TTS 4→5, 2026 AI world, agents  
+5. **[tts6-exploring.md](tts6-exploring.md)** — TTS 5→6 Bio/Nano  
+6. **[procedural-generation.md](procedural-generation.md)** — seeded worlds; §0 = shipped, §1+ = vision/history  
+7. **[hex-map.md](hex-map.md)** — spatial layer; §0 = M3 shipped, §1 = pre-M3 baseline  
+8. **[paris-map-strikes.md](paris-map-strikes.md)** — Paris map + strikes as hot regions (scenario design)  
 
 ---
 
