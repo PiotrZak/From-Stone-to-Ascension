@@ -2,7 +2,7 @@
 
 **Project:** TTS — Technology Tier Simulation  
 **Status:** **Partial — M3 foundation shipped (v2b/v2c lite)** · economy/victory hooks still planned  
-**Related:** [procedural-generation.md](procedural-generation.md) · [README.md](README.md) · [paris-map-strikes.md](paris-map-strikes.md) · [ui-design.md](../ui-design.md) · [economy.md](../economy.md) · [orleans-integration.md](../orleans-integration.md)
+**Related:** [procedural-generation.md](procedural-generation.md) · [README.md](README.md) · [paris-map-strikes.md](paris-map-strikes.md) · [satellites-map-technology.md](satellites-map-technology.md) · [ui-design.md](../ui-design.md) · [economy.md](../economy.md) · [orleans-integration.md](../orleans-integration.md)
 
 ---
 

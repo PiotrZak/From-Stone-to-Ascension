@@ -2,7 +2,7 @@
 
 **Project:** TTS — Technology Tier Simulation  
 **Status:** **Partially shipped** · agents + alignment gates live; full TTS 5 catalog and economy hooks incomplete  
-**Related:** [tts4-start.md](tts4-start.md) · [tts6-exploring.md](tts6-exploring.md) · [decision-gates.md](decision-gates.md) · [agent-integration.md](agent-integration.md) · [tech-trees-by-tier.md](../tech-trees-by-tier.md) §7 · [paris-map-strikes.md](paris-map-strikes.md)
+**Related:** [tts4-start.md](tts4-start.md) · [tts6-exploring.md](tts6-exploring.md) · [decision-gates.md](decision-gates.md) · [agent-integration.md](agent-integration.md) · [satellites-map-technology.md](satellites-map-technology.md) · [tech-trees-by-tier.md](../tech-trees-by-tier.md) §7 · [paris-map-strikes.md](paris-map-strikes.md)
 
 ---
 
