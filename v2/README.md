@@ -19,6 +19,7 @@ Planning documents for the next evolution of *From Stone to Ascension*: procedur
 | [hex-map.md](hex-map.md) | Hex grid, territory, procedural terrain | **Partial — M3 foundation, light gameplay** |
 | [paris-map-strikes.md](paris-map-strikes.md) | **Paris scenario, strike hot regions, map heat overlay** | **Design proposal** |
 | [satellites-map-technology.md](satellites-map-technology.md) | **Satellites — orbit, map coverage, TTS 4 tech spine** | **Research / design** |
+| [spiral-warsaw-game.md](spiral-warsaw-game.md) | **Spiral — Warsaw 2027 narrative spin-off on TTS engine** | **Concept** |
 | [architecture-overview.md](../architecture-overview.md) | Technical + gameplay diagrams | Reference |
 | [player-experience.md](../player-experience.md) | Async governor UX | Reference (UI largely aligned) |
 | [current-state.md](../current-state.md) | Day-to-day dev commands | May lag behind test count |
@@ -82,6 +83,7 @@ flowchart LR
 7. **[hex-map.md](hex-map.md)** — spatial layer; §0 = M3 shipped, §1 = pre-M3 baseline  
 8. **[paris-map-strikes.md](paris-map-strikes.md)** — Paris map + strikes as hot regions (scenario design)  
 9. **[satellites-map-technology.md](satellites-map-technology.md)** — satellites, map coverage, orbital intel  
+10. **[spiral-warsaw-game.md](spiral-warsaw-game.md)** — *Spiral* spin-off: Warsaw 2027, dual protagonists, life gates  
 
 ---
 
