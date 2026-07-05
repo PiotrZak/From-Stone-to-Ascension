@@ -48,22 +48,25 @@
   border: 1px solid var(--outline-variant);
   border-radius: 0.5rem;
   background: var(--surface-container);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
 }
 
 .gc-command-title {
   margin: 0;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.75rem;
+  font-family: inherit;
+  font-size: 0.8125rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--on-surface);
 }
 
 .gc-command-sector {
   margin: 0.2rem 0 0;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.6rem;
-  letter-spacing: 0.08em;
+  font-family: inherit;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--on-surface-variant);
 }
@@ -93,6 +96,8 @@
   min-height: calc(var(--gc-cs-cell-h) + 0.85rem);
   padding: 0.4rem 0.75rem;
   flex-wrap: nowrap;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 .gc-cs-tick-block {
@@ -140,17 +145,29 @@
 
 .gc-cs-progress-cell .gc-status-label {
   margin: 0;
-  font-size: 0.52rem;
+  font-family: inherit;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--on-surface-variant);
 }
 
 .gc-cs-progress-cell .gc-status-value {
   margin: 0;
-  font-size: 0.78rem;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--on-surface);
 }
 
 .gc-cs-progress-cell .gc-status-sub {
   margin: 0.22rem 0 0;
-  font-size: 0.58rem;
+  font-family: inherit;
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--on-surface-variant);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -190,24 +207,26 @@
 }
 
 .gc-cs-label {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.5rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-family: inherit;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--on-surface-variant);
 }
 
 .gc-cs-value {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.78rem;
+  font-family: inherit;
+  font-size: 0.875rem;
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
   color: var(--on-surface);
 }
 
 .gc-cs-hint {
-  font-size: 0.58rem;
+  font-family: inherit;
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
   line-height: 1.2;
   color: var(--on-surface-variant);
   overflow: hidden;
@@ -216,12 +235,19 @@
 }
 
 .gc-cs-alert {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.58rem;
+  font-family: inherit;
+  font-size: 0.625rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--tts-orange, #ec6a06);
+}
+
+.gc-cs-tick-block .tick-clock-hud-value {
+  font-family: inherit;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 @media (max-width: 1280px) {
@@ -513,10 +539,12 @@
 .governor-command .territory-panel-head {
   background: var(--surface-container-high);
   padding: 0.35rem 0.65rem;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
 }
 
 .governor-command .hex-map-hint {
-  font-size: 0.55rem;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.625rem;
   bottom: 0.35rem;
 }
 
@@ -533,10 +561,12 @@
 }
 
 .governor-command .territory-panel-label,
+.governor-command .territory-panel-meta,
 .governor-command .gc-panel-title {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.6rem;
-  letter-spacing: 0.1em;
+  font-family: inherit;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
