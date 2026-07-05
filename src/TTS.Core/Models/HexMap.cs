@@ -48,6 +48,8 @@ public sealed class HexTile
     public double ResourceYield { get; set; }
     public string? ControllingCivilizationId { get; set; }
     public string? RegionId { get; set; }
+    /// <summary>Stylized Earth macro-region (e.g. europe, north-america).</summary>
+    public string? WorldRegionId { get; set; }
     public bool IsLand => Biome != Biome.Ocean;
 
     public HexTile(int q, int r) { Q = q; R = r; }

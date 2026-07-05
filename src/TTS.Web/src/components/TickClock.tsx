@@ -40,9 +40,17 @@ interface TickClockProps {
   isTickDue: boolean;
   tickCount: number;
   maxTicks: number;
+  ringOnly?: boolean;
 }
 
-export function TickClock({ modeId, nextTickAt, isTickDue, tickCount, maxTicks }: TickClockProps) {
+export function TickClock({
+  modeId,
+  nextTickAt,
+  isTickDue,
+  tickCount,
+  maxTicks,
+  ringOnly = false,
+}: TickClockProps) {
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -58,13 +66,21 @@ export function TickClock({ modeId, nextTickAt, isTickDue, tickCount, maxTicks }
   const dashOffset = RING_C * (1 - progress);
 
   return (
-    <div className={`tick-clock-hud${due ? ' tick-clock-hud-due' : ''}`} aria-live="polite">
-      <div className="tick-clock-hud-meta">
-        <p className="label-caps">Tick {tickCount}/{maxTicks}</p>
-        <div className="tick-season-bar">
-          <div className="tick-season-fill" style={{ width: `${Math.round(seasonProgress * 100)}%` }} />
+    <div
+      className={`tick-clock-hud${due ? ' tick-clock-hud-due' : ''}${ringOnly ? ' tick-clock-hud-ring-only' : ''}`}
+      aria-live="polite"
+    >
+      {!ringOnly && (
+        <div className="tick-clock-hud-meta">
+          <p className="label-caps">Tick {tickCount}/{maxTicks}</p>
+          <div className="tick-season-bar">
+            <div
+              className="tick-season-fill"
+              style={{ width: `${Math.round(seasonProgress * 100)}%` }}
+            />
+          </div>
         </div>
-      </div>
+      )}
       <div className="tick-clock-hud-ring-wrap">
         <svg className="tick-clock-hud-ring" viewBox="0 0 48 48" aria-hidden>
           <circle cx="24" cy="24" r={RING_R} fill="transparent" stroke="#30363d" strokeWidth="2.5" />
@@ -75,6 +91,7 @@ export function TickClock({ modeId, nextTickAt, isTickDue, tickCount, maxTicks }
             fill="transparent"
             stroke="currentColor"
             strokeWidth="2.5"
+            strokeLinecap="round"
             strokeDasharray={RING_C}
             strokeDashoffset={dashOffset}
             className="tick-clock-hud-progress"

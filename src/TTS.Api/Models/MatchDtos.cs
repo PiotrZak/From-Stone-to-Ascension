@@ -344,6 +344,8 @@ public sealed class HexTileDto
     public double ResourceYield { get; init; }
     public string? ControllingCivilizationId { get; init; }
     public bool IsCapital { get; init; }
+    public string? WorldRegionId { get; init; }
+    public string? WorldRegionName { get; init; }
 }
 
 public sealed class HexMapDto

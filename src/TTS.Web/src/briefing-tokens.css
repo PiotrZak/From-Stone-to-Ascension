@@ -1,0 +1,130 @@
+/**
+ * Slate Tactical — canonical tokens from DESIGN.md
+ */
+:root {
+  /* Surfaces */
+  --surface: #051424;
+  --surface-dim: #051424;
+  --surface-bright: #2c3a4c;
+  --surface-container-lowest: #010f1f;
+  --surface-container-low: #0d1c2d;
+  --surface-container: #122131;
+  --surface-container-high: #1c2b3c;
+  --surface-container-highest: #273647;
+  --surface-variant: #273647;
+
+  /* Content */
+  --on-surface: #d4e4fa;
+  --on-surface-variant: #c5c6cd;
+  --inverse-surface: #d4e4fa;
+  --inverse-on-surface: #233143;
+  --outline: #8f9097;
+  --outline-variant: #45474c;
+  --surface-tint: #bcc7de;
+
+  /* Primary (slate) */
+  --primary-slate: #bcc7de;
+  --on-primary-slate: #263143;
+  --primary-container: #1e293b;
+  --on-primary-container: #8590a6;
+  --inverse-primary: #545f73;
+
+  /* Secondary (orange — critical / urgent) */
+  --secondary-orange: #ffb690;
+  --on-secondary-orange: #552100;
+  --secondary-container: #ec6a06;
+  --on-secondary-container: #4a1c00;
+
+  /* Tertiary (cyan — navigation / interactive) */
+  --tertiary: #4cd7f6;
+  --on-tertiary: #003640;
+  --tertiary-container: #002d36;
+  --on-tertiary-container: #009db7;
+  --tertiary-fixed-dim: #4cd7f6;
+
+  /* Error */
+  --error: #ffb4ab;
+  --on-error: #690005;
+  --error-container: #93000a;
+  --on-error-container: #ffdad6;
+
+  /* Status */
+  --status-positive: #3fb950;
+
+  /* Spacing rhythm (4px baseline) */
+  --space-xs: 8px;
+  --space-sm: 16px;
+  --space-md: 24px;
+  --space-lg: 40px;
+  --space-xl: 64px;
+  --gutter: 24px;
+  --margin: 32px;
+  --sidebar-width: 280px;
+
+  /* Radius — soft 0.25rem default */
+  --radius-sm: 0.125rem;
+  --radius: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+
+  /* Legacy aliases (match-ui / governor-command) */
+  --tts-slate-bg: var(--surface);
+  --tts-slate-surface: var(--surface-container);
+  --tts-slate-surface-high: var(--surface-container-high);
+  --tts-slate-border: var(--surface-container-highest);
+  --tts-slate-text: var(--on-surface);
+  --tts-slate-muted: var(--outline);
+  --tts-cyan: var(--tertiary);
+  --tts-cyan-dim: var(--on-tertiary-container);
+  --tts-orange: var(--secondary-container);
+  --tts-orange-bright: var(--secondary-orange);
+  --tts-red: var(--error);
+  --tts-green: var(--status-positive);
+  --tts-bg: var(--surface);
+  --tts-surface: var(--surface-container);
+  --tts-text: var(--on-surface);
+  --tts-text-muted: var(--on-surface-variant);
+  --tts-border: var(--surface-container-highest);
+  --tts-blue: var(--tertiary);
+  --tts-amber: var(--secondary-container);
+}
+
+/* Typography — DESIGN.md */
+.text-label-caps {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.text-data-point {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+  font-variant-numeric: tabular-nums;
+}
+
+.text-headline-md {
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 32px;
+}
+
+.text-body-base {
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+}
+
+.text-body-sm {
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+}

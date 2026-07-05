@@ -428,7 +428,8 @@ public sealed class WorldGrain : Grain, IWorldGrain
             t.Biome.ToString(),
             t.ResourceYield,
             t.ControllingCivilizationId,
-            capitalKeys.Contains(t.Key))).ToList();
+            capitalKeys.Contains(t.Key),
+            t.WorldRegionId)).ToList();
 
         return Task.FromResult<GrainHexMap?>(new GrainHexMap(map.Width, map.Height, map.Seed, tiles, capitals));
     }

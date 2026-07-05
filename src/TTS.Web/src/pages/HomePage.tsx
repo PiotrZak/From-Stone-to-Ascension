@@ -1,6 +1,33 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AlertCircle, Check, Copy, Loader2, Swords } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { api, loadSession, saveSession, type MatchListItem } from '../api';
+import { cn } from '@/lib/utils';
+
+const MODES = [
+  { id: 'sprint-8h', label: 'Sprint 8h' },
+  { id: 'blitz-24h', label: 'Blitz 24h' },
+  { id: 'standard-36h', label: 'Standard 36h' },
+  { id: 'extended-48h', label: 'Extended 48h' },
+  { id: 'classic-stone', label: 'Classic' },
+  { id: 'dev-blitz-3m', label: 'Dev 3m' },
+] as const;
+
+const homeCard = 'border-border bg-card shadow-none';
+const homeField = 'border-input bg-[var(--surface-container-low)] shadow-none focus-visible:ring-1 focus-visible:ring-ring';
 
 function formatCountdown(targetIso: string): string {
   const sec = Math.max(0, Math.floor((new Date(targetIso).getTime() - Date.now()) / 1000));
@@ -47,26 +74,49 @@ function MatchRow({
   const needsAction = match.pendingGateCount > 0;
 
   return (
-    <article
-      className={`match-row${needsAction ? ' match-row-action' : ''}`}
+    <Card
+      className={cn(
+        homeCard,
+        'cursor-pointer transition-colors hover:bg-muted/20',
+        needsAction && 'border-amber-500/20 bg-amber-500/[0.04] hover:bg-amber-500/[0.07]',
+      )}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
       role="button"
       tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
     >
-      <div className="match-row-main">
-        <span className="match-row-title">{match.modeDisplayName}</span>
-        <span className="muted match-row-meta">{matchLine(match, session?.civilizationName)}</span>
-      </div>
-      <button
-        type="button"
-        className="match-row-code"
-        onClick={(e) => { e.stopPropagation(); onCopy(); }}
-        title="Copy join code"
-      >
-        {copied ? '✓' : match.joinCode}
-      </button>
-    </article>
+      <CardContent className="flex items-center gap-3 p-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted/40">
+          <Swords className="h-4 w-4 text-muted-foreground/80" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="font-medium leading-tight text-foreground/90">{match.modeDisplayName}</p>
+            {needsAction && <Badge variant="warning">Decision due</Badge>}
+          </div>
+          <p className="mt-1 truncate text-sm text-muted-foreground">{matchLine(match, session?.civilizationName)}</p>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="shrink-0 font-mono text-xs text-muted-foreground hover:text-foreground"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCopy();
+          }}
+          title="Copy join code"
+        >
+          {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+          {match.joinCode}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -158,54 +208,91 @@ export function HomePage() {
   };
 
   return (
-    <div className="home-page">
-      <section className="card home-bar">
-        <input
-          id="playerName"
-          className="home-bar-name"
-          value={playerName}
-          onChange={(e) => setPlayerName(e.target.value)}
-          placeholder="Your name"
-          aria-label="Your name"
-        />
-        <div className="home-bar-create row">
-          <select value={modeId} onChange={(e) => setModeId(e.target.value)} aria-label="Mode">
-            <option value="sprint-8h">Sprint 8h</option>
-            <option value="blitz-24h">Blitz 24h</option>
-            <option value="standard-36h">Standard 36h</option>
-            <option value="extended-48h">Extended 48h</option>
-            <option value="classic-stone">Classic</option>
-            <option value="dev-blitz-3m">Dev 3m</option>
-          </select>
-          <button className="btn btn-primary" disabled={busy} onClick={() => void handleCreate()}>
-            New
-          </button>
-        </div>
-        <div className="home-bar-join row join-row">
-          <input
-            value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-            placeholder="Join code"
-            aria-label="Join code"
-          />
-          <button className="btn" disabled={busy || !joinCode.trim()} onClick={() => void handleJoin()}>
-            Join
-          </button>
-        </div>
-        {error && <p className="error home-bar-error">{error}</p>}
-      </section>
+    <div className="home-page mx-auto max-w-2xl space-y-10">
+      <div className="space-y-2">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground/90">Briefing room</h1>
+        <p className="max-w-xl text-sm text-muted-foreground">
+          2–5 minute command sessions. Create a match, join with a code, or resume before the next tick.
+        </p>
+      </div>
 
-      <section className="home-matches">
-        <p className="home-matches-label muted">
-          {loading ? 'Loading…' : actionCount > 0
-            ? `${actionCount} need${actionCount === 1 ? 's' : ''} a decision`
+      <Card className={homeCard}>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base font-medium text-foreground/90">Play</CardTitle>
+          <CardDescription>Your governor name is shown to other players in the lobby.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="playerName" className="text-muted-foreground">Governor name</Label>
+              <Input
+                id="playerName"
+                className={homeField}
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+                placeholder="Governor"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-muted-foreground">Match mode</Label>
+              <Select value={modeId} onValueChange={setModeId}>
+                <SelectTrigger className={homeField}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="border-border/40 bg-popover/95 backdrop-blur-sm">
+                  {MODES.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button disabled={busy} onClick={() => void handleCreate()}>
+              {busy ? <Loader2 className="animate-spin" /> : null}
+              New match
+            </Button>
+          </div>
+
+          <div className="rounded-lg border border-border/20 bg-muted/10 p-4">
+            <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Join with code</p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                placeholder="Join code"
+                aria-label="Join code"
+                className={cn(homeField, 'font-mono uppercase sm:max-w-xs')}
+              />
+              <Button variant="secondary" disabled={busy || !joinCode.trim()} onClick={() => void handleJoin()}>
+                Join match
+              </Button>
+            </div>
+          </div>
+
+          {error && (
+            <Alert variant="destructive" className="border-destructive/30 bg-destructive/10">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
+      <section className="space-y-3">
+        <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {loading ? 'Loading matches…' : actionCount > 0
+            ? `${actionCount} match${actionCount === 1 ? '' : 'es'} need a decision`
             : sortedMatches.length === 0
               ? 'No matches yet'
-              : `${sortedMatches.length} match${sortedMatches.length === 1 ? '' : 'es'}`}
-        </p>
+              : `${sortedMatches.length} active match${sortedMatches.length === 1 ? '' : 'es'}`}
+        </h2>
 
         {!loading && sortedMatches.length > 0 && (
-          <div className="match-list">
+          <div className="grid gap-2">
             {sortedMatches.map((m) => (
               <MatchRow
                 key={m.matchId}

@@ -151,7 +151,8 @@ public sealed class MatchPersistence
                     Elevation = t.Elevation,
                     ResourceYield = t.ResourceYield,
                     ControllingCivilizationId = t.ControllingCivilizationId,
-                    RegionId = t.RegionId
+                    RegionId = t.RegionId,
+                    WorldRegionId = t.WorldRegionId
                 }).ToList()
             };
             world.Map.RebuildIndex();
@@ -211,7 +212,8 @@ public sealed class MatchPersistence
                     Elevation = t.Elevation,
                     ResourceYield = t.ResourceYield,
                     ControllingCivilizationId = t.ControllingCivilizationId,
-                    RegionId = t.RegionId
+                    RegionId = t.RegionId,
+                    WorldRegionId = t.WorldRegionId
                 }).ToList()
             },
             Civilizations = world.Civilizations.Select(ToSavedCivilization).ToList(),
@@ -420,6 +422,7 @@ public sealed class MatchPersistence
         public double ResourceYield { get; set; }
         public string? ControllingCivilizationId { get; set; }
         public string? RegionId { get; set; }
+        public string? WorldRegionId { get; set; }
     }
 
     public sealed class SavedCivilization

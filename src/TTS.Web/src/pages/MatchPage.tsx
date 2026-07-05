@@ -1,11 +1,23 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { AlertCircle, ArrowLeft, Copy, Gavel, Check, Loader2 } from 'lucide-react';
 import { AccordionSection } from '../components/AccordionSection';
 import { AwaySummaryView } from '../components/AwaySummaryView';
 import { defaultTerritoryHint, HexMapView } from '../components/HexMapView';
-import { formatGateCountdown, TickClock } from '../components/TickClock';
+import { formatGateCountdown } from '../components/TickClock';
+import { IntelligenceFeed } from '../components/IntelligenceFeed';
+import { MatchSidebar, type MatchSection } from '../components/MatchSidebar';
+import { CommandStatusBar } from '../components/CommandStatusBar';
 import { StrategicAdvisorPanel } from '../components/StrategicAdvisorPanel';
 import { TechTreeView } from '../components/TechTreeView';
+import { TickChronicle } from '../components/TickChronicle';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 import {
   api,
   loadSession,
@@ -61,7 +73,15 @@ export function MatchPage() {
   const [advisorLoading, setAdvisorLoading] = useState(false);
   const [focusedGateId, setFocusedGateId] = useState<string | null>(null);
   const [territoryMeta, setTerritoryMeta] = useState(defaultTerritoryHint());
+  const [activeSection, setActiveSection] = useState<MatchSection>('territory');
   const [, setClock] = useState(0);
+
+  const scrollToSection = (section: MatchSection) => {
+    setActiveSection(section);
+    const targetId =
+      section === 'economy' && focusedGate ? 'section-gate' : `section-${section}`;
+    document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const civId = session?.civilizationId ?? 'civ-player';
 
@@ -223,13 +243,27 @@ export function MatchPage() {
     }
   };
 
-  if (loading && !summary) return <p className="muted page-loading">Loading match…</p>;
+  if (loading && !summary) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading match…
+      </div>
+    );
+  }
   if (!summary) {
     return (
-      <div className="card">
-        <p className="error">{error ?? 'Match not found'}</p>
-        <Link to="/">← Home</Link>
-      </div>
+      <Card>
+        <CardContent className="space-y-4 pt-6">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error ?? 'Match not found'}</AlertDescription>
+          </Alert>
+          <Button variant="outline" asChild>
+            <Link to="/">← Home</Link>
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -249,182 +283,211 @@ export function MatchPage() {
   const otherCities = summary.regions.filter((r) => r.controllingCivilizationId !== civId);
   const showModernStats = (summary.startingTier >= 4) || (myCiv?.tier ?? 1) >= 4;
   const hasAway = !ended && (summary.awaySummaryStructured || summary.awaySummary) && summary.tickCount > 0;
-  return (
-    <div className="match-page">
-      <header className="match-hud">
-        <div className="match-hud-left">
-          <Link to="/" className="match-hud-back" aria-label="Home">
-            <span className="material-symbols-outlined">arrow_back</span>
-          </Link>
-          <div className="match-hud-identity">
-            <h1 className="match-hud-title">{summary.modeDisplayName}</h1>
-            <p className="match-hud-sub">
-              {session
-                ? `${session.civilizationName}${isHost ? ' · host' : ''}`
-                : 'Spectating'}
-              {ended && ' · match ended'}
-            </p>
-          </div>
-        </div>
+  const totalPopulation = myCities.reduce((sum, c) => sum + c.population, 0);
+  const avgYield = myCities.length > 0
+    ? myCities.reduce((sum, c) => sum + c.resources, 0) / myCities.length
+    : 0;
 
-        <div className="match-hud-center">
-          {inLobby && (
-            <div className="match-hud-pill">
-              Lobby · {summary.readyCount}/{summary.minPlayers} ready
-            </div>
+  const gatePanel = focusedGate && (
+    <section key={focusedGate.gateId} className="gate-hero gate-hero-rail" id="section-gate">
+      <div className="gate-rail-head">
+        <div className="gate-rail-head-top">
+          <span className="gc-urgent-badge">Urgent decision</span>
+          <span className="gate-hero-label gate-rail-countdown">
+            {formatGateCountdown(focusedGate.expiresAt)}
+          </span>
+        </div>
+        <p className="gate-rail-queue-label">
+          Queue {focusedGate.queueIndex ?? 1} of {focusedGate.queueTotal ?? myGates.length}
+        </p>
+      </div>
+
+      {myGates.length > 1 && (
+        <div className="gate-rail-tabs">
+          <Tabs value={focusedGate.gateId} onValueChange={setFocusedGateId}>
+            <TabsList className="gate-rail-tablist h-auto w-full flex-col items-stretch gap-1 bg-muted/40 p-1">
+              {myGates.map((gate) => (
+                <TabsTrigger key={gate.gateId} value={gate.gateId} className="gate-rail-tab text-left text-xs">
+                  {gate.title}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        </div>
+      )}
+
+      {(focusedGate.contextRegionName || focusedGate.contextFactionName) && (
+        <div className="gate-context-row gate-rail-context flex flex-wrap gap-2">
+          {focusedGate.contextRegionName && (
+            <Badge variant="outline" className="gate-context-chip font-normal">{focusedGate.contextRegionName}</Badge>
           )}
-          {!inLobby && !ended && (
-            <TickClock
-              modeId={summary.modeId}
-              nextTickAt={summary.nextTickAt}
-              isTickDue={summary.isTickDue}
-              tickCount={summary.tickCount}
-              maxTicks={summary.maxTicks}
-            />
+          {focusedGate.contextFactionName && (
+            <Badge variant="outline" className="gate-context-chip font-normal">{focusedGate.contextFactionName}</Badge>
+          )}
+        </div>
+      )}
+
+      <div className="gate-rail-body">
+        <h2 className="gate-title gate-rail-title">{focusedGate.title}</h2>
+        <p className="gate-desc gate-rail-desc">{focusedGate.description}</p>
+        <p className="gate-impact-note gate-rail-impact">
+          Resolving unlocks auto-research and applies effects on the next tick.
+        </p>
+        <div className="gate-options-grid gate-rail-options">
+          {focusedGate.options.map((opt, i) => {
+            const guidance = gateFocusForHero?.options.find((o) => o.optionId === opt.id);
+            const isRecommended = guidance?.stance === 'recommended';
+            const isCaution = guidance?.stance === 'caution';
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                className={cn(
+                  'gate-option-card gate-rail-option text-left',
+                  gateOptionClass(i, opt.label),
+                  isRecommended && 'gate-option-recommended',
+                  isCaution && 'gate-option-caution',
+                )}
+                disabled={busy || !session}
+                onClick={() => void handleResolve(focusedGate.gateId, opt.id)}
+              >
+                <span className="gate-option-card-top">
+                  <strong>{opt.label}</strong>
+                  {isRecommended && <Badge variant="success" className="gate-option-badge">Recommended</Badge>}
+                  {isCaution && <Badge variant="warning" className="gate-option-badge">Risky</Badge>}
+                </span>
+                <span className="gate-option-card-desc">{opt.description}</span>
+                {opt.impactHint && <span className="gate-option-card-impact">{opt.impactHint}</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+
+  return (
+    <div className="match-page governor-command">
+      <header className="gc-command-bar">
+        <div>
+          <p className="gc-command-title">Governor command</p>
+          <p className="gc-command-sector">
+            {session?.civilizationName ?? 'Spectating'} :: {summary.modeDisplayName}
+            {ended && ' :: match ended'}
+          </p>
+        </div>
+        <div className="match-hud-right flex items-center gap-2">
+          {inLobby && (
+            <Badge variant="secondary">Lobby · {summary.readyCount}/{summary.minPlayers} ready</Badge>
           )}
           {ended && (
-            <div className="match-hud-pill">
-              Finished · tick {summary.tickCount}/{summary.maxTicks}
-            </div>
+            <Badge variant="outline">Finished · tick {summary.tickCount}/{summary.maxTicks}</Badge>
           )}
-        </div>
-
-        <div className="match-hud-right">
           {!inLobby && (
-            <button
-              type="button"
-              className="match-hud-code"
-              onClick={() => void copyJoinCode(summary.joinCode)}
-              title="Copy join code"
-            >
+            <Button type="button" variant="outline" size="sm" className="font-mono text-xs" onClick={() => void copyJoinCode(summary.joinCode)}>
+              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
               {copied ? 'copied' : summary.joinCode}
-            </button>
+            </Button>
           )}
-          {myCiv && !inLobby && (
-            <span className="badge-tier-hud">{tierLabel(myCiv.tier)}</span>
-          )}
+          <Button variant="ghost" size="icon" asChild>
+            <Link to="/" aria-label="Home"><ArrowLeft className="h-4 w-4" /></Link>
+          </Button>
+          {myCiv && !inLobby && <Badge className="badge-tier-hud">{tierLabel(myCiv.tier)}</Badge>}
         </div>
       </header>
 
-      <div className="match-layout">
-        {hexMap && (
-          <aside className="match-map-panel">
-            <div className="territory-panel-head">
-              <span className="label-caps">Territory</span>
-              <span className="territory-panel-meta">{territoryMeta}</span>
-            </div>
-            <div className="territory-map-body">
-              <HexMapView
-                map={hexMap}
-                myCivilizationId={session?.civilizationId ?? null}
-                disabled={busy || ended}
-                onClaim={session && !ended && !inLobby ? handleClaimHex : undefined}
-                onSelectionChange={(_, meta) => setTerritoryMeta(meta ?? defaultTerritoryHint())}
-              />
-            </div>
-          </aside>
-        )}
+      {!inLobby && myCiv && !ended && (
+        <CommandStatusBar
+          summary={summary}
+          myCiv={myCiv}
+          modeId={summary.modeId}
+          population={totalPopulation}
+          resourceYield={avgYield}
+          cityCount={myCities.length}
+          rivalCount={rivals.length}
+          pendingGateCount={myGates.length}
+          formatPopulation={formatPopulation}
+        />
+      )}
 
-        <div className="match-main">
-          {!session && (
-            <div className="join-banner">
-              <p className="label-caps">Join match</p>
-              <div className="row join-row">
-                <input value={playerName} onChange={(e) => setPlayerName(e.target.value)} placeholder="Governor name" />
-                <button className="btn btn-primary" disabled={busy} onClick={() => void handleJoin()}>
-                  Join
-                </button>
-              </div>
+      <div className="gc-workspace">
+        <MatchSidebar
+          active={activeSection}
+          civilizationName={session?.civilizationName}
+          hasUrgentGate={!!focusedGate}
+          onNavigate={scrollToSection}
+          onExecuteCommands={
+            focusedGate
+              ? () => scrollToSection('economy')
+              : session && !ended && !inLobby
+                ? () => scrollToSection('economy')
+                : undefined
+          }
+        />
+
+        <div className="gc-primary">
+          <div className={cn('gc-command-stage', focusedGate && !inLobby && 'gc-command-stage-has-gate')}>
+            {hexMap && (
+              <aside id="section-territory" className="match-map-panel">
+                <div className="territory-panel-head">
+                  <span className="territory-panel-label">Strategic map</span>
+                  <span className="territory-panel-meta">{territoryMeta}</span>
+                </div>
+                <div className="territory-map-body">
+                  <HexMapView
+                    map={hexMap}
+                    myCivilizationId={session?.civilizationId ?? null}
+                    disabled={busy || ended}
+                    onClaim={session && !ended && !inLobby ? handleClaimHex : undefined}
+                    onSelectionChange={(_, meta) => setTerritoryMeta(meta ?? defaultTerritoryHint())}
+                  />
+                </div>
+              </aside>
+            )}
+
+            {focusedGate && !inLobby && (
+              <aside className="gc-decision-panel" aria-label="Decision panel">
+                <header className="gc-decision-head">
+                  <div className="gc-decision-head-title">
+                    <Gavel className="gc-decision-icon" aria-hidden />
+                    <h2 className="gc-panel-title">Decision panel</h2>
+                  </div>
+                  <span className="gate-pulse-dots" aria-hidden>
+                    <span className="gate-pulse-dot gate-pulse-dot-live" />
+                    <span className="gate-pulse-dot gate-pulse-dot-dim" />
+                  </span>
+                </header>
+                {gatePanel}
+              </aside>
+            )}
+          </div>
+
+          {!inLobby && (
+            <div id="section-intel" className="gc-briefing-below">
+              <IntelligenceFeed
+                summary={summary}
+                myCiv={myCiv}
+                civilizationName={session?.civilizationName}
+                dashboard={dashboard}
+                cityCount={myCities.length}
+              />
             </div>
           )}
 
-          {focusedGate && (
-            <section key={focusedGate.gateId} className="gate-hero">
-              <div className="gate-hero-head">
-                <div className="gate-hero-head-left">
-                  <div className="gate-hero-icon">
-                    <span className="material-symbols-outlined">gavel</span>
-                  </div>
-                  <span className="gate-hero-label">
-                    Decision {focusedGate.queueIndex ?? 1} of {focusedGate.queueTotal ?? myGates.length}
-                    {' · '}
-                    {formatGateCountdown(focusedGate.expiresAt)}
-                  </span>
-                </div>
-                <div className="gate-pulse-dots" aria-hidden>
-                  <span className="gate-pulse-dot gate-pulse-dot-live" />
-                  <span className="gate-pulse-dot gate-pulse-dot-dim" />
-                </div>
-              </div>
-
-              {myGates.length > 1 && (
-                <div className="gate-queue-nav" role="tablist" aria-label="Pending decisions">
-                  {myGates.map((gate) => (
-                    <button
-                      key={gate.gateId}
-                      type="button"
-                      role="tab"
-                      aria-selected={gate.gateId === focusedGate.gateId}
-                      className={`gate-queue-tab${gate.gateId === focusedGate.gateId ? ' gate-queue-tab-active' : ''}`}
-                      onClick={() => setFocusedGateId(gate.gateId)}
-                    >
-                      {gate.title}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {(focusedGate.contextRegionName || focusedGate.contextFactionName) && (
-                <div className="gate-context-row">
-                  {focusedGate.contextRegionName && (
-                    <span className="gate-context-chip">
-                      <span className="material-symbols-outlined">location_city</span>
-                      {focusedGate.contextRegionName}
-                    </span>
-                  )}
-                  {focusedGate.contextFactionName && (
-                    <span className="gate-context-chip">
-                      <span className="material-symbols-outlined">groups</span>
-                      {focusedGate.contextFactionName}
-                    </span>
-                  )}
-                </div>
-              )}
-
-              <h2 className="gate-title">{focusedGate.title}</h2>
-              <p className="gate-desc">{focusedGate.description}</p>
-              <p className="gate-impact-note muted">
-                Your choice applies immediately and blocks auto-research until all pending gates are resolved.
-              </p>
-              <div className="gate-options-grid">
-                {focusedGate.options.map((opt, i) => {
-                  const guidance = gateFocusForHero?.options.find((o) => o.optionId === opt.id);
-                  const isRecommended = guidance?.stance === 'recommended';
-                  const isCaution = guidance?.stance === 'caution';
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      className={`gate-option-card ${gateOptionClass(i, opt.label)}${
-                        isRecommended ? ' gate-option-recommended' : ''
-                      }${isCaution ? ' gate-option-caution' : ''}`}
-                      disabled={busy || !session}
-                      onClick={() => void handleResolve(focusedGate.gateId, opt.id)}
-                    >
-                      <span className="gate-option-card-top">
-                        <strong>{opt.label}</strong>
-                        {isRecommended && <span className="gate-option-badge">Recommended</span>}
-                        {isCaution && <span className="gate-option-badge gate-option-badge-warn">Risky</span>}
-                      </span>
-                      <span className="gate-option-card-desc">{opt.description}</span>
-                      {opt.impactHint && (
-                        <span className="gate-option-card-impact">{opt.impactHint}</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
+          <div className="match-layout">
+            <div className="match-main">
+          {!session && (
+            <Card className="join-banner border-dashed">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Join match</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-2 sm:flex-row">
+                <Input value={playerName} onChange={(e) => setPlayerName(e.target.value)} placeholder="Governor name" />
+                <Button disabled={busy} onClick={() => void handleJoin()}>
+                  Join
+                </Button>
+              </CardContent>
+            </Card>
           )}
 
           {ended && summary.results.length > 0 && (
@@ -445,47 +508,52 @@ export function MatchPage() {
           )}
 
           {inLobby && (
-            <section className="lobby-card">
-              <div className="lobby-card-head">
-                <h2 className="label-caps">Lobby</h2>
-                <button type="button" className="inline-code" onClick={() => void copyJoinCode(summary.joinCode)}>
+            <Card className="lobby-card">
+              <CardHeader className="lobby-card-head flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">Lobby</CardTitle>
+                <Button type="button" variant="outline" size="sm" className="inline-code font-mono text-xs" onClick={() => void copyJoinCode(summary.joinCode)}>
+                  {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                   {copied ? 'copied' : summary.joinCode}
-                </button>
-              </div>
-              <ul className="lobby-list-compact">
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-4">
+              <ul className="lobby-list-compact space-y-2">
                 {summary.players.map((p) => (
-                  <li key={p.playerId}>
-                    {p.playerName}
-                    <span className="muted">{p.civilizationName}</span>
-                    {p.isReady && <span className="badge badge-ready">ready</span>}
+                  <li key={p.playerId} className="flex items-center justify-between gap-2 text-sm">
+                    <span>
+                      {p.playerName}
+                      <span className="ml-2 text-muted-foreground">{p.civilizationName}</span>
+                    </span>
+                    {p.isReady && <Badge variant="success">ready</Badge>}
                   </li>
                 ))}
               </ul>
               {session && (
-                <div className="row lobby-actions">
+                <div className="flex flex-wrap gap-2 lobby-actions">
                   {(() => {
                     const me = summary.players.find((p) => p.playerId === session.playerId);
                     const ready = me?.isReady ?? false;
                     return (
-                      <button className="btn" disabled={busy} onClick={() => void handleReady(!ready)}>
+                      <Button variant="secondary" disabled={busy} onClick={() => void handleReady(!ready)}>
                         {ready ? 'Not ready' : 'Ready up'}
-                      </button>
+                      </Button>
                     );
                   })()}
                   {canStart && (
-                    <button className="btn btn-primary" disabled={busy} onClick={() => void handleStart()}>
+                    <Button disabled={busy} onClick={() => void handleStart()}>
                       Start match
-                    </button>
+                    </Button>
                   )}
                 </div>
               )}
-            </section>
+              </CardContent>
+            </Card>
           )}
 
           {!inLobby && (
             <>
               {(myCiv || (session && dashboard && !ended)) && (
-                <section className="match-command">
+                <section id="section-economy" className="match-command">
                   {myCiv && (
                     <div className="command-strip-top">
                       <div className="command-strip-vitals">
@@ -527,6 +595,7 @@ export function MatchPage() {
                           value={policyPreset}
                           onChange={(e) => setPolicyPreset(e.target.value)}
                           aria-label="Governance policy"
+                          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
                           {POLICY_PRESETS.map((p) => (
                             <option key={p.id} value={p.id}>
@@ -534,16 +603,16 @@ export function MatchPage() {
                             </option>
                           ))}
                         </select>
-                        <span className="material-symbols-outlined policy-select-chevron">expand_more</span>
                       </div>
-                      <button
+                      <Button
                         type="button"
+                        size="sm"
                         className="btn-save-policy"
                         disabled={busy}
                         onClick={() => void handlePolicySave()}
                       >
                         Save policy
-                      </button>
+                      </Button>
                     </div>
                   )}
                   {dashboard?.recommendedTech && !ended && (
@@ -579,7 +648,7 @@ export function MatchPage() {
 
                 {summary.regions.length > 0 && (
                   <AccordionSection icon="location_city" title="Metropolitan hubs" defaultOpen={myCities.length > 0}>
-                    <div className="city-grid">
+                    <div id="section-civics" className="city-grid">
                       {[...myCities, ...otherCities].map((city) => {
                         const mine = city.controllingCivilizationId === civId;
                         const status = cityStatus(city, showModernStats);
@@ -601,6 +670,7 @@ export function MatchPage() {
                 )}
 
                 <AccordionSection icon="groups" title="Global competitors" defaultOpen={rivals.length > 0 && rivals.length <= 3}>
+                  <div id="section-rivals">
                   {rivals.length === 0 ? (
                     <p className="accordion-empty">Scanning for regional rivals…</p>
                   ) : (
@@ -613,6 +683,7 @@ export function MatchPage() {
                       ))}
                     </div>
                   )}
+                  </div>
                 </AccordionSection>
 
                 {dashboard?.crime && showModernStats && (
@@ -626,44 +697,41 @@ export function MatchPage() {
 
                 {dashboard && session && (
                   <AccordionSection icon="account_tree" title="Technological tree">
+                    <div id="section-tech">
                     <TechTreeView
                       nodes={dashboard.techTree ?? []}
                       currentTier={myCiv?.tier ?? 1}
                       recommendedId={dashboard.recommendedTech?.id}
                       startingTier={summary.startingTier}
                     />
+                    </div>
                   </AccordionSection>
                 )}
 
-                <AccordionSection icon="article" title="Match log">
-                  {!ended && (
-                    <p className="muted" style={{ margin: '0 0 0.75rem', fontSize: '12px' }}>
-                      Victory TTS {summary.victoryTier}+ · {Math.round(summary.victoryStabilityMin)}+ stability
-                      {summary.llmStatus && ` · ${summary.llmStatus.statusMessage}`}
-                    </p>
-                  )}
-                  {summary.tickLogs.length === 0 ? (
-                    <p className="accordion-empty">No events logged yet.</p>
-                  ) : (
-                    <div className="log-scroll">
-                      {summary.tickLogs.map((entry) => (
-                        <div key={entry.tick} className="log-tick">
-                          <p className="log-tick-title">Tick {entry.tick}</p>
-                          <ul className="simple-list compact">
-                            {entry.lines.map((line) => (
-                              <li key={line} className="muted">{line}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                <AccordionSection icon="article" title="Match log archive" defaultOpen={false}>
+                  <p className="muted" style={{ margin: '0 0 0.75rem', fontSize: '12px' }}>
+                    Victory TTS {summary.victoryTier}+ · {Math.round(summary.victoryStabilityMin)}+ stability
+                    {summary.llmStatus && ` · ${summary.llmStatus.statusMessage}`}
+                  </p>
+                  <TickChronicle
+                    tickLogs={summary.tickLogs}
+                    civilizationName={session?.civilizationName ?? myCiv?.name}
+                    newestFirst={false}
+                    maxHeight="min(36vh, 360px)"
+                  />
                 </AccordionSection>
               </div>
             </>
           )}
 
-          {error && <p className="error match-error">{error}</p>}
+          {error && (
+            <Alert variant="destructive" className="match-error mt-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

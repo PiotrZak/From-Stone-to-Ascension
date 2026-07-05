@@ -1,75 +1,22 @@
-import { useMemo, useState } from 'react';
+import { Minus, Plus, RotateCcw } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { HexMap, HexTile } from '../api';
-
-const BIOME_COLORS: Record<string, string> = {
-  Ocean: '#388bfd',
-  Coast: '#38bdf8',
-  Plains: '#3fb950',
-  Forest: '#15803d',
-  Hills: '#a3a3a3',
-  Mountains: '#525252',
-  Desert: '#f0b429',
-  Tundra: '#cbd5e1',
-  Wetlands: '#0d9488',
-};
-
-const LEGEND_BIOMES = ['Forest', 'Desert', 'Plains', 'Ocean'] as const;
-
-const CIV_COLORS: Record<string, string> = {
-  'civ-player': 'rgba(56, 139, 253, 0.45)',
-  'civ-rival': 'rgba(248, 81, 73, 0.45)',
-};
-
-const HEX_SIZE = 22;
-
-function axialToPixel(q: number, r: number, size: number) {
-  const x = size * (3 / 2) * q;
-  const y = size * (Math.sqrt(3) * (r + q / 2));
-  return { x, y };
-}
-
-function hexCorners(cx: number, cy: number, size: number): string {
-  const points: string[] = [];
-  for (let i = 0; i < 6; i++) {
-    const angle = (Math.PI / 180) * (60 * i);
-    points.push(`${cx + size * Math.cos(angle)},${cy + size * Math.sin(angle)}`);
-  }
-  return points.join(' ');
-}
-
-function canClaim(tile: HexTile, map: HexMap, myCivId: string | null): boolean {
-  if (!myCivId || tile.controllingCivilizationId || tile.biome === 'Ocean') return false;
-
-  const neighbors = [
-    [tile.q + 1, tile.r],
-    [tile.q + 1, tile.r - 1],
-    [tile.q, tile.r - 1],
-    [tile.q - 1, tile.r],
-    [tile.q - 1, tile.r + 1],
-    [tile.q, tile.r + 1],
-  ];
-
-  return neighbors.some(([q, r]) =>
-    map.tiles.some((t) => t.q === q && t.r === r && t.controllingCivilizationId === myCivId),
-  );
-}
-
-function tileMeta(tile: HexTile, myCivId: string | null, claimable: boolean): string {
-  const parts = [`${tile.biome} · yield ${Math.round(tile.resourceYield)}`];
-  if (tile.controllingCivilizationId) {
-    parts.push(tile.controllingCivilizationId === myCivId ? 'yours' : 'occupied');
-  } else if (claimable) {
-    parts.push('click to claim');
-  } else {
-    parts.push('neutral');
-  }
-  return parts.join(' · ');
-}
+import { Button } from '@/components/ui/button';
+import type { CameraState, ThreeHexMapHandle } from './hex-map/createThreeHexMap';
+import {
+  BIOME_COLORS,
+  biomeLabel,
+  canClaim,
+  DEFAULT_HEX_SIZE,
+  LEGEND_BIOMES,
+  tileMeta,
+} from './hex-map/hexMapModel';
 
 interface HexMapViewProps {
   map: HexMap;
   myCivilizationId: string | null;
   disabled?: boolean;
+  hexSize?: number;
   onClaim?: (q: number, r: number) => void | Promise<void>;
   onSelectionChange?: (tile: HexTile | null, meta: string | null) => void;
   showLegend?: boolean;
@@ -79,101 +26,192 @@ export function HexMapView({
   map,
   myCivilizationId,
   disabled,
+  hexSize = DEFAULT_HEX_SIZE,
   onClaim,
   onSelectionChange,
   showLegend = true,
 }: HexMapViewProps) {
+  const hostRef = useRef<HTMLDivElement>(null);
+  const engineRef = useRef<ThreeHexMapHandle | null>(null);
+  const mapRef = useRef(map);
+  const civRef = useRef(myCivilizationId);
+  const onClaimRef = useRef(onClaim);
+  const onSelectionChangeRef = useRef(onSelectionChange);
+  const cameraMemoryRef = useRef<CameraState | null>(null);
   const [selected, setSelected] = useState<HexTile | null>(null);
+  const [hovered, setHovered] = useState<HexTile | null>(null);
+  const [mapError, setMapError] = useState<string | null>(null);
+  const selectedRef = useRef<HexTile | null>(null);
+  selectedRef.current = selected;
 
-  const layout = useMemo(() => {
-    const positioned = map.tiles.map((tile) => {
-      const { x, y } = axialToPixel(tile.q, tile.r, HEX_SIZE);
-      return { tile, x, y };
-    });
-    const xs = positioned.map((p) => p.x);
-    const ys = positioned.map((p) => p.y);
-    const minX = Math.min(...xs) - HEX_SIZE * 1.4;
-    const maxX = Math.max(...xs) + HEX_SIZE * 1.4;
-    const minY = Math.min(...ys) - HEX_SIZE * 1.4;
-    const maxY = Math.max(...ys) + HEX_SIZE * 1.4;
-    return { positioned, minX, minY, width: maxX - minX, height: maxY - minY };
-  }, [map.tiles]);
+  mapRef.current = map;
+  civRef.current = myCivilizationId;
+  onClaimRef.current = onClaim;
+  onSelectionChangeRef.current = onSelectionChange;
 
-  const claimable = selected && canClaim(selected, map, myCivilizationId);
-  const meta = selected ? tileMeta(selected, myCivilizationId, !!claimable) : null;
+  const mapKey = useMemo(
+    () => `${map.seed}:${map.width}x${map.height}`,
+    [map.seed, map.width, map.height],
+  );
 
-  const selectTile = (tile: HexTile) => {
-    setSelected(tile);
-    const can = canClaim(tile, map, myCivilizationId);
-    onSelectionChange?.(tile, tileMeta(tile, myCivilizationId, can));
-  };
+  const mapRevision = useMemo(
+    () =>
+      map.tiles
+        .map((t) => `${t.q},${t.r}:${t.controllingCivilizationId ?? ''}:${t.isCapital}`)
+        .join('|'),
+    [map.tiles],
+  );
+
+  const activeTile = hovered ?? selected;
+  const claimable = activeTile && canClaim(activeTile, map, myCivilizationId);
+  const meta = activeTile ? tileMeta(activeTile, myCivilizationId, !!claimable) : null;
 
   const presentBiomes = useMemo(() => {
     const set = new Set(map.tiles.map((t) => t.biome));
     return LEGEND_BIOMES.filter((b) => set.has(b));
   }, [map.tiles]);
 
+  // Create globe once per map geometry; restore camera angle if we had one.
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+
+    let cancelled = false;
+    if (engineRef.current) {
+      cameraMemoryRef.current = engineRef.current.getCameraState();
+      engineRef.current.destroy();
+      engineRef.current = null;
+    }
+    setMapError(null);
+
+    void import('./hex-map/createThreeHexMap')
+      .then(({ createThreeHexMap }) =>
+        createThreeHexMap(
+          host,
+          mapRef.current,
+          hexSize,
+          civRef.current,
+          !!disabled,
+          !!onClaim,
+          {
+            onTileSelect(tile) {
+              setSelected(tile);
+              const can = canClaim(tile, mapRef.current, civRef.current);
+              onSelectionChangeRef.current?.(tile, tileMeta(tile, civRef.current, can));
+            },
+            onTileClaim(tile) {
+              if (!onClaimRef.current || disabled) return;
+              void onClaimRef.current(tile.q, tile.r);
+            },
+            onHoverChange(tile) {
+              setHovered(tile);
+              if (tile) {
+                const can = canClaim(tile, mapRef.current, civRef.current);
+                onSelectionChangeRef.current?.(tile, tileMeta(tile, civRef.current, can));
+              } else if (selectedRef.current) {
+                const t = selectedRef.current;
+                const can = canClaim(t, mapRef.current, civRef.current);
+                onSelectionChangeRef.current?.(t, tileMeta(t, civRef.current, can));
+              }
+            },
+          },
+          cameraMemoryRef.current,
+        ),
+      )
+      .then((handle) => {
+        if (cancelled) {
+          handle.destroy();
+          return;
+        }
+        engineRef.current = handle;
+        if (selectedRef.current) handle.setSelected(selectedRef.current);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setMapError(err instanceof Error ? err.message : 'Failed to load 3D map');
+      });
+
+    return () => {
+      cancelled = true;
+      if (engineRef.current) {
+        cameraMemoryRef.current = engineRef.current.getCameraState();
+        engineRef.current.destroy();
+        engineRef.current = null;
+      }
+    };
+  }, [mapKey, hexSize]);
+
+  // Live tile updates (ownership, capitals) without resetting the camera.
+  useEffect(() => {
+    engineRef.current?.syncMap(map, myCivilizationId, !!disabled, !!onClaim);
+  }, [mapRevision, myCivilizationId, disabled, onClaim]);
+
+  useEffect(() => {
+    engineRef.current?.setSelected(selected);
+  }, [selected]);
+
   return (
     <div className="hex-map-wrap">
-      <svg
-        className="hex-map"
-        viewBox={`${layout.minX} ${layout.minY} ${layout.width} ${layout.height}`}
-        preserveAspectRatio="xMidYMid meet"
-        role="img"
-        aria-label="Territory map"
-      >
-        {layout.positioned.map(({ tile, x, y }) => {
-          const fill = BIOME_COLORS[tile.biome] ?? '#64748b';
-          const owner = tile.controllingCivilizationId
-            ? CIV_COLORS[tile.controllingCivilizationId] ?? 'rgba(148, 163, 184, 0.45)'
-            : null;
-          const isSelected = selected?.q === tile.q && selected?.r === tile.r;
-          const clickable = !!onClaim && canClaim(tile, map, myCivilizationId);
+      <div className="hex-map-viewport" ref={hostRef}>
+        {mapError && (
+          <p className="hex-map-error" role="alert">
+            Map failed to load: {mapError}. Try refreshing the page.
+          </p>
+        )}
+      </div>
 
-          return (
-            <g key={`${tile.q},${tile.r}`}>
-              <polygon
-                points={hexCorners(x, y, HEX_SIZE)}
-                fill={fill}
-                fillOpacity={owner ? 0.55 : 0.35}
-                stroke={isSelected ? '#e0e2ec' : `${fill}80`}
-                strokeWidth={isSelected ? 2.2 : 1.4}
-                className={clickable ? 'hex-tile hex-tile-claimable' : 'hex-tile'}
-                onClick={() => {
-                  selectTile(tile);
-                  if (clickable && onClaim && !disabled) void onClaim(tile.q, tile.r);
-                }}
-              />
-              {owner && (
-                <polygon
-                  points={hexCorners(x, y, HEX_SIZE * 0.82)}
-                  fill={owner}
-                  stroke="none"
-                  pointerEvents="none"
-                />
-              )}
-              {tile.isCapital && (
-                <circle cx={x} cy={y} r={5} fill="#fef08a" stroke="#713f12" strokeWidth={0.75} />
-              )}
-            </g>
-          );
-        })}
-      </svg>
+      <div className="hex-map-controls" aria-label="Map zoom controls">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="hex-map-control-btn"
+          aria-label="Zoom in"
+          onClick={() => engineRef.current?.zoomBy(1.2)}
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="hex-map-control-btn"
+          aria-label="Zoom out"
+          onClick={() => engineRef.current?.zoomBy(0.84)}
+        >
+          <Minus className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="hex-map-control-btn"
+          aria-label="Reset map view"
+          onClick={() => engineRef.current?.fitToView()}
+        >
+          <RotateCcw className="h-4 w-4" />
+        </Button>
+      </div>
+
       {meta && <p className="hex-map-meta-hidden" aria-live="polite">{meta}</p>}
+
       {showLegend && presentBiomes.length > 0 && (
-        <div className="map-biome-legend">
+        <div className="map-biome-legend map-continent-legend">
+          <span className="map-legend-heading">Biomes</span>
           {presentBiomes.map((biome) => (
             <div key={biome} className="map-biome-legend-item">
               <span className="map-biome-dot" style={{ background: BIOME_COLORS[biome] }} />
-              <span>{biome}</span>
+              <span>{biomeLabel(biome)}</span>
             </div>
           ))}
         </div>
       )}
+
+      <p className="hex-map-hint">Drag to spin the world · Scroll to zoom · Right-drag to pan</p>
     </div>
   );
 }
 
 export function defaultTerritoryHint(): string {
-  return 'Select a tile on the map';
+  return 'Select a tile · biomes & yields';
 }

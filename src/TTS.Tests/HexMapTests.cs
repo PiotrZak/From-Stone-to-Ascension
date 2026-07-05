@@ -36,6 +36,7 @@ public class HexMapTests
 
         Assert.NotNull(world.Map);
         Assert.True(world.Map!.Tiles.Count > 0);
+        Assert.Contains(world.Map.Tiles, t => t.WorldRegionId is not null && t.WorldRegionId != WorldMacroRegion.Ocean);
         Assert.All(world.Regions.Where(r => r.ControllingCivilizationId is not null),
             r => Assert.False(string.IsNullOrEmpty(r.CapitalHexKey)));
         Assert.Contains(world.Map.Tiles, t => t.ControllingCivilizationId == "civ-player");

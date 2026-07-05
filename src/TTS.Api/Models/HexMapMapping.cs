@@ -1,6 +1,7 @@
 namespace TTS.Api.Models;
 
 using TTS.Contracts;
+using TTS.Core.Models;
 
 public static class HexMapMapping
 {
@@ -17,7 +18,9 @@ public static class HexMapMapping
             Biome = t.Biome,
             ResourceYield = t.ResourceYield,
             ControllingCivilizationId = t.ControllingCivilizationId,
-            IsCapital = t.IsCapital
+            IsCapital = t.IsCapital,
+            WorldRegionId = t.WorldRegionId,
+            WorldRegionName = WorldMacroRegion.DisplayName(t.WorldRegionId)
         }).ToList()
     };
 }

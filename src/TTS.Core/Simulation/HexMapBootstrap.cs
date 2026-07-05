@@ -10,12 +10,12 @@ public static class HexMapBootstrap
     {
         var match = world.Match ?? throw new InvalidOperationException("World has no match.");
         var seed = match.WorldSeed;
-        var options = HexMapGenerationOptions.ForMatch(match.Config, seed);
-        var map = HexMapGenerator.Generate(options);
+        var worldOptions = WorldHexMapGenerationOptions.ForMatch(match.Config, seed);
+        var map = WorldHexMapGenerator.Generate(worldOptions);
         world.Map = map;
 
         var civs = world.Civilizations.ToList();
-        var spawns = HexMapGenerator.PlaceSpawns(map, civs.Count, seed);
+        var spawns = WorldHexMapGenerator.PlaceSpawns(map, civs.Count, seed);
         var regions = world.Regions.ToList();
 
         for (var i = 0; i < civs.Count && i < spawns.Count; i++)

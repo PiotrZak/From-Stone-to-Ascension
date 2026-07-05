@@ -242,7 +242,8 @@ public sealed record GrainHexTile(
     [property: Id(2)] string Biome,
     [property: Id(3)] double ResourceYield,
     [property: Id(4)] string? ControllingCivilizationId,
-    [property: Id(5)] bool IsCapital);
+    [property: Id(5)] bool IsCapital,
+    [property: Id(6)] string? WorldRegionId = null);
 
 [GenerateSerializer]
 public sealed record GrainHexMap(

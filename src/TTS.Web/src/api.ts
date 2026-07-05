@@ -153,6 +153,8 @@ export interface HexTile {
   resourceYield: number;
   controllingCivilizationId: string | null;
   isCapital: boolean;
+  worldRegionId?: string | null;
+  worldRegionName?: string | null;
 }
 
 export interface HexMap {
