@@ -12,6 +12,7 @@
   --accent-red: var(--error);
   --accent-green: var(--status-positive);
   --gc-chrome: 12rem;
+  --gc-stage-height: 540px;
   min-height: calc(100vh - 1rem);
 }
 
@@ -473,7 +474,8 @@
   grid-template-rows: minmax(0, 1fr);
   gap: 0.75rem;
   min-height: 0;
-  max-height: calc(100dvh - var(--gc-chrome));
+  height: var(--gc-stage-height);
+  max-height: var(--gc-stage-height);
 }
 
 .gc-command-stage-has-gate {
@@ -487,21 +489,47 @@
   min-width: 0;
   max-width: none;
   height: 100%;
-  min-height: 200px;
+  min-height: 0;
   position: relative;
   top: 0;
   display: flex;
   flex-direction: column;
 }
 
+.governor-command .match-map-panel .hex-map-wrap {
+  min-height: 0;
+}
+
+.governor-command .hex-map-viewport {
+  min-height: 0;
+}
+
 .governor-command .territory-map-body {
   flex: 1;
   min-height: 0;
-  padding: 0.65rem;
+  padding: 0.45rem;
 }
 
 .governor-command .territory-panel-head {
   background: var(--surface-container-high);
+  padding: 0.35rem 0.65rem;
+}
+
+.governor-command .hex-map-hint {
+  font-size: 0.55rem;
+  bottom: 0.35rem;
+}
+
+.governor-command .map-biome-legend {
+  bottom: 0.5rem;
+  left: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  gap: 0.25rem;
+}
+
+.governor-command .hex-map-controls {
+  right: 0.5rem;
+  bottom: 2rem;
 }
 
 .governor-command .territory-panel-label,
@@ -516,13 +544,15 @@
   flex-shrink: 0;
   min-width: 0;
   min-height: 0;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.4rem;
   border: 1px solid rgb(255 182 144 / 0.28);
   border-radius: 0.5rem;
   background: var(--surface-container);
-  padding: 0.65rem;
+  padding: 0.5rem;
+  overflow: hidden;
 }
 
 .gc-decision-head {
@@ -550,7 +580,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: 0.45rem;
   margin: 0;
   padding: 0;
   border: none;
@@ -561,7 +591,7 @@
 }
 
 .governor-command .gate-rail-head {
-  padding: 0.55rem 0.65rem;
+  padding: 0.4rem 0.5rem;
   border-radius: 0.375rem;
   background: linear-gradient(135deg, rgb(236 106 6 / 0.16), rgb(236 106 6 / 0.06));
   border: 1px solid rgb(236 106 6 / 0.28);
@@ -621,14 +651,14 @@
 
 .governor-command .gate-rail-title {
   margin: 0;
-  font-size: 1.05rem;
-  line-height: 1.3;
+  font-size: 0.95rem;
+  line-height: 1.25;
 }
 
 .governor-command .gate-rail-desc {
   margin: 0;
-  font-size: 0.8125rem;
-  line-height: 1.5;
+  font-size: 0.78rem;
+  line-height: 1.4;
   color: var(--on-surface-variant);
 }
 
@@ -641,14 +671,14 @@
 }
 
 .governor-command .gate-rail-options {
-  margin-top: 0.15rem;
+  margin-top: 0.1rem;
   grid-template-columns: 1fr;
-  gap: 0.5rem;
+  gap: 0.35rem;
 }
 
 .governor-command .gate-rail-option {
   width: 100%;
-  padding: 0.7rem 0.75rem;
+  padding: 0.45rem 0.55rem;
   border: 1px solid var(--outline-variant);
   background: var(--surface-container-high);
 }
@@ -666,15 +696,17 @@
   .gc-command-stage-has-gate {
     grid-template-columns: 1fr;
     grid-template-rows: minmax(0, 1fr) auto;
+    height: auto;
     max-height: none;
   }
 
   .governor-command .match-map-panel {
-    height: min(42vh, 460px);
+    height: var(--gc-stage-height);
+    max-height: var(--gc-stage-height);
   }
 
   .gc-decision-panel {
-    max-height: min(42vh, 420px);
+    max-height: 540px;
   }
 }
 

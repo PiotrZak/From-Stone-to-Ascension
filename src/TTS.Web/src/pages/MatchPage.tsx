@@ -189,11 +189,11 @@ export function MatchPage() {
     }
   };
 
-  const handleClaimHex = async (q: number, r: number) => {
+  const handleClaimHex = async (tileId: string) => {
     if (!session) return;
     setBusy(true);
     try {
-      const result = await api.claimTerritory(matchId, session.civilizationId, q, r);
+      const result = await api.claimTerritory(matchId, session.civilizationId, tileId);
       if (!result.success) setError(result.message);
       else await refresh();
     } catch (e) {

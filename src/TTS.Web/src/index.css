@@ -638,6 +638,10 @@ select:not([class*="rounded-md"]) {
   min-height: 480px;
 }
 
+.governor-command .match-map-panel .hex-map-wrap {
+  min-height: 0;
+}
+
 .map-rivals {
   display: flex;
   flex-direction: column;

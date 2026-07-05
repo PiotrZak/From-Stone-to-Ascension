@@ -7,20 +7,30 @@ public static class HexMapMapping
 {
     public static HexMapDto ToDto(GrainHexMap map) => new()
     {
-        Width = map.Width,
-        Height = map.Height,
+        PlanetRadius = map.PlanetRadius,
+        Frequency = map.Frequency,
         Seed = map.Seed,
-        CapitalHexByCivilizationId = map.CapitalHexByCivilizationId,
+        CapitalTileByCivilizationId = map.CapitalTileByCivilizationId,
         Tiles = map.Tiles.Select(t => new HexTileDto
         {
-            Q = t.Q,
-            R = t.R,
+            Id = t.Id,
             Biome = t.Biome,
             ResourceYield = t.ResourceYield,
             ControllingCivilizationId = t.ControllingCivilizationId,
             IsCapital = t.IsCapital,
             WorldRegionId = t.WorldRegionId,
-            WorldRegionName = WorldMacroRegion.DisplayName(t.WorldRegionId)
+            WorldRegionName = WorldMacroRegion.DisplayName(t.WorldRegionId),
+            CenterX = t.CenterX,
+            CenterY = t.CenterY,
+            CenterZ = t.CenterZ,
+            NormalX = t.NormalX,
+            NormalY = t.NormalY,
+            NormalZ = t.NormalZ,
+            PolygonVertices = t.PolygonVertices
+                .Select(v => new Vec3Dto { X = v.X, Y = v.Y, Z = v.Z })
+                .ToList(),
+            NeighbourIds = t.NeighbourIds,
+            IsPentagon = t.IsPentagon
         }).ToList()
     };
 }

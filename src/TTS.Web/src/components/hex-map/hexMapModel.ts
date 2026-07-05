@@ -46,10 +46,8 @@ export function biomeElevation(biome: string): number {
   return BIOME_ELEVATION[biome] ?? 0.32;
 }
 
-export function columnHeight(biome: string, hexSize: number): number {
-  const min = hexSize * 0.12;
-  const max = hexSize * 1.15;
-  return min + biomeElevation(biome) * (max - min);
+export function tileExtrusionHeight(hexSize: number): number {
+  return hexSize * 0.34;
 }
 
 export function axialToPixel(q: number, r: number, size: number) {
@@ -67,8 +65,8 @@ export function hexCornerPoints(cx: number, cy: number, size: number): { x: numb
   return points;
 }
 
-export function tileKey(q: number, r: number): string {
-  return `${q},${r}`;
+export function tileKey(tile: HexTile | string): string {
+  return typeof tile === 'string' ? tile : tile.id;
 }
 
 export function biomeLabel(biome: string): string {
@@ -78,17 +76,8 @@ export function biomeLabel(biome: string): string {
 export function canClaim(tile: HexTile, map: HexMap, myCivId: string | null): boolean {
   if (!myCivId || tile.controllingCivilizationId || tile.biome === 'Ocean') return false;
 
-  const neighbors = [
-    [tile.q + 1, tile.r],
-    [tile.q + 1, tile.r - 1],
-    [tile.q, tile.r - 1],
-    [tile.q - 1, tile.r],
-    [tile.q - 1, tile.r + 1],
-    [tile.q, tile.r + 1],
-  ];
-
-  return neighbors.some(([q, r]) =>
-    map.tiles.some((t) => t.q === q && t.r === r && t.controllingCivilizationId === myCivId),
+  return (tile.neighbourIds ?? []).some(
+    (id) => map.tiles.find((t) => t.id === id)?.controllingCivilizationId === myCivId,
   );
 }
 
@@ -116,14 +105,15 @@ export type MapLayout = {
   height: number;
 };
 
-export function computeMapLayout(tiles: HexTile[], hexSize: number): MapLayout {
-  const positioned = tiles.map((tile) => {
-    const { x, y } = axialToPixel(tile.q, tile.r, hexSize);
-    return { tile, x, y };
-  });
+export function computeMapLayout(tiles: HexTile[], _hexSize: number): MapLayout {
+  const positioned = tiles.map((tile) => ({
+    tile,
+    x: tile.centerX,
+    y: tile.centerZ,
+  }));
   const xs = positioned.map((p) => p.x);
   const ys = positioned.map((p) => p.y);
-  const pad = hexSize * 1.2;
+  const pad = 10;
   const minX = Math.min(...xs) - pad;
   const maxX = Math.max(...xs) + pad;
   const minY = Math.min(...ys) - pad;

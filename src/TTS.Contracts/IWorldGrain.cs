@@ -22,7 +22,7 @@ public interface IWorldGrain : IGrainWithStringKey
     Task StartMatchAsync();
     Task<IReadOnlyList<GrainRegionDetail>> GetRegionsAsync();
     Task<GrainHexMap?> GetHexMapAsync();
-    Task<GrainTerritoryClaimResult> ClaimTerritoryAsync(string civilizationId, int q, int r);
+    Task<GrainTerritoryClaimResult> ClaimTerritoryAsync(string civilizationId, string tileId);
     Task<GrainLlmLayerStatus> GetLlmLayerStatusAsync();
 }
 

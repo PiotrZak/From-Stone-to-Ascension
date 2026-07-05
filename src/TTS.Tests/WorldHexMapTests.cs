@@ -13,8 +13,7 @@ public class WorldHexMapTests
         {
             Seed = 42,
             CivilizationCount = 2,
-            Width = 42,
-            Height = 21
+            Frequency = 3
         };
 
         var first = WorldHexMapGenerator.Generate(options);
@@ -30,14 +29,28 @@ public class WorldHexMapTests
     }
 
     [Fact]
+    public void Generate_HasGoldbergTopology()
+    {
+        var map = WorldHexMapGenerator.Generate(new WorldHexMapGenerationOptions
+        {
+            Seed = 7,
+            CivilizationCount = 2,
+            Frequency = 3
+        });
+
+        Assert.Equal(12, map.Tiles.Count(t => t.IsPentagon));
+        Assert.All(map.Tiles.Where(t => !t.IsPentagon), t => Assert.Equal(6, t.PolygonVertices.Count));
+        Assert.All(map.Tiles, t => Assert.Equal(t.PolygonVertices.Count, t.NeighbourIds.Count));
+    }
+
+    [Fact]
     public void Generate_ContainsAllContinents()
     {
         var map = WorldHexMapGenerator.Generate(new WorldHexMapGenerationOptions
         {
             Seed = 7,
             CivilizationCount = 4,
-            Width = 56,
-            Height = 28
+            Frequency = 4
         });
 
         var landRegions = map.Tiles
@@ -60,15 +73,14 @@ public class WorldHexMapTests
         {
             Seed = 99,
             CivilizationCount = 4,
-            Width = 56,
-            Height = 28
+            Frequency = 4
         });
 
         var spawns = WorldHexMapGenerator.PlaceSpawns(map, 4, 99);
         Assert.Equal(4, spawns.Count);
 
         var regions = spawns
-            .Select(s => map.GetTile(s.Q, s.R)?.WorldRegionId)
+            .Select(s => s.WorldRegionId)
             .Where(r => r is not null)
             .Distinct()
             .ToList();
@@ -83,8 +95,7 @@ public class WorldHexMapTests
         {
             Seed = 11,
             CivilizationCount = 2,
-            Width = 56,
-            Height = 28
+            Frequency = 4
         });
 
         var asiaDesertAvg = map.Tiles
@@ -101,8 +112,7 @@ public class WorldHexMapTests
         {
             Seed = 3,
             CivilizationCount = 2,
-            Width = 56,
-            Height = 28
+            Frequency = 4
         });
 
         var oceanTiles = map.Tiles.Where(t => t.Biome == Biome.Ocean).ToList();
@@ -117,14 +127,13 @@ public class WorldHexMapTests
         {
             Seed = 5,
             CivilizationCount = 2,
-            Width = 56,
-            Height = 28
+            Frequency = 4
         });
 
         var coastTiles = map.Tiles.Where(t => t.Biome == Biome.Coast).ToList();
         Assert.NotEmpty(coastTiles);
         Assert.All(coastTiles, t =>
-            Assert.True(CountOceanNeighbors(map, t.Q, t.R) > 0, $"Coast tile {t.Key} should touch ocean"));
+            Assert.True(CountOceanNeighbors(map, t) > 0, $"Coast tile {t.Id} should touch ocean"));
     }
 
     [Fact]
@@ -134,26 +143,25 @@ public class WorldHexMapTests
         {
             Seed = 13,
             CivilizationCount = 2,
-            Width = 56,
-            Height = 28
+            Frequency = 4
         });
 
         var coastAvg = map.Tiles.Where(t => t.Biome == Biome.Coast).Average(t => t.ResourceYield);
         var inlandAvg = map.Tiles
             .Where(t => t.IsLand
                 && t.Biome is Biome.Plains or Biome.Forest
-                && CountOceanNeighbors(map, t.Q, t.R) == 0)
+                && CountOceanNeighbors(map, t) == 0)
             .Average(t => t.ResourceYield);
 
         Assert.True(coastAvg > inlandAvg, $"coast {coastAvg:F1} vs inland {inlandAvg:F1}");
     }
 
-    private static int CountOceanNeighbors(HexMap map, int q, int r)
+    private static int CountOceanNeighbors(HexMap map, HexTile tile)
     {
         var count = 0;
-        foreach (var neighbor in HexCoordKey.Neighbors(q, r))
+        foreach (var neighbourId in tile.NeighbourIds)
         {
-            if (map.GetTile(neighbor.Q, neighbor.R) is { Biome: Biome.Ocean })
+            if (map.GetTile(neighbourId) is { Biome: Biome.Ocean })
                 count++;
         }
 

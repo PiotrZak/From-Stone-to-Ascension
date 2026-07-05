@@ -202,9 +202,9 @@ public sealed class MatchHost
         Save();
     }
 
-    public TerritoryClaimResult ClaimTerritory(string civilizationId, int q, int r)
+    public TerritoryClaimResult ClaimTerritory(string civilizationId, string tileId)
     {
-        var result = Services.Territory.TryClaim(World, civilizationId, q, r);
+        var result = Services.Territory.TryClaim(World, civilizationId, tileId);
         if (result.Success)
             Save();
 

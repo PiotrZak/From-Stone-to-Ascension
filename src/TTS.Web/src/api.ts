@@ -146,23 +146,37 @@ export interface TickLogEntry {
   lines: string[];
 }
 
+export interface Vec3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
 export interface HexTile {
-  q: number;
-  r: number;
+  id: string;
   biome: string;
   resourceYield: number;
   controllingCivilizationId: string | null;
   isCapital: boolean;
   worldRegionId?: string | null;
   worldRegionName?: string | null;
+  centerX: number;
+  centerY: number;
+  centerZ: number;
+  normalX: number;
+  normalY: number;
+  normalZ: number;
+  polygonVertices: Vec3[];
+  neighbourIds: string[];
+  isPentagon: boolean;
 }
 
 export interface HexMap {
-  width: number;
-  height: number;
+  planetRadius: number;
+  frequency: number;
   seed: number;
   tiles: HexTile[];
-  capitalHexByCivilizationId: Record<string, string>;
+  capitalTileByCivilizationId: Record<string, string>;
 }
 
 export interface ClaimTerritoryResponse {
@@ -410,9 +424,9 @@ export const api = {
   getHexMap: (matchId: string) =>
     request<HexMap>(`/api/matches/${encodeURIComponent(matchId)}/map`),
 
-  claimTerritory: (matchId: string, civilizationId: string, q: number, r: number) =>
+  claimTerritory: (matchId: string, civilizationId: string, tileId: string) =>
     request<ClaimTerritoryResponse>(`/api/matches/${encodeURIComponent(matchId)}/territory/claim`, {
       method: 'POST',
-      body: JSON.stringify({ civilizationId, q, r }),
+      body: JSON.stringify({ civilizationId, tileId }),
     }),
 };

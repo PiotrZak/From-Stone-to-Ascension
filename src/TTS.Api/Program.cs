@@ -424,7 +424,7 @@ app.MapPost("/api/matches/{matchId}/territory/claim", async (
     OrleansMatchService orleans) =>
 {
     var result = await orleans.GetGrain(matchId).ClaimTerritoryAsync(
-        request.CivilizationId, request.Q, request.R);
+        request.CivilizationId, request.TileId);
 
     return Results.Ok(new ClaimTerritoryResponseDto
     {

@@ -338,30 +338,44 @@ public sealed class RegionCrimeDto
 
 public sealed class HexTileDto
 {
-    public int Q { get; init; }
-    public int R { get; init; }
+    public required string Id { get; init; }
     public required string Biome { get; init; }
     public double ResourceYield { get; init; }
     public string? ControllingCivilizationId { get; init; }
     public bool IsCapital { get; init; }
     public string? WorldRegionId { get; init; }
     public string? WorldRegionName { get; init; }
+    public double CenterX { get; init; }
+    public double CenterY { get; init; }
+    public double CenterZ { get; init; }
+    public double NormalX { get; init; }
+    public double NormalY { get; init; }
+    public double NormalZ { get; init; }
+    public required IReadOnlyList<Vec3Dto> PolygonVertices { get; init; }
+    public required IReadOnlyList<string> NeighbourIds { get; init; }
+    public bool IsPentagon { get; init; }
+}
+
+public sealed class Vec3Dto
+{
+    public double X { get; init; }
+    public double Y { get; init; }
+    public double Z { get; init; }
 }
 
 public sealed class HexMapDto
 {
-    public int Width { get; init; }
-    public int Height { get; init; }
+    public double PlanetRadius { get; init; }
+    public int Frequency { get; init; }
     public int Seed { get; init; }
     public required IReadOnlyList<HexTileDto> Tiles { get; init; }
-    public required IReadOnlyDictionary<string, string> CapitalHexByCivilizationId { get; init; }
+    public required IReadOnlyDictionary<string, string> CapitalTileByCivilizationId { get; init; }
 }
 
 public sealed class ClaimTerritoryRequestDto
 {
     public required string CivilizationId { get; init; }
-    public int Q { get; init; }
-    public int R { get; init; }
+    public required string TileId { get; init; }
 }
 
 public sealed class ClaimTerritoryResponseDto

@@ -23,16 +23,16 @@ public static class HexMapBootstrap
             var civ = civs[i];
             var spawn = spawns[i];
             var region = i < regions.Count ? regions[i] : null;
-            var claimed = ClaimCluster(map, spawn.Q, spawn.R, civ.Id, region?.Id, clusterSize: 4);
+            var claimed = ClaimCluster(map, spawn.Id, civ.Id, region?.Id, clusterSize: 4);
 
             if (region is not null)
             {
-                region.CapitalHexKey = spawn.Key;
+                region.CapitalHexKey = spawn.Id;
                 region.HexKeys.Clear();
                 region.HexKeys.AddRange(claimed);
                 region.Resources = Math.Clamp(claimed.Average(k =>
                 {
-                    var tile = map.GetTile(HexCoord.Parse(k).Q, HexCoord.Parse(k).R);
+                    var tile = map.GetTile(k);
                     return tile?.ResourceYield ?? region.Resources;
                 }), 20, 95);
             }
@@ -43,35 +43,34 @@ public static class HexMapBootstrap
 
     private static List<string> ClaimCluster(
         HexMap map,
-        int q,
-        int r,
+        string startTileId,
         string civilizationId,
         string? regionId,
         int clusterSize)
     {
         var claimed = new List<string>();
-        var queue = new Queue<HexCoord>();
+        var queue = new Queue<string>();
         var visited = new HashSet<string>(StringComparer.Ordinal);
-        queue.Enqueue(new HexCoord(q, r));
+        queue.Enqueue(startTileId);
 
         while (queue.Count > 0 && claimed.Count < clusterSize)
         {
-            var coord = queue.Dequeue();
-            if (!visited.Add(coord.Key))
+            var tileId = queue.Dequeue();
+            if (!visited.Add(tileId))
                 continue;
 
-            var tile = map.GetTile(coord.Q, coord.R);
+            var tile = map.GetTile(tileId);
             if (tile is null || !tile.IsLand)
                 continue;
 
             tile.ControllingCivilizationId = civilizationId;
             tile.RegionId = regionId;
-            claimed.Add(coord.Key);
+            claimed.Add(tileId);
 
-            foreach (var neighbor in HexCoordKey.Neighbors(coord.Q, coord.R))
+            foreach (var neighbourId in tile.NeighbourIds)
             {
-                if (!visited.Contains(neighbor.Key))
-                    queue.Enqueue(neighbor);
+                if (!visited.Contains(neighbourId))
+                    queue.Enqueue(neighbourId);
             }
         }
 

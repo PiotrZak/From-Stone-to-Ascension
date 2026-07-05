@@ -142,17 +142,25 @@ public sealed class MatchPersistence
         {
             world.Map = new HexMap
             {
-                Width = doc.Map.Width,
-                Height = doc.Map.Height,
+                PlanetRadius = doc.Map.PlanetRadius,
+                Frequency = doc.Map.Frequency,
                 Seed = doc.Map.Seed,
-                Tiles = doc.Map.Tiles.Select(t => new HexTile(t.Q, t.R)
+                Tiles = doc.Map.Tiles.Select(t => new HexTile(t.Id)
                 {
                     Biome = t.Biome,
                     Elevation = t.Elevation,
                     ResourceYield = t.ResourceYield,
                     ControllingCivilizationId = t.ControllingCivilizationId,
                     RegionId = t.RegionId,
-                    WorldRegionId = t.WorldRegionId
+                    WorldRegionId = t.WorldRegionId,
+                    CenterX = t.CenterX,
+                    CenterY = t.CenterY,
+                    CenterZ = t.CenterZ,
+                    NormalX = t.NormalX,
+                    NormalY = t.NormalY,
+                    NormalZ = t.NormalZ,
+                    PolygonVertices = t.PolygonVertices.Select(v => (v.X, v.Y, v.Z)).ToList(),
+                    NeighbourIds = t.NeighbourIds.ToList()
                 }).ToList()
             };
             world.Map.RebuildIndex();
@@ -201,19 +209,28 @@ public sealed class MatchPersistence
             },
             Map = world.Map is null ? null : new SavedHexMap
             {
-                Width = world.Map.Width,
-                Height = world.Map.Height,
+                PlanetRadius = world.Map.PlanetRadius,
+                Frequency = world.Map.Frequency,
                 Seed = world.Map.Seed,
                 Tiles = world.Map.Tiles.Select(t => new SavedHexTile
                 {
-                    Q = t.Q,
-                    R = t.R,
+                    Id = t.Id,
                     Biome = t.Biome,
                     Elevation = t.Elevation,
                     ResourceYield = t.ResourceYield,
                     ControllingCivilizationId = t.ControllingCivilizationId,
                     RegionId = t.RegionId,
-                    WorldRegionId = t.WorldRegionId
+                    WorldRegionId = t.WorldRegionId,
+                    CenterX = t.CenterX,
+                    CenterY = t.CenterY,
+                    CenterZ = t.CenterZ,
+                    NormalX = t.NormalX,
+                    NormalY = t.NormalY,
+                    NormalZ = t.NormalZ,
+                    PolygonVertices = t.PolygonVertices
+                        .Select(v => new SavedVec3 { X = v.X, Y = v.Y, Z = v.Z })
+                        .ToList(),
+                    NeighbourIds = t.NeighbourIds.ToList()
                 }).ToList()
             },
             Civilizations = world.Civilizations.Select(ToSavedCivilization).ToList(),
@@ -407,22 +424,36 @@ public sealed class MatchPersistence
 
     public sealed class SavedHexMap
     {
-        public int Width { get; set; }
-        public int Height { get; set; }
+        public double PlanetRadius { get; set; }
+        public int Frequency { get; set; }
         public int Seed { get; set; }
         public List<SavedHexTile> Tiles { get; set; } = [];
     }
 
     public sealed class SavedHexTile
     {
-        public int Q { get; set; }
-        public int R { get; set; }
+        public string Id { get; set; } = "";
         public Biome Biome { get; set; }
         public double Elevation { get; set; }
         public double ResourceYield { get; set; }
         public string? ControllingCivilizationId { get; set; }
         public string? RegionId { get; set; }
         public string? WorldRegionId { get; set; }
+        public double CenterX { get; set; }
+        public double CenterY { get; set; }
+        public double CenterZ { get; set; }
+        public double NormalX { get; set; }
+        public double NormalY { get; set; }
+        public double NormalZ { get; set; }
+        public List<SavedVec3> PolygonVertices { get; set; } = [];
+        public List<string> NeighbourIds { get; set; } = [];
+    }
+
+    public sealed class SavedVec3
+    {
+        public double X { get; set; }
+        public double Y { get; set; }
+        public double Z { get; set; }
     }
 
     public sealed class SavedCivilization

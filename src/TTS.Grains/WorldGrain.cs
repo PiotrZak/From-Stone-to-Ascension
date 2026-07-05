@@ -423,20 +423,33 @@ public sealed class WorldGrain : Grain, IWorldGrain
 
         var capitalKeys = capitals.Values.ToHashSet(StringComparer.Ordinal);
         var tiles = map.Tiles.Select(t => new GrainHexTile(
-            t.Q,
-            t.R,
+            t.Id,
             t.Biome.ToString(),
             t.ResourceYield,
             t.ControllingCivilizationId,
-            capitalKeys.Contains(t.Key),
-            t.WorldRegionId)).ToList();
+            capitalKeys.Contains(t.Id),
+            t.WorldRegionId,
+            t.CenterX,
+            t.CenterY,
+            t.CenterZ,
+            t.NormalX,
+            t.NormalY,
+            t.NormalZ,
+            t.PolygonVertices.Select(v => new GrainVec3(v.X, v.Y, v.Z)).ToList(),
+            t.NeighbourIds.ToList(),
+            t.IsPentagon)).ToList();
 
-        return Task.FromResult<GrainHexMap?>(new GrainHexMap(map.Width, map.Height, map.Seed, tiles, capitals));
+        return Task.FromResult<GrainHexMap?>(new GrainHexMap(
+            map.PlanetRadius,
+            map.Frequency,
+            map.Seed,
+            tiles,
+            capitals));
     }
 
-    public Task<GrainTerritoryClaimResult> ClaimTerritoryAsync(string civilizationId, int q, int r)
+    public Task<GrainTerritoryClaimResult> ClaimTerritoryAsync(string civilizationId, string tileId)
     {
-        var result = RequireHost().ClaimTerritory(civilizationId, q, r);
+        var result = RequireHost().ClaimTerritory(civilizationId, tileId);
         return Task.FromResult(new GrainTerritoryClaimResult(result.Success, result.Message, result.HexKey));
     }
 

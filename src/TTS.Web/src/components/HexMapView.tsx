@@ -17,7 +17,7 @@ interface HexMapViewProps {
   myCivilizationId: string | null;
   disabled?: boolean;
   hexSize?: number;
-  onClaim?: (q: number, r: number) => void | Promise<void>;
+  onClaim?: (tileId: string) => void | Promise<void>;
   onSelectionChange?: (tile: HexTile | null, meta: string | null) => void;
   showLegend?: boolean;
 }
@@ -50,14 +50,14 @@ export function HexMapView({
   onSelectionChangeRef.current = onSelectionChange;
 
   const mapKey = useMemo(
-    () => `${map.seed}:${map.width}x${map.height}`,
-    [map.seed, map.width, map.height],
+    () => `${map.seed}:f${map.frequency}:${map.tiles.length}`,
+    [map.seed, map.frequency, map.tiles.length],
   );
 
   const mapRevision = useMemo(
     () =>
       map.tiles
-        .map((t) => `${t.q},${t.r}:${t.controllingCivilizationId ?? ''}:${t.isCapital}`)
+        .map((t) => `${t.id}:${t.controllingCivilizationId ?? ''}:${t.isCapital}`)
         .join('|'),
     [map.tiles],
   );
@@ -101,7 +101,7 @@ export function HexMapView({
             },
             onTileClaim(tile) {
               if (!onClaimRef.current || disabled) return;
-              void onClaimRef.current(tile.q, tile.r);
+              void onClaimRef.current(tile.id);
             },
             onHoverChange(tile) {
               setHovered(tile);

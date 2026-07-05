@@ -60,15 +60,15 @@ public class MatchFlowTests
             var adjacent = host.World.Map!.Tiles.First(t =>
                 t.IsLand
                 && t.ControllingCivilizationId is null
-                && HexCoordKey.Neighbors(t.Q, t.R).Any(n =>
-                    host.World.Map.GetTile(n.Q, n.R)?.ControllingCivilizationId == "civ-player"));
+                && t.NeighbourIds.Any(nid =>
+                    host.World.Map.GetTile(nid)?.ControllingCivilizationId == "civ-player"));
 
-            var claim = host.ClaimTerritory("civ-player", adjacent.Q, adjacent.R);
+            var claim = host.ClaimTerritory("civ-player", adjacent.Id);
             Assert.True(claim.Success);
             host.Save();
 
             var reloaded = MatchHost.Load(path);
-            var tile = reloaded.World.Map!.GetTile(adjacent.Q, adjacent.R);
+            var tile = reloaded.World.Map!.GetTile(adjacent.Id);
             Assert.Equal("civ-player", tile!.ControllingCivilizationId);
         }
         finally

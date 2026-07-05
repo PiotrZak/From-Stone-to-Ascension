@@ -1,26 +1,15 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import type { HexMap, HexTile } from '../../api';
+import type { HexMap, HexTile, Vec3 } from '../../api';
 import {
-  axialToPixel,
   BIOME_COLORS,
   CIV_FILL_COLORS,
   canClaim,
-  columnHeight,
-  computeMapLayout,
   parseCssColor,
+  tileExtrusionHeight,
   tileKey,
 } from './hexMapModel';
-import {
-  computeGlobeLayout,
-  flatToGlobe,
-  flatToGlobeFrame,
-  isInsideWorldDisc,
-  orientHexOnGlobe,
-  placeExtrudedOnGlobe,
-  surfacePoint,
-  type GlobeLayout,
-} from './globeProjection';
+import { surfacePoint } from './globeProjection';
 
 export type ThreeHexMapCallbacks = {
   onTileSelect: (tile: HexTile) => void;
@@ -48,28 +37,18 @@ type TileRecord = {
   material: THREE.MeshStandardMaterial;
   surface: THREE.Vector3;
   normal: THREE.Vector3;
-  tangentX: THREE.Vector3;
   extrude: number;
-  radius: number;
   overlay: THREE.Mesh | null;
   capital: THREE.Mesh | null;
 };
 
 const INITIAL_VIEW_ZOOM = 2.1;
-const HEX_ROTATION = Math.PI / 6;
-const HEX_SEAM = 1.16;
-const NEIGHBOR_OFFSETS: [number, number][] = [
-  [1, 0],
-  [1, -1],
-  [0, -1],
-  [-1, 0],
-  [-1, 1],
-  [0, 1],
-];
-const SELECT_EMISSIVE = 0x4cd7f6;
-const HOVER_EMISSIVE = 0x2a8a9e;
 const GLOBE_CENTER = new THREE.Vector3(0, 0, 0);
 const LIGHTEN = new THREE.Color(0xffffff);
+const TILE_BORDER_COLOR = 0x0a1520;
+
+const SELECT_EMISSIVE = 0x4cd7f6;
+const HOVER_EMISSIVE = 0x2a8a9e;
 
 function toThreeColor(css: string): THREE.Color {
   return new THREE.Color(parseCssColor(css).color);
@@ -77,88 +56,87 @@ function toThreeColor(css: string): THREE.Color {
 
 function lightenBiomeColor(biome: string): THREE.Color {
   const color = toThreeColor(BIOME_COLORS[biome] ?? '#64748b');
+  if (biome === 'Ocean') {
+    color.lerp(LIGHTEN, 0.08);
+    return color;
+  }
   color.lerp(LIGHTEN, 0.42);
   return color;
 }
 
-function createHexColumnGeometry(radius: number, height: number): THREE.CylinderGeometry {
-  const geo = new THREE.CylinderGeometry(radius, radius, height, 6, 1);
-  geo.rotateY(HEX_ROTATION);
+function tileCenter(tile: HexTile): THREE.Vector3 {
+  return new THREE.Vector3(tile.centerX, tile.centerY, tile.centerZ);
+}
+
+function tileNormal(tile: HexTile): THREE.Vector3 {
+  return new THREE.Vector3(tile.normalX, tile.normalY, tile.normalZ).normalize();
+}
+
+function scalePolygon(polygon: Vec3[], center: THREE.Vector3, scale: number): Vec3[] {
+  return polygon.map((v) => {
+    const p = new THREE.Vector3(v.x, v.y, v.z);
+    p.sub(center).multiplyScalar(scale).add(center);
+    return { x: p.x, y: p.y, z: p.z };
+  });
+}
+
+/** Rigid prism: base ring uses exact backend vertices; extrude along tile normal. */
+function createWorldSpacePrism(
+  polygon: Vec3[],
+  normal: THREE.Vector3,
+  height: number,
+): THREE.BufferGeometry {
+  const n = polygon.length;
+  if (n < 3) return new THREE.BufferGeometry();
+
+  const norm = normal.clone().normalize();
+  const bottom = polygon.map((v) => new THREE.Vector3(v.x, v.y, v.z));
+  const top = bottom.map((v) => v.clone().addScaledVector(norm, height));
+
+  const positions: number[] = [];
+  const indices: number[] = [];
+  const addVertex = (v: THREE.Vector3) => {
+    positions.push(v.x, v.y, v.z);
+    return positions.length / 3 - 1;
+  };
+
+  const bottomIdx = bottom.map(addVertex);
+  const topIdx = top.map(addVertex);
+
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const a = bottomIdx[i];
+    const b = bottomIdx[j];
+    const c = topIdx[j];
+    const d = topIdx[i];
+    indices.push(a, b, c, a, c, d);
+  }
+
+  const topCenter = top.reduce((sum, v) => sum.add(v), new THREE.Vector3()).divideScalar(n);
+  const topCenterIdx = addVertex(topCenter);
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    indices.push(topCenterIdx, topIdx[i], topIdx[j]);
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
   return geo;
 }
 
-function buildGlobePlacements(
-  tiles: HexTile[],
-  hexSize: number,
-  globe: GlobeLayout,
-): Map<string, ReturnType<typeof flatToGlobeFrame>> {
-  const placements = new Map<string, ReturnType<typeof flatToGlobeFrame>>();
-  for (const tile of tiles) {
-    const p = axialToPixel(tile.q, tile.r, hexSize);
-    placements.set(tileKey(tile.q, tile.r), flatToGlobeFrame(p.x, p.y, globe));
-  }
-  return placements;
-}
-
-function neighborSpanOnGlobe(
-  a: ReturnType<typeof flatToGlobeFrame>,
-  b: ReturnType<typeof flatToGlobeFrame>,
-  globe: GlobeLayout,
-): number {
-  const arc = a.normal.angleTo(b.normal) * globe.radius;
-  const chord = a.position.distanceTo(b.position);
-  return Math.max(arc, chord);
-}
-
-function hexRadiusForTile(
-  tile: HexTile,
-  placements: Map<string, ReturnType<typeof flatToGlobeFrame>>,
-  globe: GlobeLayout,
-  fallback: number,
-): number {
-  const self = placements.get(tileKey(tile.q, tile.r));
-  if (!self) return fallback;
-
-  let minSpan = Infinity;
-  for (const [dq, dr] of NEIGHBOR_OFFSETS) {
-    const neighbor = placements.get(tileKey(tile.q + dq, tile.r + dr));
-    if (!neighbor) continue;
-    minSpan = Math.min(minSpan, neighborSpanOnGlobe(self, neighbor, globe));
-  }
-
-  if (!Number.isFinite(minSpan)) return fallback;
-  return (minSpan / Math.sqrt(3)) * HEX_SEAM;
-}
-
-function computeFallbackHexRadius(
-  hexSize: number,
-  globe: GlobeLayout,
-  tiles: HexTile[],
-  placements: Map<string, ReturnType<typeof flatToGlobeFrame>>,
-): number {
-  let minSpan = Infinity;
-  for (const tile of tiles) {
-    if (tile.biome === 'Ocean') continue;
-    const self = placements.get(tileKey(tile.q, tile.r));
-    if (!self) continue;
-    for (const [dq, dr] of NEIGHBOR_OFFSETS) {
-      const neighbor = placements.get(tileKey(tile.q + dq, tile.r + dr));
-      if (!neighbor) continue;
-      minSpan = Math.min(minSpan, neighborSpanOnGlobe(self, neighbor, globe));
-    }
-  }
-
-  if (!Number.isFinite(minSpan)) {
-    const sample = tiles.find((t) => t.biome !== 'Ocean') ?? tiles[0];
-    if (!sample) return hexSize * 0.4;
-    const p0 = axialToPixel(sample.q, sample.r, hexSize);
-    const p1 = axialToPixel(sample.q + 1, sample.r, hexSize);
-    const f0 = flatToGlobeFrame(p0.x, p0.y, globe);
-    const f1 = flatToGlobeFrame(p1.x, p1.y, globe);
-    minSpan = neighborSpanOnGlobe(f0, f1, globe);
-  }
-
-  return (minSpan / Math.sqrt(3)) * HEX_SEAM;
+function createTopRingLine(
+  polygon: Vec3[],
+  normal: THREE.Vector3,
+  height: number,
+): THREE.BufferGeometry {
+  const norm = normal.clone().normalize();
+  const points = polygon.map((v) =>
+    new THREE.Vector3(v.x, v.y, v.z).addScaledVector(norm, height),
+  );
+  points.push(points[0].clone());
+  return new THREE.BufferGeometry().setFromPoints(points);
 }
 
 function waitForHostSize(host: HTMLElement): Promise<void> {
@@ -184,25 +162,15 @@ function waitForHostSize(host: HTMLElement): Promise<void> {
   });
 }
 
-function focusOnGlobe(
-  tiles: HexTile[],
-  hexSize: number,
-  globe: GlobeLayout,
-  myCivilizationId: string | null,
-): THREE.Vector3 {
+function focusOnGlobe(tiles: HexTile[], myCivilizationId: string | null): THREE.Vector3 {
   const owned = tiles.filter(
     (t) => myCivilizationId && t.controllingCivilizationId === myCivilizationId,
   );
   const sample = owned.length > 0 ? owned : tiles.filter((t) => t.biome !== 'Ocean').slice(0, 40);
-  if (sample.length === 0) {
-    return new THREE.Vector3(globe.radius, 0, 0);
-  }
+  if (sample.length === 0) return new THREE.Vector3(100, 0, 0);
 
   const sum = new THREE.Vector3();
-  for (const tile of sample) {
-    const p = axialToPixel(tile.q, tile.r, hexSize);
-    sum.add(flatToGlobe(p.x, p.y, globe).position);
-  }
+  for (const tile of sample) sum.add(tileCenter(tile));
   return sum.divideScalar(sample.length);
 }
 
@@ -218,11 +186,11 @@ export async function createThreeHexMap(
 ): Promise<ThreeHexMapHandle> {
   await waitForHostSize(host);
 
-  const layout = computeMapLayout(map.tiles, hexSize);
-  const globe = computeGlobeLayout(layout);
+  const planetRadius = map.planetRadius > 0 ? map.planetRadius : 100;
+
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0a1e32);
-  scene.fog = new THREE.Fog(0x0a1e32, globe.radius * 2, globe.radius * 5.5);
+  scene.fog = new THREE.Fog(0x0a1e32, planetRadius * 2, planetRadius * 5.5);
 
   const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 5000);
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -235,13 +203,13 @@ export async function createThreeHexMap(
 
   scene.add(new THREE.AmbientLight(0xc8d8f0, 0.78));
   const sun = new THREE.DirectionalLight(0xfff8ee, 1.45);
-  sun.position.set(globe.radius * 1.8, globe.radius * 1.2, -globe.radius);
+  sun.position.set(planetRadius * 1.8, planetRadius * 1.2, -planetRadius);
   scene.add(sun);
   const fill = new THREE.DirectionalLight(0x9ee8ff, 0.52);
-  fill.position.set(-globe.radius * 1.4, globe.radius * 0.4, globe.radius);
+  fill.position.set(-planetRadius * 1.4, planetRadius * 0.4, planetRadius);
   scene.add(fill);
   const rim = new THREE.DirectionalLight(0xd4e4fa, 0.35);
-  rim.position.set(0, -globe.radius, globe.radius * 1.2);
+  rim.position.set(0, -planetRadius, planetRadius * 1.2);
   scene.add(rim);
 
   const terrain = new THREE.Group();
@@ -251,17 +219,48 @@ export async function createThreeHexMap(
   scene.add(markers);
   scene.add(highlights);
 
+  const tileHeight = tileExtrusionHeight(hexSize);
+
   const disposables: THREE.BufferGeometry[] = [];
   const materials: THREE.Material[] = [];
+  const geometryCache = new Map<string, THREE.BufferGeometry>();
+  const borderCache = new Map<string, THREE.BufferGeometry>();
+  const tileBorderMaterial = new THREE.LineBasicMaterial({
+    color: TILE_BORDER_COLOR,
+    transparent: true,
+    opacity: 0.9,
+  });
+  materials.push(tileBorderMaterial);
+
+  const getPrismGeometry = (tile: HexTile, height: number): THREE.BufferGeometry => {
+    const key = tile.id;
+    let geometry = geometryCache.get(key);
+    if (!geometry) {
+      geometry = createWorldSpacePrism(tile.polygonVertices, tileNormal(tile), height);
+      geometryCache.set(key, geometry);
+      disposables.push(geometry);
+    }
+    return geometry;
+  };
+
+  const getBorderGeometry = (tile: HexTile, height: number): THREE.BufferGeometry => {
+    let geometry = borderCache.get(tile.id);
+    if (!geometry) {
+      geometry = createTopRingLine(tile.polygonVertices, tileNormal(tile), height);
+      borderCache.set(tile.id, geometry);
+      disposables.push(geometry);
+    }
+    return geometry;
+  };
 
   const oceanShell = new THREE.Mesh(
-    new THREE.SphereGeometry(globe.radius * 0.992, 72, 48),
-    new THREE.MeshStandardMaterial({ color: 0x1a5f7a, roughness: 0.75, metalness: 0.05 }),
+    new THREE.SphereGeometry(planetRadius * 0.985, 72, 48),
+    new THREE.MeshStandardMaterial({ color: toThreeColor(BIOME_COLORS.Ocean), roughness: 0.88, metalness: 0.02 }),
   );
   terrain.add(oceanShell);
 
   const atmosphere = new THREE.Mesh(
-    new THREE.SphereGeometry(globe.radius * 1.045, 48, 32),
+    new THREE.SphereGeometry(planetRadius * 1.045, 48, 32),
     new THREE.MeshStandardMaterial({
       color: 0x4cd7f6,
       transparent: true,
@@ -280,9 +279,6 @@ export async function createThreeHexMap(
   let liveDisabled = disabled;
   let liveCanInteract = canInteract;
 
-  const globePlacements = buildGlobePlacements(map.tiles, hexSize, globe);
-  const fallbackHexRadius = computeFallbackHexRadius(hexSize, globe, map.tiles, globePlacements);
-
   const getClaimable = (tile: HexTile) =>
     liveCanInteract && !liveDisabled && canClaim(tile, liveMap, liveCivId);
 
@@ -297,9 +293,7 @@ export async function createThreeHexMap(
     tile: HexTile,
     surface: THREE.Vector3,
     normal: THREE.Vector3,
-    tangentX: THREE.Vector3,
     extrude: number,
-    radius: number,
   ): THREE.Mesh | null => {
     const ownerFill = tile.controllingCivilizationId
       ? CIV_FILL_COLORS[tile.controllingCivilizationId]
@@ -307,7 +301,13 @@ export async function createThreeHexMap(
     if (!ownerFill) return null;
 
     const capH = hexSize * 0.06;
-    const overlayGeo = createHexColumnGeometry(radius * 0.76, capH);
+    const shrunk = scalePolygon(tile.polygonVertices, surface, 0.76);
+    const liftedPoly = shrunk.map((v) => ({
+      x: v.x + normal.x * extrude,
+      y: v.y + normal.y * extrude,
+      z: v.z + normal.z * extrude,
+    }));
+    const overlayGeo = createWorldSpacePrism(liftedPoly, normal, capH);
     disposables.push(overlayGeo);
     const overlayMat = new THREE.MeshStandardMaterial({
       color: toThreeColor(ownerFill),
@@ -318,7 +318,6 @@ export async function createThreeHexMap(
     });
     materials.push(overlayMat);
     const overlay = new THREE.Mesh(overlayGeo, overlayMat);
-    placeExtrudedOnGlobe(overlay, surface, normal, extrude + capH * 0.5, 0.5, tangentX);
     markers.add(overlay);
     return overlay;
   };
@@ -345,79 +344,75 @@ export async function createThreeHexMap(
     return cap;
   };
 
-  for (const tile of map.tiles) {
-    if (tile.biome === 'Ocean') continue;
+  const tilesToRender = map.tiles
+    .filter((t) => t.polygonVertices?.length)
+    .sort((a, b) => {
+      if (a.biome === 'Ocean' && b.biome !== 'Ocean') return -1;
+      if (a.biome !== 'Ocean' && b.biome === 'Ocean') return 1;
+      return 0;
+    });
 
-    const p = axialToPixel(tile.q, tile.r, hexSize);
-    if (!isInsideWorldDisc(p.x, p.y, globe)) continue;
-
-    const frame = globePlacements.get(tileKey(tile.q, tile.r)) ?? flatToGlobeFrame(p.x, p.y, globe);
-    const extrude = columnHeight(tile.biome, hexSize);
-    const radius = hexRadiusForTile(tile, globePlacements, globe, fallbackHexRadius);
-    const geometry = createHexColumnGeometry(radius, extrude);
-    disposables.push(geometry);
+  for (const tile of tilesToRender) {
+    const isOcean = tile.biome === 'Ocean';
+    const surface = tileCenter(tile);
+    const normal = tileNormal(tile);
+    const extrude = tileHeight;
+    const geometry = getPrismGeometry(tile, extrude);
 
     const material = new THREE.MeshStandardMaterial({
       color: lightenBiomeColor(tile.biome),
-      roughness: 0.62,
-      metalness: 0.02,
+      roughness: isOcean ? 0.78 : 0.62,
+      metalness: isOcean ? 0.04 : 0.02,
       flatShading: true,
     });
     materials.push(material);
 
     const mesh = new THREE.Mesh(geometry, material);
-    placeExtrudedOnGlobe(mesh, frame.position, frame.normal, extrude, 0.5, frame.tangentX);
-    mesh.userData = { tile, key: tileKey(tile.q, tile.r) };
+    if (!isOcean) {
+      const border = new THREE.Line(getBorderGeometry(tile, extrude), tileBorderMaterial);
+      mesh.add(border);
+    }
+
+    const key = tileKey(tile);
+    mesh.userData = { tile, key };
     terrain.add(mesh);
-    pickables.push(mesh);
 
-    const overlay = buildOwnerOverlay(
-      tile,
-      frame.position,
-      frame.normal,
-      frame.tangentX,
-      extrude,
-      radius,
-    );
-    const capital = buildCapital(tile, frame.position, frame.normal, extrude);
-
-    tileRecords.set(tileKey(tile.q, tile.r), {
-      tile,
-      mesh,
-      material,
-      surface: frame.position,
-      normal: frame.normal,
-      tangentX: frame.tangentX,
-      extrude,
-      radius,
-      overlay,
-      capital,
-    });
+    if (!isOcean) {
+      pickables.push(mesh);
+      const overlay = buildOwnerOverlay(tile, surface, normal, extrude);
+      const capital = buildCapital(tile, surface, normal, extrude);
+      tileRecords.set(key, {
+        tile,
+        mesh,
+        material,
+        surface,
+        normal,
+        extrude,
+        overlay,
+        capital,
+      });
+    }
   }
 
-  const selectionRing = new THREE.Mesh(
-    createHexColumnGeometry(fallbackHexRadius * 1.02, hexSize * 0.04),
-    new THREE.MeshStandardMaterial({
-      color: 0xd4e4fa,
-      emissive: 0x4cd7f6,
-      emissiveIntensity: 0.65,
+  const selectionRing = new THREE.Line(
+    new THREE.BufferGeometry(),
+    new THREE.LineBasicMaterial({
+      color: 0x4cd7f6,
       transparent: true,
-      opacity: 0.9,
-      flatShading: true,
+      opacity: 0.95,
     }),
   );
   selectionRing.visible = false;
   highlights.add(selectionRing);
   materials.push(selectionRing.material as THREE.Material);
-  disposables.push(selectionRing.geometry as THREE.BufferGeometry);
 
-  const viewFocus = focusOnGlobe(map.tiles, hexSize, globe, myCivilizationId);
+  const viewFocus = focusOnGlobe(map.tiles, myCivilizationId);
 
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.06;
-  controls.minDistance = globe.radius * 0.5;
-  controls.maxDistance = globe.radius * 4.2;
+  controls.minDistance = planetRadius * 0.5;
+  controls.maxDistance = planetRadius * 4.2;
   controls.screenSpacePanning = false;
   controls.enablePan = true;
   controls.minPolarAngle = 0.08;
@@ -462,12 +457,14 @@ export async function createThreeHexMap(
       return;
     }
     selectionRing.visible = true;
-    orientHexOnGlobe(selectionRing, record.normal, record.tangentX);
-    const ringScale = record.radius / (fallbackHexRadius * 1.02);
-    selectionRing.scale.set(ringScale, 1, ringScale);
-    selectionRing.position.copy(
-      surfacePoint(record.surface, record.normal, record.extrude + hexSize * 0.05),
+    const ringGeo = createTopRingLine(
+      scalePolygon(record.tile.polygonVertices, record.surface, 1.02),
+      record.normal,
+      tileHeight + hexSize * 0.01,
     );
+    selectionRing.geometry.dispose();
+    selectionRing.geometry = ringGeo;
+    disposables.push(ringGeo);
   };
 
   const setSelectedKey = (key: string | null) => {
@@ -489,10 +486,11 @@ export async function createThreeHexMap(
 
   const fitToView = (zoomMultiplier = INITIAL_VIEW_ZOOM) => {
     controls.target.copy(GLOBE_CENTER);
-    const distance = (globe.radius * 2.35) / zoomMultiplier;
-    const lookDir = viewFocus.lengthSq() > 1e-6
-      ? viewFocus.clone().normalize()
-      : new THREE.Vector3(0.25, 0.35, 1).normalize();
+    const distance = (planetRadius * 2.35) / zoomMultiplier;
+    const lookDir =
+      viewFocus.lengthSq() > 1e-6
+        ? viewFocus.clone().normalize()
+        : new THREE.Vector3(0.25, 0.35, 1).normalize();
     camera.position.copy(lookDir).multiplyScalar(distance);
     controls.update();
   };
@@ -506,7 +504,7 @@ export async function createThreeHexMap(
   const zoomBy = (factor: number) => {
     const offset = camera.position.clone().sub(controls.target);
     offset.multiplyScalar(1 / factor);
-    const len = THREE.MathUtils.clamp(offset.length(), globe.radius * 0.5, globe.radius * 4.2);
+    const len = THREE.MathUtils.clamp(offset.length(), planetRadius * 0.5, planetRadius * 4.2);
     offset.setLength(len);
     camera.position.copy(controls.target).add(offset);
     controls.update();
@@ -535,7 +533,7 @@ export async function createThreeHexMap(
 
   const onPointerMove = (e: PointerEvent) => {
     const record = pickTile(e.clientX, e.clientY);
-    const key = record ? tileKey(record.tile.q, record.tile.r) : null;
+    const key = record ? tileKey(record.tile) : null;
     if (key === hoveredKey) return;
     applyHover(key);
     callbacks.onHoverChange(record?.tile ?? null);
@@ -547,7 +545,7 @@ export async function createThreeHexMap(
     const record = pickTile(e.clientX, e.clientY);
     if (!record) return;
     const { tile } = record;
-    setSelectedKey(tileKey(tile.q, tile.r));
+    setSelectedKey(tileKey(tile));
     callbacks.onTileSelect(tile);
     if (getClaimable(tile)) callbacks.onTileClaim(tile);
   };
@@ -592,7 +590,7 @@ export async function createThreeHexMap(
 
     for (const tile of nextMap.tiles) {
       if (tile.biome === 'Ocean') continue;
-      const key = tileKey(tile.q, tile.r);
+      const key = tileKey(tile);
       const record = tileRecords.get(key);
       if (!record) continue;
 
@@ -602,14 +600,7 @@ export async function createThreeHexMap(
 
       if (prevOwner !== tile.controllingCivilizationId) {
         removeMarker(record.overlay);
-        record.overlay = buildOwnerOverlay(
-          tile,
-          record.surface,
-          record.normal,
-          record.tangentX,
-          record.extrude,
-          record.radius,
-        );
+        record.overlay = buildOwnerOverlay(tile, record.surface, record.normal, record.extrude);
       }
 
       if (prevCapital !== tile.isCapital) {
@@ -621,7 +612,7 @@ export async function createThreeHexMap(
 
   return {
     setSelected(tile) {
-      setSelectedKey(tile ? tileKey(tile.q, tile.r) : null);
+      setSelectedKey(tile ? tileKey(tile) : null);
     },
     syncMap,
     zoomBy,

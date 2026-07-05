@@ -219,6 +219,75 @@ Would love to hear what you'd build first at TTS 5.
 
 ---
 
+## Version E — Goldberg planet map (latest ship)
+
+We hit a classic 3D map trap on **From Stone to Ascension** — and fixed it properly.
+
+The first prototype wrapped a flat hex grid onto a sphere. Looked fine at the equator. Near the poles: gaps, warped tiles, fake adjacency. Equirectangular projection is a dead end for a territory game — you can't derive valid spherical topology from lat/lon.
+
+**The fix: Goldberg polyhedron, generated in the backend.**
+
+`TTS.Core` now builds the planet as an icosahedron → subdivision → dual mesh:
+→ mostly hexagons + exactly 12 pentagons (icosahedron vertices)
+→ each tile ships **center**, **normal**, **polygonVertices**, **neighbourIds**
+→ terrain/biomes painted from spherical coordinates; spawn spacing uses graph distance on the real mesh
+
+The frontend doesn't guess topology anymore. It places **rigid prisms** at the coordinates the server sends — align to normal, extrude outward, done. No scaling hexes to hide gaps. No deforming geometry to fill holes.
+
+**What landed this week:**
+🌍 Full-sphere Goldberg mesh — backend-owned, frontend-rendered
+🧱 Uniform tile height — clean Civ-style plate look, biome color only (not elevation)
+🌊 Ocean tiles tessellate the gaps — blue water fills the sphere between land plates
+🗺️ Territory claim uses tile IDs + true spherical neighbours (not axial q/r)
+📊 Command status bar rework — tick clock, stability, match progress in one governor strip
+
+Architecture rule held: **simulation owns the world shape; the client is a view.**
+
+Still async grand-strategy at TTS 4: decision gates, away summary, LLM rivals at TTS 5+, Orleans-hosted matches. Now with a planet you can actually spin.
+
+Open source — `./dev.sh` to run locally:
+
+https://github.com/PiotrZak/From-Stone-to-Ascension
+
+Attach a screenshot of the 3D map for best reach. If you've solved spherical hex maps (or stepped into the same trap) — I'd love to compare notes.
+
+#GameDev #IndieDev #GameDesign #ThreeJS #DotNet #ProceduralGeneration #GrandStrategy #OpenSource #WebGL
+
+---
+
+## Version F — game focus, latest changes (recommended)
+
+**From Stone to Ascension** just got a world you can actually *play on*.
+
+Before: abstract regions on a dashboard. Now: a **3D globe** — spin it, zoom in, click a tile, claim territory next to yours. Forest, desert, plains, coast, ocean — biomes painted across a full planet. Your capital marked. Rivals' borders visible as you expand.
+
+**What's new (player-facing):**
+
+🌍 **Strategic world map** — the match page opens on a rotatable planet, not a flat panel. Drag to spin, scroll to zoom, click neutral land adjacent to your civ to claim it.
+
+🗺️ **Real spherical territory** — tiles connect properly around the whole globe (including poles). No fake flat-map wrapping. What you see is the actual adjacency the sim uses.
+
+🌊 **Oceans fill the map** — blue water between land plates; the world reads as one continuous planet, not a patchwork with holes.
+
+🧱 **Clean plate look** — uniform tile height, Civ-style; biome color tells the story, not exaggerated mountains.
+
+⚖️ **Decision panel beside the map** — crisis gates sit next to the globe at the top of the dashboard: read the briefing, pick A/B/C, watch the world update. Governor strip above shows tick clock, stability, and match progress in one row.
+
+**The governor loop didn't change — it got a face:**
+Log in → away summary → resolve a gate → adjust policy → claim a hex → leave. Still 2–5 minutes. Still async matches over hours or days. Still Information Age start with crime, markets, and tech pressure — now with a map worth checking between ticks.
+
+*"Advancing technology doesn't just make you stronger — it changes what strength means."*
+
+Open source — create a match, invite someone, try to hold your patch of the planet:
+
+https://github.com/PiotrZak/From-Stone-to-Ascension
+
+Best post visual: screen recording of the globe spinning + a territory claim. Feedback welcome.
+
+#GameDev #IndieDev #GrandStrategy #GameDesign #StrategyGames #OpenSource
+
+---
+
 ## Posting tips
 
 | Tip | Detail |

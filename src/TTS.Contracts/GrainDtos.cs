@@ -236,22 +236,36 @@ public sealed record GrainCivDetail(
     [property: Id(9)] string? LastAction);
 
 [GenerateSerializer]
+public sealed record GrainVec3(
+    [property: Id(0)] double X,
+    [property: Id(1)] double Y,
+    [property: Id(2)] double Z);
+
+[GenerateSerializer]
 public sealed record GrainHexTile(
-    [property: Id(0)] int Q,
-    [property: Id(1)] int R,
-    [property: Id(2)] string Biome,
-    [property: Id(3)] double ResourceYield,
-    [property: Id(4)] string? ControllingCivilizationId,
-    [property: Id(5)] bool IsCapital,
-    [property: Id(6)] string? WorldRegionId = null);
+    [property: Id(0)] string Id,
+    [property: Id(1)] string Biome,
+    [property: Id(2)] double ResourceYield,
+    [property: Id(3)] string? ControllingCivilizationId,
+    [property: Id(4)] bool IsCapital,
+    [property: Id(5)] string? WorldRegionId,
+    [property: Id(6)] double CenterX,
+    [property: Id(7)] double CenterY,
+    [property: Id(8)] double CenterZ,
+    [property: Id(9)] double NormalX,
+    [property: Id(10)] double NormalY,
+    [property: Id(11)] double NormalZ,
+    [property: Id(12)] List<GrainVec3> PolygonVertices,
+    [property: Id(13)] List<string> NeighbourIds,
+    [property: Id(14)] bool IsPentagon);
 
 [GenerateSerializer]
 public sealed record GrainHexMap(
-    [property: Id(0)] int Width,
-    [property: Id(1)] int Height,
+    [property: Id(0)] double PlanetRadius,
+    [property: Id(1)] int Frequency,
     [property: Id(2)] int Seed,
     [property: Id(3)] List<GrainHexTile> Tiles,
-    [property: Id(4)] Dictionary<string, string> CapitalHexByCivilizationId);
+    [property: Id(4)] Dictionary<string, string> CapitalTileByCivilizationId);
 
 [GenerateSerializer]
 public sealed record GrainTerritoryClaimResult(

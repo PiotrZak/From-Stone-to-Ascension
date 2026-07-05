@@ -8,28 +8,6 @@ namespace TTS.Tests;
 public class HexMapTests
 {
     [Fact]
-    public void Generator_IsDeterministicForSameSeed()
-    {
-        var options = new HexMapGenerationOptions
-        {
-            Seed = 42,
-            Width = 12,
-            Height = 10,
-            CivilizationCount = 2
-        };
-
-        var first = HexMapGenerator.Generate(options);
-        var second = HexMapGenerator.Generate(options);
-
-        Assert.Equal(first.Tiles.Count, second.Tiles.Count);
-        for (var i = 0; i < first.Tiles.Count; i++)
-        {
-            Assert.Equal(first.Tiles[i].Biome, second.Tiles[i].Biome);
-            Assert.Equal(first.Tiles[i].ResourceYield, second.Tiles[i].ResourceYield);
-        }
-    }
-
-    [Fact]
     public void Bootstrap_AttachesMapAndCapitals()
     {
         var world = SampleWorldFactory.Create(MatchPresets.DevBlitz3m, withDemoGate: false, matchId: "match-test-hex");
@@ -50,21 +28,18 @@ public class HexMapTests
         var territory = new TerritorySystem();
 
         var neutral = world.Map!.Tiles.First(t => t.IsLand && t.ControllingCivilizationId is null);
-        var isolated = territory.TryClaim(world, "civ-player", neutral.Q, neutral.R);
+        var isolated = territory.TryClaim(world, "civ-player", neutral.Id);
         Assert.False(isolated.Success);
 
         var adjacent = world.Map.Tiles.First(t =>
             t.IsLand
             && t.ControllingCivilizationId is null
-            && HexCoordKey.Neighbors(t.Q, t.R).Any(n =>
-            {
-                var tile = world.Map.GetTile(n.Q, n.R);
-                return tile?.ControllingCivilizationId == "civ-player";
-            }));
+            && t.NeighbourIds.Any(nid =>
+                world.Map.GetTile(nid)?.ControllingCivilizationId == "civ-player"));
 
-        var claim = territory.TryClaim(world, "civ-player", adjacent.Q, adjacent.R);
+        var claim = territory.TryClaim(world, "civ-player", adjacent.Id);
         Assert.True(claim.Success);
-        Assert.Equal(adjacent.Key, claim.HexKey);
+        Assert.Equal(adjacent.Id, claim.HexKey);
     }
 
     [Fact]
@@ -82,6 +57,7 @@ public class HexMapTests
             Assert.Equal(
                 host.World.Regions.First(r => r.ControllingCivilizationId == "civ-player").CapitalHexKey,
                 loaded.World.Regions.First(r => r.ControllingCivilizationId == "civ-player").CapitalHexKey);
+            Assert.Equal(host.World.Map.Tiles[0].PolygonVertices.Count, loaded.World.Map.Tiles[0].PolygonVertices.Count);
         }
         finally
         {

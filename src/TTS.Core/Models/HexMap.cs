@@ -41,36 +41,72 @@ public static class HexCoordKey
 
 public sealed class HexTile
 {
-    public int Q { get; }
-    public int R { get; }
+    public string Id { get; }
     public Biome Biome { get; set; }
     public double Elevation { get; set; }
     public double ResourceYield { get; set; }
     public string? ControllingCivilizationId { get; set; }
     public string? RegionId { get; set; }
-    /// <summary>Stylized Earth macro-region (e.g. europe, north-america).</summary>
     public string? WorldRegionId { get; set; }
+    public double CenterX { get; set; }
+    public double CenterY { get; set; }
+    public double CenterZ { get; set; }
+    public double NormalX { get; set; }
+    public double NormalY { get; set; }
+    public double NormalZ { get; set; }
+    public List<(double X, double Y, double Z)> PolygonVertices { get; init; } = [];
+    public List<string> NeighbourIds { get; init; } = [];
+
     public bool IsLand => Biome != Biome.Ocean;
+    public string Key => Id;
+    public bool IsPentagon => PolygonVertices.Count == 5;
 
-    public HexTile(int q, int r) { Q = q; R = r; }
-
-    public string Key => HexCoordKey.Format(Q, R);
+    public HexTile(string id) => Id = id;
 }
 
 public sealed class HexMap
 {
-    public int Width { get; init; }
-    public int Height { get; init; }
+    public double PlanetRadius { get; init; }
+    public int Frequency { get; init; }
     public int Seed { get; init; }
     public List<HexTile> Tiles { get; init; } = [];
 
     private Dictionary<string, HexTile>? _index;
 
-    public HexTile? GetTile(int q, int r)
+    public HexTile? GetTile(string id)
     {
-        _index ??= Tiles.ToDictionary(t => t.Key, StringComparer.Ordinal);
-        return _index.TryGetValue(HexCoordKey.Format(q, r), out var tile) ? tile : null;
+        _index ??= Tiles.ToDictionary(t => t.Id, StringComparer.Ordinal);
+        return _index.TryGetValue(id, out var tile) ? tile : null;
     }
 
-    public void RebuildIndex() => _index = Tiles.ToDictionary(t => t.Key, StringComparer.Ordinal);
+    public void RebuildIndex() => _index = Tiles.ToDictionary(t => t.Id, StringComparer.Ordinal);
+
+    public int GraphDistance(string fromId, string toId)
+    {
+        if (fromId == toId)
+            return 0;
+
+        _index ??= Tiles.ToDictionary(t => t.Id, StringComparer.Ordinal);
+        var queue = new Queue<(string Id, int Dist)>();
+        var visited = new HashSet<string>(StringComparer.Ordinal) { fromId };
+        queue.Enqueue((fromId, 0));
+
+        while (queue.Count > 0)
+        {
+            var (current, dist) = queue.Dequeue();
+            if (!_index.TryGetValue(current, out var tile))
+                continue;
+
+            foreach (var neighbourId in tile.NeighbourIds)
+            {
+                if (neighbourId == toId)
+                    return dist + 1;
+
+                if (visited.Add(neighbourId))
+                    queue.Enqueue((neighbourId, dist + 1));
+            }
+        }
+
+        return int.MaxValue;
+    }
 }
