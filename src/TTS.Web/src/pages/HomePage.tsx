@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { AlertCircle, Check, Copy, Loader2, Swords } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -214,6 +214,9 @@ export function HomePage() {
         <p className="max-w-xl text-sm text-muted-foreground">
           2–5 minute command sessions. Create a match, join with a code, or resume before the next tick.
         </p>
+        <Button variant="outline" size="sm" asChild className="mt-2">
+          <Link to="/trade">China–Africa trade globe</Link>
+        </Button>
       </div>
 
       <Card className={homeCard}>

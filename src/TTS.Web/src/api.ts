@@ -179,6 +179,104 @@ export interface HexMap {
   capitalTileByCivilizationId: Record<string, string>;
 }
 
+export interface TradeHubRouteSummary {
+  counterpartHubId: string;
+  counterpartName: string;
+  direction: string;
+  shipmentCount: number;
+  totalValueUsd: number;
+}
+
+export interface TradeHubStats {
+  hubId: string;
+  outboundShipments: number;
+  inboundShipments: number;
+  outboundValueUsd: number;
+  inboundValueUsd: number;
+  topCommodities: string[];
+  topRoutes: TradeHubRouteSummary[];
+}
+
+export interface TradeCountryStats {
+  countryId: string;
+  displayName: string;
+  shipmentCount: number;
+  totalValueUsd: number;
+  topCommodity: string;
+}
+
+export interface TradeHub {
+  id: string;
+  name: string;
+  countryId: string;
+  latDeg: number;
+  lonDeg: number;
+  tileId: string;
+  centerX: number;
+  centerY: number;
+  centerZ: number;
+  isPort: boolean;
+}
+
+export interface TradeFlow {
+  fromHubId: string;
+  toHubId: string;
+  departurePort: string;
+  arrivalPort: string;
+  importCountry: string;
+  shipmentCount: number;
+  totalValueUsd: number;
+}
+
+export interface TradeGlobe {
+  map: HexMap;
+  countries: TradeCountryStats[];
+  hubs: TradeHub[];
+  flows: TradeFlow[];
+  tradeCountryByTileId: Record<string, string>;
+  maxCountryValueUsd: number;
+  commodities: string[];
+  importCountries: string[];
+  transportModes: string[];
+  activeCountryIds: string[];
+  activeHubIds: string[];
+  hubStats: Record<string, TradeHubStats>;
+  appliedCommodity?: string | null;
+  appliedImportCountry?: string | null;
+  appliedTransportMode?: string | null;
+  filteredShipmentCount: number;
+}
+
+function normalizeTradeGlobe(raw: Partial<TradeGlobe> & Record<string, unknown>): TradeGlobe {
+  return {
+    map: raw.map as TradeGlobe['map'],
+    countries: Array.isArray(raw.countries) ? raw.countries : [],
+    hubs: Array.isArray(raw.hubs) ? raw.hubs : [],
+    flows: Array.isArray(raw.flows) ? raw.flows : [],
+    tradeCountryByTileId:
+      raw.tradeCountryByTileId && typeof raw.tradeCountryByTileId === 'object'
+        ? (raw.tradeCountryByTileId as Record<string, string>)
+        : {},
+    maxCountryValueUsd: typeof raw.maxCountryValueUsd === 'number' ? raw.maxCountryValueUsd : 0,
+    commodities: Array.isArray(raw.commodities) ? raw.commodities : [],
+    importCountries: Array.isArray(raw.importCountries) ? raw.importCountries : [],
+    transportModes: Array.isArray(raw.transportModes) ? raw.transportModes : [],
+    activeCountryIds: Array.isArray(raw.activeCountryIds) ? raw.activeCountryIds : [],
+    activeHubIds: Array.isArray(raw.activeHubIds) ? raw.activeHubIds : [],
+    hubStats:
+      raw.hubStats && typeof raw.hubStats === 'object'
+        ? (raw.hubStats as Record<string, TradeHubStats>)
+        : {},
+    appliedCommodity: typeof raw.appliedCommodity === 'string' ? raw.appliedCommodity : null,
+    appliedImportCountry:
+      typeof raw.appliedImportCountry === 'string' ? raw.appliedImportCountry : null,
+    appliedTransportMode:
+      typeof raw.appliedTransportMode === 'string' ? raw.appliedTransportMode : null,
+    filteredShipmentCount:
+      typeof raw.filteredShipmentCount === 'number' ? raw.filteredShipmentCount : 0,
+  };
+}
+
 export interface ClaimTerritoryResponse {
   success: boolean;
   message: string;
@@ -423,6 +521,21 @@ export const api = {
 
   getHexMap: (matchId: string) =>
     request<HexMap>(`/api/matches/${encodeURIComponent(matchId)}/map`),
+
+  getTradeGlobe: (params?: {
+    commodity?: string;
+    importCountry?: string;
+    transportMode?: string;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params?.commodity) qs.set('commodity', params.commodity);
+    if (params?.importCountry) qs.set('importCountry', params.importCountry);
+    if (params?.transportMode) qs.set('transportMode', params.transportMode);
+    const query = qs.toString();
+    return request<Partial<TradeGlobe> & Record<string, unknown>>(
+      `/api/trade/globe${query ? `?${query}` : ''}`,
+    ).then(normalizeTradeGlobe);
+  },
 
   claimTerritory: (matchId: string, civilizationId: string, tileId: string) =>
     request<ClaimTerritoryResponse>(`/api/matches/${encodeURIComponent(matchId)}/territory/claim`, {

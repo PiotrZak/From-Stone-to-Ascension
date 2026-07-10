@@ -4,6 +4,7 @@ using TTS.Api.Services;
 using TTS.Contracts;
 using TTS.Core.Models;
 using TTS.Core.Simulation;
+using TTS.Core.Systems;
 using TTS.Llm;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -432,6 +433,18 @@ app.MapPost("/api/matches/{matchId}/territory/claim", async (
         Message = result.Message,
         HexKey = result.HexKey
     });
+});
+
+app.MapGet("/api/trade/globe", (string? commodity, string? importCountry, string? transportMode) =>
+{
+    var catalog = TradeDatasetLoader.Load();
+    var filter = new TradeGlobeFilter(commodity, importCountry, transportMode);
+    var dataset = filter.HasAny
+        ? TradeDatasetLoader.Filter(catalog, commodity, importCountry, transportMode)
+        : catalog;
+
+    var model = TradeGlobeBuilder.Build(dataset, filter, catalog);
+    return Results.Ok(TradeGlobeMapping.ToDto(model));
 });
 
 app.Run();

@@ -80,7 +80,10 @@ env "${LLM_ENV[@]}" dotnet run --project "$ROOT/src/TTS.Server" >"$ROOT/.dev-ser
 PIDS+=($!)
 sleep 2
 
-log "Starting API (TTS.Api) on http://localhost:5000"
+log "Building API..."
+dotnet build "$ROOT/src/TTS.Api/TTS.Api.csproj" -v q >/dev/null
+
+log "Starting API (TTS.Api) on http://localhost:5050"
 env "${LLM_ENV[@]}" dotnet run --project "$ROOT/src/TTS.Api" >"$ROOT/.dev-api.log" 2>&1 &
 PIDS+=($!)
 sleep 2
@@ -96,7 +99,7 @@ PIDS+=($!)
 
 log "Stack running:"
 echo "  UI:      http://localhost:5173"
-echo "  API:     http://localhost:5000"
+echo "  API:     http://localhost:5050"
 echo "  Ollama:  http://localhost:11434"
 echo "  Agents:  TTS_LLM_PROVIDER=${TTS_LLM_PROVIDER:-ollama} (turn ${TTS_LLM_MAX_TURN_CALLS_PER_TICK:-4}/tick, advisor ${TTS_LLM_MAX_ADVISOR_CALLS_PER_TICK:-1}/tick)"
 echo "  Logs:    .dev-server.log  .dev-api.log  .dev-web.log  .dev-ollama.log"

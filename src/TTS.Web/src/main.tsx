@@ -5,6 +5,7 @@ import './briefing-tokens.css';
 import './index.css';
 import './match-ui.css';
 import './governor-command.css';
+import './trade-globe.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
