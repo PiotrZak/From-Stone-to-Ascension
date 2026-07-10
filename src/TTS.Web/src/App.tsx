@@ -12,7 +12,13 @@ function AppLayout() {
   const isTrade = location.pathname.startsWith('/trade');
 
   return (
-    <div className={cn('min-h-screen text-foreground', isMatch || isTrade ? 'match-app-bg' : 'home-app-bg')}>
+    <div
+      className={cn(
+        'min-h-screen text-foreground',
+        isTrade && 'h-dvh overflow-hidden',
+        isMatch || isTrade ? 'match-app-bg' : 'home-app-bg',
+      )}
+    >
       {!isMatch && !isTrade && (
         <header className="sticky top-0 z-40 border-b border-border/25 bg-background/70 backdrop-blur-md">
           <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
@@ -39,7 +45,7 @@ function AppLayout() {
       <main
         className={cn(
           isTrade
-            ? 'mx-auto w-full max-w-[1600px] px-3 py-3 sm:px-5'
+            ? 'h-dvh w-full max-w-none overflow-hidden p-0'
             : isMatch
               ? 'mx-auto max-w-[1600px] px-3 py-4 sm:px-5'
               : 'mx-auto max-w-6xl px-4 py-6 sm:px-6',

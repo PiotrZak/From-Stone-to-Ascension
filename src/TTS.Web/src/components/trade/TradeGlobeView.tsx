@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import type { HexTile, TradeGlobe, TradeHub } from '../../api';
 import type { TradeGlobeHandle } from './createTradeGlobe';
+import type { TradeGlobeTheme } from './tradeGlobeTheme';
 import { DEFAULT_HEX_SIZE } from '../hex-map/hexMapModel';
 
 type Props = {
   data: TradeGlobe;
+  theme?: TradeGlobeTheme;
   hexSize?: number;
   selectedTileId: string | null;
   selectedHubId: string | null;
@@ -14,6 +16,7 @@ type Props = {
 
 export function TradeGlobeView({
   data,
+  theme = 'dark',
   hexSize = DEFAULT_HEX_SIZE,
   selectedTileId,
   selectedHubId,
@@ -45,7 +48,7 @@ export function TradeGlobeView({
           onHover: setHover,
           onHubSelect: (hub) => onHubSelectRef.current?.(hub),
           onTileSelect: (tile, tradeCountry) => onTileSelectRef.current?.(tile, tradeCountry),
-        }),
+        }, theme),
       )
       .then((handle) => {
         if (cancelled) handle.destroy();
@@ -66,6 +69,10 @@ export function TradeGlobeView({
   useEffect(() => {
     engineRef.current?.applyData(data);
   }, [data]);
+
+  useEffect(() => {
+    engineRef.current?.setTheme(theme);
+  }, [theme]);
 
   useEffect(() => {
     engineRef.current?.setSelection(selectedTileId, selectedHubId);

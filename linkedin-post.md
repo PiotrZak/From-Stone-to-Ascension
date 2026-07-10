@@ -288,6 +288,49 @@ Best post visual: screen recording of the globe spinning + a territory claim. Fe
 
 ---
 
+## Version G — China–Africa trade globe (recommended)
+
+10,000 shipments. One globe.
+
+China–Africa trade usually lives in spreadsheets and port tables. We mapped it onto an interactive 3D globe — so the geography actually reads.
+
+**What you see**
+→ China as the export anchor; choropleth intensity by declared value
+→ Import markets: Nigeria, Kenya, Tanzania, Ethiopia, Egypt, Ghana, South Africa
+→ Transit corridor through India and the Middle East — Dubai, Mumbai, Colombo — not just a straight line on a flat map
+
+**Explore it**
+→ Filter by commodity (electronics, machinery, textiles, minerals) or transport mode (ship, air, rail, road)
+→ Click a hub — Shanghai, Lagos, Mombasa, Durban — and see inbound vs outbound value, shipment volume, and top trading partners
+→ Flow arcs follow the Indian Ocean corridor (via Dubai or Mumbai) — closer to how much of this trade actually moves
+
+**Under the hood (short)**
+Goldberg polyhedron mesh generated in .NET; React + Three.js renders tiles, ports, and arcs. Filters hit the API — the globe dims inactive routes and countries in real time. Select a port from the list and the camera rotates to bring it front and centre.
+
+Trade isn’t just numbers. It’s who ships to whom, through which ports, along which corridors — and that’s easier to grasp when you can spin the planet.
+
+Dataset: https://lnkd.in/djRjr6GE
+
+#ChinaAfrica #GlobalTrade #SupplyChain #TradeData #Africa #DataVisualization
+
+---
+
+## Version G — shorter (under 1,300 chars)
+
+10,000 shipments. One globe.
+
+China–Africa trade is usually spreadsheets. We put it on a 3D globe — China as export hub, seven African import markets colour-coded by value, 16 ports from Shanghai to Durban.
+
+Filter by commodity or transport mode. Click a port: inbound/outbound value, volumes, top partners. Arcs route through Dubai and Mumbai — the corridor much of this trade uses — not a straight line across the map.
+
+Built on a Goldberg polyhedron (.NET + Three.js). Filters update the globe live; pick a port and the camera rotates to face it.
+
+Dataset: https://lnkd.in/djRjr6GE
+
+#ChinaAfrica #GlobalTrade #SupplyChain #TradeData #Africa #DataVisualization
+
+---
+
 ## Posting tips
 
 | Tip | Detail |

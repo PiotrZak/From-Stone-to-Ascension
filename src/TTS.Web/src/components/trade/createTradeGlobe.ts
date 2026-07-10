@@ -3,6 +3,11 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { HexTile, TradeGlobe, TradeHub, Vec3 } from '../../api';
 import { tileExtrusionHeight, tileKey } from '../hex-map/hexMapModel';
 import { surfacePoint } from '../hex-map/globeProjection';
+import {
+  TRADE_GLOBE_PALETTES,
+  type TradeGlobeTheme,
+  type TradeGlobeThemePalette,
+} from './tradeGlobeTheme';
 
 export type TradeGlobeCallbacks = {
   onHover: (info: string | null) => void;
@@ -13,6 +18,8 @@ export type TradeGlobeCallbacks = {
 export type TradeGlobeHandle = {
   applyData: (data: TradeGlobe) => void;
   setSelection: (tileId: string | null, hubId: string | null) => void;
+  focusOnHub: (hubId: string) => void;
+  setTheme: (theme: TradeGlobeTheme) => void;
   zoomBy: (factor: number) => void;
   fitToView: () => void;
   destroy: () => void;
@@ -42,11 +49,37 @@ const AFRICA_COUNTRIES = new Set([
   'south-africa',
 ]);
 
-const OCEAN_COLOR = new THREE.Color(0x0c4a6e);
-const LAND_FALLBACK = new THREE.Color(0x334155);
-const INACTIVE_LAND = new THREE.Color(0x1e293b);
 const INITIAL_VIEW_ZOOM = 0.92;
 const DEFAULT_LOOK_DIR = new THREE.Vector3(0.25, 0.35, 1).normalize();
+const HUB_FOCUS_MS = 900;
+
+type FocusAnimation = {
+  startDir: THREE.Vector3;
+  endDir: THREE.Vector3;
+  distance: number;
+  startTime: number;
+  duration: number;
+};
+
+function easeOutCubic(t: number): number {
+  return 1 - (1 - t) ** 3;
+}
+
+function slerpUnitVectors(
+  from: THREE.Vector3,
+  to: THREE.Vector3,
+  t: number,
+  target = new THREE.Vector3(),
+): THREE.Vector3 {
+  const qFrom = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), from);
+  const qTo = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), to);
+  qFrom.slerp(qTo, t);
+  return target.set(0, 0, 1).applyQuaternion(qFrom);
+}
+
+function hubDirection(hub: TradeHub): THREE.Vector3 {
+  return new THREE.Vector3(hub.centerX, hub.centerY, hub.centerZ).normalize();
+}
 
 type TileRecord = {
   tile: HexTile;
@@ -176,24 +209,29 @@ function hasActiveFilters(data: TradeGlobe): boolean {
 }
 
 function tileColor(
+  palette: TradeGlobeThemePalette,
   tradeCountry: string | undefined,
   intensity: number,
   active: boolean,
   filtered: boolean,
   isOcean: boolean,
 ): THREE.Color {
-  if (isOcean) return OCEAN_COLOR.clone();
-  if (!tradeCountry) return LAND_FALLBACK.clone();
+  if (isOcean) return new THREE.Color(palette.ocean);
+  if (!tradeCountry) return new THREE.Color(palette.landFallback);
 
   const base = new THREE.Color(COUNTRY_COLORS[tradeCountry] ?? '#64748b');
   if (filtered && !active) {
-    return INACTIVE_LAND.clone().lerp(base, 0.12);
+    return new THREE.Color(palette.inactiveLand).lerp(base, 0.12);
   }
   if (CORRIDOR_COUNTRIES.has(tradeCountry)) {
-    base.lerp(new THREE.Color(0xffffff), filtered && active ? 0.04 : 0.08);
+    const whiteMix = palette.light ? (filtered && active ? 0.02 : 0.04) : filtered && active ? 0.04 : 0.08;
+    base.lerp(new THREE.Color(0xffffff), whiteMix);
     return base;
   }
-  base.lerp(new THREE.Color(0xffffff), 0.15 + (1 - intensity) * 0.35);
+  const whiteMix = palette.light
+    ? 0.04 + (1 - intensity) * 0.1
+    : 0.15 + (1 - intensity) * 0.35;
+  base.lerp(new THREE.Color(0xffffff), whiteMix);
   return base;
 }
 
@@ -238,16 +276,19 @@ export async function createTradeGlobe(
   data: TradeGlobe,
   hexSize: number,
   callbacks: TradeGlobeCallbacks,
+  initialTheme: TradeGlobeTheme = 'dark',
 ): Promise<TradeGlobeHandle> {
   await waitForHostSize(host);
 
   const map = data.map;
   const planetRadius = map.planetRadius > 0 ? map.planetRadius : 100;
   const tileHeight = tileExtrusionHeight(hexSize);
+  let currentTheme = initialTheme;
+  let palette = TRADE_GLOBE_PALETTES[currentTheme];
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0a1e32);
-  scene.fog = new THREE.Fog(0x0a1e32, planetRadius * 2, planetRadius * 5.5);
+  scene.background = new THREE.Color(palette.sceneBg);
+  scene.fog = new THREE.Fog(palette.fog, planetRadius * 2, planetRadius * 5.5);
 
   const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 5000);
   const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -256,8 +297,9 @@ export async function createTradeGlobe(
   renderer.domElement.classList.add('trade-globe-canvas');
   host.appendChild(renderer.domElement);
 
-  scene.add(new THREE.AmbientLight(0xc8d8f0, 0.78));
-  const sun = new THREE.DirectionalLight(0xfff8ee, 1.45);
+  const ambientLight = new THREE.AmbientLight(palette.ambient, palette.ambientIntensity);
+  scene.add(ambientLight);
+  const sun = new THREE.DirectionalLight(palette.sun, palette.sunIntensity);
   sun.position.set(planetRadius * 1.8, planetRadius * 1.2, -planetRadius);
   scene.add(sun);
 
@@ -270,9 +312,13 @@ export async function createTradeGlobe(
   globeRoot.add(hubGroup);
   scene.add(globeRoot);
 
+  const oceanMaterial = new THREE.MeshStandardMaterial({
+    color: palette.ocean,
+    roughness: 0.88,
+  });
   const oceanShell = new THREE.Mesh(
     new THREE.SphereGeometry(planetRadius * 0.985, 72, 48),
-    new THREE.MeshStandardMaterial({ color: OCEAN_COLOR, roughness: 0.88 }),
+    oceanMaterial,
   );
   terrain.add(oceanShell);
 
@@ -290,7 +336,7 @@ export async function createTradeGlobe(
     const tradeCountry = data.tradeCountryByTileId[tile.id];
     const isOcean = tile.biome === 'Ocean';
     const material = new THREE.MeshStandardMaterial({
-      color: OCEAN_COLOR,
+      color: palette.ocean,
       roughness: isOcean ? 0.78 : 0.62,
       flatShading: true,
       transparent: !isOcean,
@@ -345,13 +391,20 @@ export async function createTradeGlobe(
         stats && liveData.maxCountryValueUsd > 0
           ? stats.totalValueUsd / liveData.maxCountryValueUsd
           : 0;
-      material.color.copy(tileColor(tradeCountry, intensity, active, filtered, isOcean));
-      material.opacity = filtered && tradeCountry && !active ? 0.45 : 1;
+      material.color.copy(
+        tileColor(palette, tradeCountry, intensity, active, filtered, isOcean),
+      );
+      material.roughness = isOcean ? (palette.light ? 0.82 : 0.78) : palette.light ? 0.7 : 0.62;
+      material.opacity = filtered && tradeCountry && !active ? (palette.light ? 0.55 : 0.45) : 1;
       if (selected) {
-        material.emissive.setHex(0x4cd7f6);
+        material.emissive.setHex(palette.selection);
         material.emissiveIntensity = 0.85;
       } else {
-        material.emissive.setHex(filtered && active && stats && stats.totalValueUsd > 0 ? 0x0a1520 : 0x000000);
+        material.emissive.setHex(
+          filtered && active && stats && stats.totalValueUsd > 0
+            ? palette.tileEmissiveActive
+            : 0x000000,
+        );
         material.emissiveIntensity = filtered && active && stats && stats.totalValueUsd > 0 ? 0.35 : 0;
       }
     }
@@ -388,7 +441,9 @@ export async function createTradeGlobe(
       const lift = tileHeight + planetRadius * 0.02;
       const points = flowArcPoints(from, to, hubById, planetRadius, lift);
       const geo = new THREE.BufferGeometry().setFromPoints(points);
-      const opacity = 0.3 + (flow.totalValueUsd / maxFlow) * 0.6;
+      const opacity = palette.light
+        ? 0.45 + (flow.totalValueUsd / maxFlow) * 0.5
+        : 0.3 + (flow.totalValueUsd / maxFlow) * 0.6;
       const line = new THREE.Line(
         geo,
         new THREE.LineBasicMaterial({
@@ -411,20 +466,16 @@ export async function createTradeGlobe(
       const active = activeHubs.has(hub.id);
       const selected = selectedHubId === hub.id;
       const base = new THREE.Color(COUNTRY_COLORS[hub.countryId] ?? '#ffffff');
-      material.color.copy(filtered && !active ? INACTIVE_LAND.clone().lerp(base, 0.25) : base);
+      material.color.copy(
+        filtered && !active
+          ? new THREE.Color(palette.inactiveLand).lerp(base, 0.25)
+          : base,
+      );
       material.opacity = filtered && !active ? 0.25 : 1;
-      material.emissive.setHex(selected ? 0x4cd7f6 : 0x222222);
-      material.emissiveIntensity = selected ? 0.9 : filtered && active ? 0.65 : 0.35;
+      material.emissive.setHex(selected ? palette.selection : palette.hubEmissive);
+      material.emissiveIntensity = selected ? 0.9 : filtered && active ? (palette.light ? 0.75 : 0.65) : palette.light ? 0.45 : 0.35;
       mesh.scale.setScalar(selected ? 1.45 : 1);
     }
-  };
-
-  const setSelection = (tileId: string | null, hubId: string | null) => {
-    selectedTileId = tileId;
-    selectedHubId = hubId;
-    syncTiles();
-    syncHubs();
-    syncFlowHighlight();
   };
 
   const applyData = (next: TradeGlobe) => {
@@ -438,6 +489,26 @@ export async function createTradeGlobe(
     rebuildFlows();
   };
 
+  const setTheme = (next: TradeGlobeTheme) => {
+    if (next === currentTheme) return;
+    currentTheme = next;
+    palette = TRADE_GLOBE_PALETTES[next];
+    scene.background = new THREE.Color(palette.sceneBg);
+    scene.fog!.color.setHex(palette.fog);
+    oceanMaterial.color.setHex(palette.ocean);
+    ambientLight.color.setHex(palette.ambient);
+    ambientLight.intensity = palette.ambientIntensity;
+    sun.color.setHex(palette.sun);
+    sun.intensity = palette.sunIntensity;
+    if (scene.fog instanceof THREE.Fog) {
+      scene.fog.near = palette.light ? planetRadius * 2.8 : planetRadius * 2;
+      scene.fog.far = palette.light ? planetRadius * 6.5 : planetRadius * 5.5;
+    }
+    syncTiles();
+    syncHubs();
+    rebuildFlows();
+  };
+
   applyData(data);
 
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -446,6 +517,40 @@ export async function createTradeGlobe(
   controls.screenSpacePanning = false;
   controls.minDistance = planetRadius * 0.5;
   controls.maxDistance = planetRadius * 4.2;
+
+  let focusAnim: FocusAnimation | null = null;
+  controls.addEventListener('start', () => {
+    focusAnim = null;
+  });
+
+  const focusOnHub = (hubId: string) => {
+    const hub = hubById[hubId];
+    if (!hub) return;
+
+    const target = controls.target;
+    const distance = Math.max(camera.position.distanceTo(target), controls.minDistance);
+    const startDir = camera.position.clone().sub(target).normalize();
+    const endDir = hubDirection(hub);
+    if (startDir.dot(endDir) > 0.995) return;
+
+    focusAnim = {
+      startDir,
+      endDir,
+      distance,
+      startTime: performance.now(),
+      duration: HUB_FOCUS_MS,
+    };
+  };
+
+  const setSelection = (tileId: string | null, hubId: string | null) => {
+    const hubChanged = hubId !== selectedHubId;
+    selectedTileId = tileId;
+    selectedHubId = hubId;
+    syncTiles();
+    syncHubs();
+    syncFlowHighlight();
+    if (hubId && hubChanged) focusOnHub(hubId);
+  };
 
   const fitToView = () => {
     frameGlobe(camera, controls, globeRoot);
@@ -551,8 +656,16 @@ export async function createTradeGlobe(
   renderer.domElement.addEventListener('click', onClick);
 
   let frameId = 0;
+  const focusDir = new THREE.Vector3();
   const animate = () => {
     frameId = requestAnimationFrame(animate);
+    if (focusAnim) {
+      const elapsed = performance.now() - focusAnim.startTime;
+      const t = easeOutCubic(Math.min(1, elapsed / focusAnim.duration));
+      slerpUnitVectors(focusAnim.startDir, focusAnim.endDir, t, focusDir);
+      camera.position.copy(controls.target).add(focusDir.multiplyScalar(focusAnim.distance));
+      if (t >= 1) focusAnim = null;
+    }
     controls.update();
     renderer.render(scene, camera);
   };
@@ -574,6 +687,8 @@ export async function createTradeGlobe(
   return {
     applyData,
     setSelection,
+    focusOnHub,
+    setTheme,
     zoomBy(factor: number) {
       const offset = camera.position.clone().sub(controls.target);
       offset.multiplyScalar(1 / factor);
