@@ -10,6 +10,7 @@
   <ItemGroup>
     <None Include="..\data\state_crime_income_merged.csv" Link="Data\state_crime_income_merged.csv" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\data\china_africa_trade_dataset.csv" Link="Data\china_africa_trade_dataset.csv" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\data\satelites.csv" Link="Data\satelites.csv" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\data\tech\catalog.json" Link="Data\tech\catalog.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

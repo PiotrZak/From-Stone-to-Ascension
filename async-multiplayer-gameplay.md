@@ -7,6 +7,7 @@
 **Related:**
 - [README.md](README.md) — core game design
 - [match-modes.md](match-modes.md) — **8h / 24h / 36h / 48h presets** + [match lifecycle diagrams](match-modes.md#7-match-lifecycle)
+- [rts-mode.md](rts-mode.md) — speculative real-time strategy variant (not default)
 - [llm-deployment.md](llm-deployment.md) — Ollama vs cloud for internet MP + cost
 - [company-sim.md](company-sim.md) — separate procurement / company sim (Supply Ascent)
 - [orleans-integration.md](orleans-integration.md) — distributed server hosting

@@ -214,9 +214,14 @@ export function HomePage() {
         <p className="max-w-xl text-sm text-muted-foreground">
           2–5 minute command sessions. Create a match, join with a code, or resume before the next tick.
         </p>
-        <Button variant="outline" size="sm" asChild className="mt-2">
-          <Link to="/trade">China–Africa trade globe</Link>
-        </Button>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/trade">China–Africa trade globe</Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/satellites">Satellite globe</Link>
+          </Button>
+        </div>
       </div>
 
       <Card className={homeCard}>

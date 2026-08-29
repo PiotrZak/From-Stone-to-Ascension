@@ -277,6 +277,103 @@ function normalizeTradeGlobe(raw: Partial<TradeGlobe> & Record<string, unknown>)
   };
 }
 
+export interface SatelliteBody {
+  id: string;
+  name: string;
+  constellationId: string;
+  altitudeFactor: number;
+  inclinationRad: number;
+  phaseRad: number;
+  angularSpeed: number;
+  role: string;
+  operator: string;
+  country: string;
+  users: string;
+  purpose: string;
+  orbitClass: string;
+  orbitType: string;
+  perigeeKm: number;
+  apogeeKm: number;
+  inclinationDeg: number;
+  periodMinutes: number;
+  launchDate: string;
+  launchSite: string;
+  noradNumber: string;
+}
+
+export interface SatelliteGroundStation {
+  id: string;
+  name: string;
+  region: string;
+  constellationId: string;
+  tileId: string;
+  latDeg: number;
+  lonDeg: number;
+  centerX: number;
+  centerY: number;
+  centerZ: number;
+  launchCount: number;
+}
+
+export interface SatelliteConstellation {
+  id: string;
+  name: string;
+  domain: string;
+  color: string;
+  summary: string;
+  satelliteCount: number;
+  averageCoverage: number;
+  groundStationCount: number;
+}
+
+export interface SatelliteGlobe {
+  map: HexMap;
+  constellations: SatelliteConstellation[];
+  availableConstellations: SatelliteConstellation[];
+  satellites: SatelliteBody[];
+  groundStations: SatelliteGroundStation[];
+  coverageByTileId: Record<string, number>;
+  maxCoverage: number;
+  orbitClasses: string[];
+  countries: string[];
+  totalSatelliteCount: number;
+  visibleSatelliteCount: number;
+  appliedPurposeGroupId?: string | null;
+  appliedOrbitClass?: string | null;
+  appliedCountry?: string | null;
+}
+
+function normalizeSatelliteGlobe(
+  raw: Partial<SatelliteGlobe> & Record<string, unknown>,
+): SatelliteGlobe {
+  return {
+    map: raw.map as SatelliteGlobe['map'],
+    constellations: Array.isArray(raw.constellations) ? raw.constellations : [],
+    availableConstellations: Array.isArray(raw.availableConstellations)
+      ? raw.availableConstellations
+      : Array.isArray(raw.constellations)
+        ? raw.constellations
+        : [],
+    satellites: Array.isArray(raw.satellites) ? raw.satellites : [],
+    groundStations: Array.isArray(raw.groundStations) ? raw.groundStations : [],
+    coverageByTileId:
+      raw.coverageByTileId && typeof raw.coverageByTileId === 'object'
+        ? (raw.coverageByTileId as Record<string, number>)
+        : {},
+    maxCoverage: typeof raw.maxCoverage === 'number' ? raw.maxCoverage : 0,
+    orbitClasses: Array.isArray(raw.orbitClasses) ? raw.orbitClasses : [],
+    countries: Array.isArray(raw.countries) ? raw.countries : [],
+    totalSatelliteCount:
+      typeof raw.totalSatelliteCount === 'number' ? raw.totalSatelliteCount : 0,
+    visibleSatelliteCount:
+      typeof raw.visibleSatelliteCount === 'number' ? raw.visibleSatelliteCount : 0,
+    appliedPurposeGroupId:
+      typeof raw.appliedPurposeGroupId === 'string' ? raw.appliedPurposeGroupId : null,
+    appliedOrbitClass: typeof raw.appliedOrbitClass === 'string' ? raw.appliedOrbitClass : null,
+    appliedCountry: typeof raw.appliedCountry === 'string' ? raw.appliedCountry : null,
+  };
+}
+
 export interface ClaimTerritoryResponse {
   success: boolean;
   message: string;
@@ -535,6 +632,21 @@ export const api = {
     return request<Partial<TradeGlobe> & Record<string, unknown>>(
       `/api/trade/globe${query ? `?${query}` : ''}`,
     ).then(normalizeTradeGlobe);
+  },
+
+  getSatelliteGlobe: (params?: {
+    purpose?: string;
+    orbitClass?: string;
+    country?: string;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params?.purpose) qs.set('purpose', params.purpose);
+    if (params?.orbitClass) qs.set('orbitClass', params.orbitClass);
+    if (params?.country) qs.set('country', params.country);
+    const query = qs.toString();
+    return request<Partial<SatelliteGlobe> & Record<string, unknown>>(
+      `/api/satellites/globe${query ? `?${query}` : ''}`,
+    ).then(normalizeSatelliteGlobe);
   },
 
   claimTerritory: (matchId: string, civilizationId: string, tileId: string) =>

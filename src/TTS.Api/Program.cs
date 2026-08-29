@@ -447,4 +447,15 @@ app.MapGet("/api/trade/globe", (string? commodity, string? importCountry, string
     return Results.Ok(TradeGlobeMapping.ToDto(model));
 });
 
+app.MapGet("/api/satellites/globe", (string? purpose, string? orbitClass, string? country) =>
+{
+    var catalog = SatelliteDatasetLoader.Load();
+    var filter = new SatelliteGlobeFilter(purpose, orbitClass, country);
+    var dataset = filter.HasAny
+        ? SatelliteDatasetLoader.Filter(catalog, purpose, orbitClass, country)
+        : catalog;
+    var model = SatelliteGlobeBuilder.Build(dataset, filter, catalog);
+    return Results.Ok(SatelliteGlobeMapping.ToDto(model));
+});
+
 app.Run();

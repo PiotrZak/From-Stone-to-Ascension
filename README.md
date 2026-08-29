@@ -145,6 +145,7 @@ dotnet run --project src/TTS.Agents -- list    # Ollama scenarios
 | [tech-trees-by-tier.md](tech-trees-by-tier.md) | Per-tier tech branches |
 | [crime-data.md](crime-data.md) | TTS 4 crime/income data |
 | [async-multiplayer-gameplay.md](async-multiplayer-gameplay.md) | Async MP concept |
+| [rts-mode.md](rts-mode.md) | Speculative real-time strategy variant |
 | [v2/](v2/) | Agent integration notes, next iterations |
 
 ---

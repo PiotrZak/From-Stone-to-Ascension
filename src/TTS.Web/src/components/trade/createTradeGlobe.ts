@@ -660,8 +660,8 @@ export async function createTradeGlobe(
   const animate = () => {
     frameId = requestAnimationFrame(animate);
     if (focusAnim) {
-      const elapsed = performance.now() - focusAnim.startTime;
-      const t = easeOutCubic(Math.min(1, elapsed / focusAnim.duration));
+      const animElapsed = performance.now() - focusAnim.startTime;
+      const t = easeOutCubic(Math.min(1, animElapsed / focusAnim.duration));
       slerpUnitVectors(focusAnim.startDir, focusAnim.endDir, t, focusDir);
       camera.position.copy(controls.target).add(focusDir.multiplyScalar(focusAnim.distance));
       if (t >= 1) focusAnim = null;

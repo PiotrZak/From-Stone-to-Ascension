@@ -6,6 +6,7 @@ import './index.css';
 import './match-ui.css';
 import './governor-command.css';
 import './trade-globe.css';
+import './live-sandbox.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
